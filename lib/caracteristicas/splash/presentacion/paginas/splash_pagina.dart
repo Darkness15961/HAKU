@@ -1,7 +1,7 @@
+// lib/caracteristicas/splash/presentacion/paginas/splash_pagina.dart
 import 'package:flutter/material.dart';
-import '../../../navegacion/presentacion/paginas/navegacion_principal.dart';
+import 'package:go_router/go_router.dart'; // <-- 1. IMPORTANTE: Importar Go_Router
 
-/// SplashPagina mejorada (sin blur, con overlay degradado).
 class SplashPagina extends StatefulWidget {
   const SplashPagina({super.key});
 
@@ -9,70 +9,46 @@ class SplashPagina extends StatefulWidget {
   State<SplashPagina> createState() => _SplashPaginaState();
 }
 
-class _SplashPaginaState extends State<SplashPagina>
-    with SingleTickerProviderStateMixin {
-  // ---------- CONFIGURACIÓN (ajústalo si quieres) ----------
-  static const String assetFondo = 'assets/logo.webp'; // fondo (ajusta ruta)
-  static const String assetLogo = 'assets/log.png'; // logo (ajusta ruta)
+class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderStateMixin {
+  static const String assetFondo = 'assets/logo.webp';
+  static const String assetLogo = 'assets/log.png';
   static const String titulo = 'Xplora Cusco';
-  static const String subtitulo =
-      'Descubre el Valle Sagrado y rutas únicas.'; // cambiado grosor abajo
+  static const String subtitulo = 'Descubre el Valle Sagrado y rutas únicas.';
   static const String botonTexto = 'Comenzar';
-  static const String copyright = '© 2025 Xplora Cusco';
-  static const int animDurMs = 1400; // duración anim principal (ms)
-  // ----------------------------------------------------
 
-  late final AnimationController _controller;
-  late final Animation<double> _logoScale;
-  late final Animation<double> _fadeText;
-  late final Animation<Offset> _slideText;
-
+  late final AnimationController _ctrl;
+  late final Animation<double> _scaleAnim;
+  late final Animation<double> _fadeAnim;
   bool _mostrarBoton = false;
 
   @override
   void initState() {
     super.initState();
 
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: animDurMs),
-    );
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    _scaleAnim = Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    _fadeAnim  = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
 
-    // Scale del logo: 0.92 -> 1.0 con overshoot sutil
-    _logoScale = Tween<double>(begin: 0.92, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
-    );
+    _ctrl.forward();
 
-    // Fade para textos
-    _fadeText = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.35, 1.0, curve: Curves.easeIn),
-    );
-
-    // Slide para subtítulo (desde abajo)
-    _slideText = Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-
-    // Inicia animaciones
-    _controller.forward();
-
-    // Mostrar botón luego de la animación principal
-    Future.delayed(Duration(milliseconds: animDurMs + 200), () {
+    // Mostrar botón poco después de terminar la animación principal
+    Future.delayed(const Duration(milliseconds: 950), () {
       if (mounted) setState(() => _mostrarBoton = true);
     });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
   void _irAlInicio() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const NavegacionPrincipal()),
-    );
+    // 2. CAMBIO CLAVE: Usamos Go_Router para navegar por la ruta
+    // que definimos en app_rutas.dart.
+    if (mounted) {
+      context.pushReplacement('/navegacion');
+    }
   }
 
   @override
@@ -83,134 +59,86 @@ class _SplashPaginaState extends State<SplashPagina>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ---------- Fondo (imagen) ----------
+          // Fondo
           Image.asset(
             assetFondo,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(color: Colors.black87),
           ),
 
-          // ---------- Overlay degradado (sin blur) ----------
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color.fromRGBO(0, 0, 0, 0.35), // superior (sutil)
-                    Color.fromRGBO(0, 0, 0, 0.6), // inferior (más oscuro)
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+          // Overlay degradado para contraste
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color.fromRGBO(0, 0, 0, 0.28),
+                  Color.fromRGBO(0, 0, 0, 0.62),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
             ),
           ),
 
-          // ---------- Contenido central animado ----------
+          // Contenido centrado (logo + textos + botón)
           Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
+              padding: const EdgeInsets.symmetric(horizontal: 28.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Logo con escala animada
                   ScaleTransition(
-                    scale: _logoScale,
-                    child: Semantics(
-                      label: 'Logo Xplora Cusco',
+                    scale: _scaleAnim,
+                    child: FadeTransition(
+                      opacity: _fadeAnim,
                       child: Image.asset(
                         assetLogo,
-                        height: 140,
-                        errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.explore, size: 140, color: Colors.white),
+                        height: 120,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.explore, size: 120, color: Colors.white),
                       ),
                     ),
                   ),
 
                   const SizedBox(height: 18),
 
-                  // Título (aparece con fade)
                   FadeTransition(
-                    opacity: _fadeText,
+                    opacity: _fadeAnim,
                     child: Text(
                       titulo,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 30,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 1.0,
                       ),
                     ),
                   ),
 
                   const SizedBox(height: 8),
 
-                  // Subtítulo (slide + fade) - ahora un poco más grueso
-                  SlideTransition(
-                    position: _slideText,
-                    child: FadeTransition(
-                      opacity: _fadeText,
-                      child: Text(
-                        subtitulo,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600, // <- un poco más grueso
-                        ),
-                      ),
+                  FadeTransition(
+                    opacity: _fadeAnim,
+                    child: Text(
+                      subtitulo,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                   ),
 
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 30),
 
-                  // Botón principal (aparece con fade)
                   AnimatedOpacity(
                     opacity: _mostrarBoton ? 1 : 0,
-                    duration: const Duration(milliseconds: 500),
-                    child: Semantics(
-                      button: true,
-                      label: 'Comenzar al menú principal',
-                      child: ElevatedButton(
-                        onPressed: _mostrarBoton ? _irAlInicio : null,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 44, vertical: 14),
-                          elevation: 10,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.black87,
-                        ).copyWith(
-                          backgroundColor:
-                          MaterialStateProperty.all(Colors.transparent),
-                          elevation: MaterialStateProperty.all(10),
-                        ),
-                        child: Ink(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                colorPrimario,
-                                colorPrimario.withOpacity(0.85),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Container(
-                            alignment: Alignment.center,
-                            constraints: const BoxConstraints(
-                                minWidth: 160, minHeight: 44),
-                            child: Text(
-                              botonTexto,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ),
+                    duration: const Duration(milliseconds: 300),
+                    child: ElevatedButton(
+                      onPressed: _mostrarBoton ? _irAlInicio : null,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 6,
+                        backgroundColor: colorPrimario,
                       ),
+                      child: Text(botonTexto, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
@@ -218,20 +146,12 @@ class _SplashPaginaState extends State<SplashPagina>
             ),
           ),
 
-          // ---------- Pie / copyright ----------
+          // Pie pequeño
           Positioned(
-            bottom: 18,
+            bottom: 16,
             left: 0,
             right: 0,
-            child: Center(
-              child: Text(
-                copyright,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
-                  fontSize: 12,
-                ),
-              ),
-            ),
+            child: Center(child: Text('© Xplora Cusco', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12))),
           ),
         ],
       ),

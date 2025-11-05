@@ -1,8 +1,24 @@
+// --- NAVEGACION PRINCIPAL (BottomNavigationBar) ---
+//
+// Esta es la versión 100% FINAL de tu app.
+// ¡Hemos reemplazado el último "placeholder"
+// por la "MapaPagina" real!
+
 import 'package:flutter/material.dart';
-import '../../../inicio/presentacion/paginas/inicio_pagina.dart';
-import '../../../rutas/presentacion/paginas/rutas_pagina.dart';
-import '../../../mapa/presentacion/paginas/mapa_pagina.dart';
-import '../../../perfil/presentacion/paginas/perfil_pagina.dart';
+
+// --- IMPORTACIONES DE PESTAÑAS ---
+// 1. Importamos la pestaña 1 (Inicio)
+import 'package:xplore_cusco/caracteristicas/inicio/presentacion/paginas/inicio_pagina.dart';
+// 2. Importamos la pestaña 2 (Rutas)
+import 'package:xplore_cusco/caracteristicas/rutas/presentacion/paginas/rutas_pagina.dart';
+// 3. Importamos la pestaña 4 (Perfil)
+import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/perfil_pagina.dart';
+
+// --- ¡NUEVA IMPORTACIÓN! (Paso 4 - Bloque 5) ---
+// 4. Importamos la pestaña 3 (Mapa)
+//    (Este es el archivo de diseño que tienes en el Canvas)
+import 'package:xplore_cusco/caracteristicas/mapa/presentacion/paginas/mapa_pagina.dart';
+// --- FIN DE LA IMPORTACIÓN ---
 
 class NavegacionPrincipal extends StatefulWidget {
   const NavegacionPrincipal({super.key});
@@ -12,33 +28,67 @@ class NavegacionPrincipal extends StatefulWidget {
 }
 
 class _NavegacionPrincipalState extends State<NavegacionPrincipal> {
-  int _indice = 0;
+  int _indiceSeleccionado = 0;
 
-  final List<Widget> _paginas = const [
-    InicioPagina(),
-    RutasPagina(),
-    MapaPagina(),
-    PerfilPagina(),
+  // --- ¡ARREGLO! (Paso 4 - Bloque 5) ---
+  //
+  // Reemplazamos el "placeholder" de Mapa
+  // con el "Menú" (pantalla) real que creamos.
+  static final List<Widget> _paginas = <Widget>[
+    // 1. INICIO (Ya está lista)
+    const InicioPagina(),
+
+    // 2. RUTAS (Ya está lista)
+    const RutasPagina(),
+
+    // 3. MAPA (¡Ahora es la página real!)
+    const MapaPagina(),
+
+    // 4. PERFIL (Ya está lista)
+    const PerfilPagina(),
   ];
+  // --- FIN DEL ARREGLO ---
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _indiceSeleccionado = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colorPrimario = Theme.of(context).colorScheme.primary;
-    final colorInactivo = Theme.of(context).colorScheme.onSurface.withOpacity(0.6);
-
     return Scaffold(
-      body: _paginas[_indice],
+      // Usamos IndexedStack para mantener el estado de las páginas
+      // (así no se recargan cada vez que cambias de pestaña)
+      body: IndexedStack(
+        index: _indiceSeleccionado,
+        children: _paginas,
+      ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _indice,
-        selectedItemColor: colorPrimario,
-        unselectedItemColor: colorInactivo,
-        onTap: (index) => setState(() => _indice = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.route), label: 'Rutas'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Inicio',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.route),
+            label: 'Rutas',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map),
+            label: 'Mapa',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
         ],
+        currentIndex: _indiceSeleccionado,
+        selectedItemColor: Theme.of(context).primaryColor, // Color del tema
+        unselectedItemColor: Colors.grey, // Color inactivo
+        backgroundColor: Colors.white,
+        type: BottomNavigationBarType.fixed, // Muestra todos los labels
+        onTap: _onItemTapped,
       ),
     );
   }
