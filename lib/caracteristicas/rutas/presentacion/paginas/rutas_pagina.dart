@@ -1,7 +1,7 @@
-// --- PIEDRA 7 (RUTAS): EL "MENÚ" DE RUTAS (SOLUCIÓN ASÍNCRONA) ---
+// --- PIEDRA 7 (RUTAS): EL "MENÚ" DE RUTAS (SOLUCIÓN MEDIADORA) ---
 //
-// Usamos el estado de 'estaCargando' del AuthVM en el build
-// para forzar la espera y garantizar que el RutasVM reciba el rol correcto.
+// La Vista (Página) ahora es la "mediadora".
+// En initState, toma el AuthVM y se lo pasa al RutasVM.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -21,54 +21,31 @@ class RutasPagina extends StatefulWidget {
 }
 
 class _RutasPaginaState extends State<RutasPagina> {
-  // Flag para asegurar que cargarDatosIniciales solo se llame una vez
-  bool _primeraCargaEjecutada = false;
 
   @override
   void initState() {
     super.initState();
-    // Ya no disparamos la carga aquí de forma asíncrona.
-    // Usaremos el build para hacer la espera.
+    // --- LÓGICA DE CARGA MEDIADORA ---
+    Future.microtask(() {
+      // 1. Obtenemos los dos VMs (sin escuchar)
+      final vmAuth = context.read<AutenticacionVM>();
+      final vmRutas = context.read<RutasVM>();
+
+      // 2. Le pasamos el AuthVM al RutasVM para que se "despierte"
+      vmRutas.cargarDatosIniciales(vmAuth);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     // Escuchamos a los dos ViewModels
     final vmRutas = context.watch<RutasVM>();
-    final vmAuth = context.watch<AutenticacionVM>();
+    final vmAuth = context.watch<AutenticacionVM>(); // Aún lo necesitamos para los botones
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
-    // --- ¡SOLUCIÓN FINAL DE ESPERA! ---
-    // 1. Si AuthVM está cargando (verificando sesión), mostramos un indicador global.
-    if (vmAuth.estaCargando) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Verificando sesión...', style: TextStyle(fontSize: 16)),
-          ],
-        ),
-      );
-    }
-
-    // 2. Si AuthVM terminó y la bandera _primeraCargaEjecutada es false,
-    //    le damos la orden de carga al RutasVM AHORA.
-    if (!_primeraCargaEjecutada) {
-      // Usamos Future.microtask solo para evitar un error de "setState"
-      // al llamar un método del VM que notifica en el build.
-      Future.microtask(() {
-        context.read<RutasVM>().cargarDatosIniciales();
-        // Marcamos que la orden ya fue dada
-        setState(() {
-          _primeraCargaEjecutada = true;
-        });
-      });
-      // Mientras esperamos que el VM cargue, mostramos el indicador de rutas
-      return const Center(child: CircularProgressIndicator());
-    }
-    // --- FIN SOLUCIÓN FINAL ---
+    // --- LÓGICA DE BUILD SIMPLE ---
+    // La página solo confía en el estado de RutasVM.
+    // RutasVM es responsable de manejar la espera de AuthVM.
 
     return Scaffold(
       appBar: AppBar(toolbarHeight: 0),
@@ -78,6 +55,7 @@ class _RutasPaginaState extends State<RutasPagina> {
           _buildTabs(context, vmRutas, vmAuth),
           _buildDifficultyChips(context, vmRutas),
           Expanded(
+            // Simplemente reaccionamos al estado de RutasVM.
             child: vmRutas.estaCargando
                 ? const Center(child: CircularProgressIndicator())
                 : vmRutas.error != null
@@ -91,6 +69,7 @@ class _RutasPaginaState extends State<RutasPagina> {
               ),
             )
                 : AnimationLimiter(
+              // (El resto del ListView.builder queda igual)
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16.0, vertical: 8.0),
@@ -117,6 +96,9 @@ class _RutasPaginaState extends State<RutasPagina> {
   }
 
   // --- WIDGETS AUXILIARES (Sin cambios) ---
+  // (Pega aquí tus _buildHeader, _buildTabs,
+  // _buildDifficultyChips, _buildRouteCard, _buildInfoIcon)
+
   Widget _buildHeader(
       BuildContext context, AutenticacionVM vmAuth, Color colorPrimario) {
     // (Lógica de roles corregida)

@@ -1,33 +1,36 @@
-// --- PIEDRA 5 (RUTAS): EL "MESERO DE RUTAS" (SIMPLE Y FUNCIONAL) ---
+// --- PIEDRA 5 (RUTAS): EL "MESERO DE RUTAS" (VERSIÓN COMPLETA Y CORREGIDA) ---
 //
-// Revertimos a la versión simple sin banderas.
-// La lógica de espera se traslada a la Vista (rutas_pagina.dart).
+// Esta versión es 100% completa.
+// 1. Incluye TODOS los imports necesarios.
+// 2. Tiene el constructor vacío RutasVM() para coincidir con main.dart.
+// 3. Tiene la lógica de carga correcta en cargarDatosIniciales()
+//    para arreglar el bug de "sigue cargando".
 
 import 'package:flutter/material.dart';
-
-// (Importaciones)
-import '../../dominio/repositorios/rutas_repositorio.dart';
-import '../../dominio/entidades/ruta.dart';
-import '../../../../locator.dart';
+import '../../dominio/repositorios/rutas_repositorio.dart'; // <-- Import necesario
+import '../../dominio/entidades/ruta.dart'; // <-- Import necesario
+import '../../../../locator.dart'; // <-- Import necesario
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 
 class RutasVM extends ChangeNotifier {
   // --- A. DEPENDENCIAS ---
   late final RutasRepositorio _repositorio;
-  final AutenticacionVM? _authVM;
+  AutenticacionVM? _authVM;
 
   // --- B. ESTADO DE LA UI ---
   bool _estaCargando = false;
   List<Ruta> _rutas = [];
-  String _pestanaActual = 'Recomendadas'; // (Sin eñe)
-  String _dificultadActual = 'Todos'; // (Sin eñe)
+  String _pestanaActual = 'Recomendadas';
+  String _dificultadActual = 'Todos';
   String? _error;
+  bool _cargaInicialRealizada = false;
 
   // --- C. GETTERS ---
   bool get estaCargando => _estaCargando;
   String get pestanaActual => _pestanaActual;
   String get dificultadActual => _dificultadActual;
   String? get error => _error;
+  bool get cargaInicialRealizada => _cargaInicialRealizada;
 
   List<Ruta> get rutasFiltradas {
     if (_dificultadActual == 'Todos') {
@@ -40,45 +43,69 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  // --- D. CONSTRUCTOR ---
-  // El "Mesero" es "perezoso" (lazy).
-  RutasVM(this._authVM) {
+  // --- D. CONSTRUCTOR (¡SÚPER LIMPIO!) ---
+  // Coincide con el create: (context) => RutasVM() de main.dart
+  RutasVM() {
     _repositorio = getIt<RutasRepositorio>();
-    // "Escuchamos" al "Mesero de Seguridad"
-    _authVM?.addListener(_actualizarPestanaPorRol);
+    // Constructor 100% limpio.
   }
 
-  // ¡MÉTODO DE CARGA INICIAL (Simple)!
-  // Solo ejecuta la lógica de rol y carga.
-  void cargarDatosIniciales() {
+  // --- E. MÉTODO DE CARGA INICIAL (RECIBE EL AUTH_VM) ---
+  // La página (rutas_pagina.dart) llamará a este método
+  void cargarDatosIniciales(AutenticacionVM authVM) {
+    if (_cargaInicialRealizada) return;
+    _authVM = authVM;
+
+    // Verificamos si AuthVM está ocupado
+    if (_authVM?.estaCargando ?? false) {
+      // ¡NO ponemos _estaCargando = true aquí!
+      // Solo esperamos a que AuthVM termine.
+      _authVM?.addListener(_onAuthReadyParaRutas);
+      return;
+    }
+
+    // Si AuthVM no está ocupado (Anónimo), iniciamos.
+    _iniciarCargaLogica();
+  }
+
+  // Listener temporal que se llama CUANDO AuthVM termina
+  void _onAuthReadyParaRutas() {
+    _iniciarCargaLogica();
+    _authVM?.removeListener(_onAuthReadyParaRutas);
+  }
+
+  // Método privado para la lógica de carga real
+  void _iniciarCargaLogica() {
+    // 1. Nos suscribimos al listener permanente
+    _authVM?.addListener(_actualizarPestanaPorRol);
+    // 2. Ejecutamos la carga por primera vez
     _actualizarPestanaPorRol();
   }
-
-  // --- E. MÉTODOS (Las "Órdenes") ---
 
   // Método de Lógica de Roles
   void _actualizarPestanaPorRol() {
     final rol = _authVM?.usuarioActual?.rol;
-    // Chequeo robusto para Anónimo
     final esAnonimo = !(_authVM?.estaLogueado ?? false);
 
     if (_pestanaActual == 'Creadas por mí' && rol != 'guia_aprobado' && rol != 'admin') {
       _pestanaActual = 'Recomendadas';
     }
-    // Si la pestaña actual era "Guardadas" y el usuario ya no está logueado, vamos a Recomendadas
     if (_pestanaActual == 'Guardadas' && esAnonimo) {
       _pestanaActual = 'Recomendadas';
     }
 
-    // (Llamamos a cargarRutas(), que SÍ está bien aquí)
-    cargarRutas();
+    // Ahora que el _estaCargando de RutasVM no está
+    // atascado en 'true', este 'if' SÍ funcionará.
+    if (!_estaCargando) {
+      cargarRutas();
+    }
   }
 
   // ORDEN 1: "Cargar las rutas"
   Future<void> cargarRutas() async {
     _estaCargando = true;
     _error = null;
-    Future.microtask(() => notifyListeners()); // Avisamos (de forma segura)
+    Future.microtask(() => notifyListeners());
 
     try {
       String tipoFiltro = 'recomendadas';
@@ -89,16 +116,24 @@ class RutasVM extends ChangeNotifier {
       }
 
       _rutas = await _repositorio.obtenerRutas(tipoFiltro);
-      _estaCargando = false;
-      notifyListeners();
     } catch (e) {
-      _estaCargando = false;
       _error = e.toString();
+    } finally {
+      _estaCargando = false;
+      _cargaInicialRealizada = true;
       notifyListeners();
     }
   }
 
-  // ... (El resto de métodos quedan igual) ...
+  // --- F. LIMPIEZA DE LISTENERS ---
+  @override
+  void dispose() {
+    _authVM?.removeListener(_actualizarPestanaPorRol);
+    _authVM?.removeListener(_onAuthReadyParaRutas);
+    super.dispose();
+  }
+
+  // --- G. MÉTODOS DE ACCIÓN (Sin cambios) ---
   void cambiarPestana(String nuevaPestana) {
     if (nuevaPestana == _pestanaActual) return;
     _pestanaActual = nuevaPestana;
@@ -142,7 +177,7 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  Future<bool> crearRuta(Map<String, dynamic> datosRuta) async {
+  Future<void> crearRuta(Map<String, dynamic> datosRuta) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
@@ -152,12 +187,13 @@ class RutasVM extends ChangeNotifier {
       _estaCargando = false;
       notifyListeners();
       await cargarRutas();
-      return true;
     } catch (e) {
       _estaCargando = false;
       _error = e.toString();
       notifyListeners();
-      return false;
     }
   }
 }
+
+
+

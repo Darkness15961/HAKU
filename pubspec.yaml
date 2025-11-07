@@ -1,51 +1,53 @@
-  name: xplore_cusco
-  description: "Turismo en Cusco."
-  publish_to: 'none'
+name: xplore_cusco
+description: "Turismo en Cusco."
+publish_to: 'none'
 
-  version: 1.0.0+1
+version: 1.0.0+1
 
-  environment:
-    sdk: ^3.9.2
+environment:
+  sdk: ^3.9.2
 
-  dependencies:
-    flutter:
-      sdk: flutter
-
-
-    flutter_native_splash: ^2.4.0   # herramienta para personalizar el splash nativo
-    provider: ^6.1.1
-    dio: ^5.4.0
-    flutter_secure_storage: ^9.0.0
-    google_maps_flutter: ^2.7.0
-    intl: ^0.19.0
-    cupertino_icons: ^1.0.8
-    go_router: ^14.0.1
-    get_it: ^8.0.0
-    shared_preferences: ^2.3.3
-    lottie: ^3.1.0
-    flutter_staggered_animations: ^1.0.0
-
-
-  dev_dependencies:
-    flutter_test:
-      sdk: flutter
-    flutter_lints: ^5.0.0
-
+dependencies:
   flutter:
-    uses-material-design: true
+    sdk: flutter
 
-    assets:
-      - assets/logo.webp
-      - assets/xplora_cusco_logo.png
-      - assets/log.png
+  flutter_native_splash: ^2.4.0
+  provider: ^6.1.1
+  dio: ^5.4.0
+  flutter_secure_storage: ^9.0.0
+  google_maps_flutter: ^2.5.0  # <-- Se queda esta
+  intl: ^0.19.0
+  cupertino_icons: ^1.0.8
+  go_router: ^14.0.1
+  get_it: ^8.0.0
+  shared_preferences: ^2.3.3
+  lottie: ^3.1.0
+  flutter_staggered_animations: ^1.0.0
 
-  # Configuración del splash nativo (ajústala si quieres)
-  flutter_native_splash:
-    color: "#121212"              # fondo del splash nativo (azul aventura)
+  # GEOLOCALIZACIÓN Y MAPAS
+  # google_maps_flutter: ^2.5.0  <-- SE ELIMINÓ ESTA (DUPLICADA)
+  geolocator: ^11.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/logo.webp
+    - assets/xplora_cusco_logo.png
+    - assets/log.png
+
+# Configuración del splash nativo (ajústala si quieres)
+flutter_native_splash:
+  color: "#121212"
+  image: assets/xplora_cusco_logo.png
+  android: true
+  ios: true
+  android_12:
     image: assets/xplora_cusco_logo.png
-    android: true
-    ios: true
-    android_12:
-      image: assets/xplora_cusco_logo.png
-      icon_background_color: "#121212"         # escala relativa del logo en pantalla Android (0.1..0.4 típico)
-    ios_content_mode: center
+    icon_background_color: "#121212"
+  ios_content_mode: center
