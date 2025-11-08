@@ -1,29 +1,19 @@
-// --- PIEDRA 9 (RUTAS): EL "MENÚ" DE DETALLE DE RUTA ---
+// --- PIEDRA 9 (RUTAS): EL "MENÚ" DE DETALLE DE RUTA (CONECTADO AL 100%) ---
 //
-// Esta es la pantalla que muestra el detalle de una Ruta.
-//
-// Está basada 100% en tu "molde" de diseño
-// (SliverAppBar, grilla de info, itinerario, etc.)
-//
-// Se conecta a DOS "Meseros":
-// 1. "RutasVM" (para dar las "órdenes" de inscribirse o salir)
-// 2. "AutenticacionVM" (para saber si el usuario está logueado)
+// 1. Los botones AHORA llaman a los métodos correctos del RutasVM
+//    (que a su vez llaman al AuthVM).
+// 2. El estado (si está inscrito o favorito) se LEE
+//    directamente del "Cerebro" (AuthVM).
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 // --- MVVM: IMPORTACIONES ---
-// 1. Importamos el "Mesero de Rutas"
 import '../vista_modelos/rutas_vm.dart';
-// 2. Importamos el "Mesero de Seguridad"
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
-// 3. Importamos la "Receta" (Entidad)
 import '../../dominio/entidades/ruta.dart';
 
-// 1. El "Edificio" (La Pantalla)
-//    Recibe la "Receta" Ruta completa,
-//    tal como lo definimos en nuestro "GPS" (app_rutas.dart).
 class DetalleRutaPagina extends StatelessWidget {
   final Ruta ruta;
 
@@ -33,15 +23,9 @@ class DetalleRutaPagina extends StatelessWidget {
   });
 
   // --- Lógica de Seguridad (Bloqueo Suave) ---
-  //
-  // Esta es la misma función "Guardia" que usamos en el Menú 1.
-  // Revisa si el usuario está logueado ANTES de hacer una acción.
   bool _checkAndRedirect(BuildContext context, String action) {
-    // "context.read" (leer) es para dar una orden o leer un estado
-    // una sola vez. No "escucha" cambios.
     final authVM = context.read<AutenticacionVM>();
     if (!authVM.estaLogueado) {
-      // Si no está logueado, muestra el Modal de Invitación
       _showLoginRequiredModal(context, action);
       return false; // BLOQUEADO
     }
@@ -49,29 +33,31 @@ class DetalleRutaPagina extends StatelessWidget {
   }
 
   // --- Lógica de Acciones (Conectadas al "Mesero") ---
-  //
-  // Esta es la lógica de tu botón "Registrarse/Salir"
-  // (Basado en tu función _handleRegistration)
+
+  // --- ¡MÉTODO CORREGIDO! ---
+  // El handler del botón "Inscribirse/Salir"
   void _handleRegistration(BuildContext context) {
-    // 1. Primero, llamamos al "Guardia"
+    // 1. Llamamos al "Guardia"
     if (!_checkAndRedirect(context, 'inscribirte en esta ruta')) {
-      return; // Si es anónimo, el Modal aparece y la función se detiene.
+      return;
     }
 
-    // 2. Si el "Guardia" da permiso (está logueado)...
-    //    ...leemos el "Mesero de Rutas"
-    final vmRutas = context.read<RutasVM>();
+    // 2. Si el "Guardia" da permiso...
+    //    ...leemos el "Cerebro" (AuthVM) para saber el estado
+    // --- ¡CONECTADO! Leemos del Cerebro, no de 'ruta' ---
+    final vmAuth = context.read<AutenticacionVM>();
+    final estaInscrito = vmAuth.rutasInscritasIds.contains(ruta.id);
 
-    // 3. Revisamos el estado de la ruta (de la "Receta")
-    if (ruta.estaInscrito) {
-      // 4. SÍ ESTÁ INSCRITO: Le damos la "ORDEN 5" al "Mesero"
-      vmRutas.salirDeRuta(ruta.id);
+    // 3. Le damos la "orden" al "Mesero de Rutas" (RutasVM)
+    if (estaInscrito) {
+      // 4. SÍ ESTÁ INSCRITO: Le damos la "ORDEN"
+      context.read<RutasVM>().salirDeRuta(ruta.id);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Has cancelado tu registro (Simulado)')),
       );
     } else {
-      // 5. NO ESTÁ INSCRITO: Le damos la "ORDEN 4" al "Mesero"
-      vmRutas.inscribirseEnRuta(ruta.id);
+      // 5. NO ESTÁ INSCRITO: Le damos la "ORDEN"
+      context.read<RutasVM>().inscribirseEnRuta(ruta.id);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('¡Registro a la ruta exitoso! (Simulado)'),
@@ -83,11 +69,15 @@ class DetalleRutaPagina extends StatelessWidget {
   // --- Construcción del "Menú" (UI) ---
   @override
   Widget build(BuildContext context) {
-    // --- MVVM: Conexión con los "Meseros" ---
     // "Escuchamos" (watch) a AMBOS "Meseros"
-    final vmRutas = context.watch<RutasVM>();
-    final vmAuth = context.watch<AutenticacionVM>();
+    // final vmRutas = context.watch<RutasVM>(); // No necesitamos escuchar a RutasVM
+    final vmAuth = context.watch<AutenticacionVM>(); // ¡El Cerebro!
     final colorPrimario = Theme.of(context).colorScheme.primary;
+
+    // --- ¡LECTURA DE ESTADO DESDE EL CEREBRO! ---
+    final bool esFavorita = vmAuth.rutasFavoritasIds.contains(ruta.id);
+    final bool estaInscrito = vmAuth.rutasInscritasIds.contains(ruta.id);
+    // --- FIN DE LECTURA DE ESTADO ---
 
     return Scaffold(
       body: CustomScrollView(
@@ -101,18 +91,17 @@ class DetalleRutaPagina extends StatelessWidget {
             actions: [
               IconButton(
                   onPressed: () {
-                    // --- MVVM: ORDEN AL "MESERO" ---
                     // 1. Verificamos si está logueado
                     if (_checkAndRedirect(context, 'guardar esta ruta')) {
-                      // 2. Si SÍ, le damos la "ORDEN 6"
+                      // 2. Si SÍ, le damos la "ORDEN" al RutasVM
+                      // (RutasVM llamará al Cerebro AuthVM)
                       context.read<RutasVM>().toggleFavoritoRuta(ruta.id);
                     }
                   },
-                  // --- MVVM: LECTURA DE ESTADO ---
-                  // Leemos el estado de la "Receta"
+                  // --- ¡CONECTADO AL CEREBRO! ---
                   icon: Icon(
-                    ruta.esFavorita ? Icons.favorite : Icons.favorite_border,
-                    color: ruta.esFavorita ? Colors.red : Colors.white,
+                    esFavorita ? Icons.favorite : Icons.favorite_border,
+                    color: esFavorita ? Colors.red : Colors.white,
                   )),
               IconButton(
                   onPressed: () {
@@ -123,7 +112,6 @@ class DetalleRutaPagina extends StatelessWidget {
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: false,
               titlePadding: const EdgeInsets.only(left: 16, bottom: 20),
-              // Usamos los datos de nuestra "Receta" (Ruta)
               title: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,7 +124,8 @@ class DetalleRutaPagina extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  _buildRouteMetrics(ruta), // Tu widget de métricas
+                  // ¡Le pasamos el estado 'estaInscrito' del Cerebro!
+                  _buildRouteMetrics(ruta, estaInscrito: estaInscrito),
                 ],
               ),
               background: Image.network(
@@ -144,7 +133,6 @@ class DetalleRutaPagina extends StatelessWidget {
                 fit: BoxFit.cover,
                 color: Colors.black.withOpacity(0.4),
                 colorBlendMode: BlendMode.darken,
-                // (El "fallback amigable" que te gustó)
                 errorBuilder: (context, error, stackTrace) => Container(
                   color: colorPrimario.withOpacity(0.1),
                   child: Center(
@@ -160,7 +148,8 @@ class DetalleRutaPagina extends StatelessWidget {
             delegate: SliverChildListDelegate(
               [
                 // --- Bloque 1: Info Clave (Precio y Cupos) ---
-                _buildPriceAndCapacityCard(context, ruta),
+                // ¡Le pasamos el estado 'estaInscrito' del Cerebro!
+                _buildPriceAndCapacityCard(context, ruta, estaInscrito: estaInscrito),
 
                 // --- Bloque 2: Perfil del Guía ---
                 _buildGuideProfile(context, ruta),
@@ -170,7 +159,6 @@ class DetalleRutaPagina extends StatelessWidget {
                 Padding(
                   padding:
                   const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  // Usamos la descripción de la "Receta"
                   child: Text(ruta.descripcion,
                       style: const TextStyle(fontSize: 15, color: Colors.black87)),
                 ),
@@ -179,9 +167,6 @@ class DetalleRutaPagina extends StatelessWidget {
                 _buildSectionTitle('Itinerario y Lugares Incluidos'),
                 _buildRouteStopsList(ruta.lugaresIncluidos),
 
-                // (Omitimos la sección de Comentarios por ahora,
-                // como hablamos, para no mezclar lógicas)
-
                 const SizedBox(height: 120), // Espacio para el botón inferior
               ],
             ),
@@ -189,28 +174,38 @@ class DetalleRutaPagina extends StatelessWidget {
         ],
       ),
       // --- 3. Botón Inferior (Tu diseño) ---
-      // (Conectado a nuestra lógica MVVM)
       bottomNavigationBar:
-      _buildRegisterButton(context, vmRutas, vmAuth, ruta),
+      // ¡Le pasamos el estado 'estaInscrito' del Cerebro!
+      _buildRegisterButton(context, vmAuth, ruta, estaInscrito: estaInscrito),
     );
   }
 
-  // --- WIDGETS AUXILIARES (¡Tu diseño, adaptado a MVVM!) ---
+  // --- WIDGETS AUXILIARES (CONECTADOS AL CEREBRO) ---
 
-  // (Tu widget de métricas, conectado a la "Receta" Ruta)
-  Widget _buildRouteMetrics(Ruta ruta) {
+  // ¡Ahora recibe 'estaInscrito' del Cerebro!
+  Widget _buildRouteMetrics(Ruta ruta, {required bool estaInscrito}) {
     Color difficultyColor = ruta.dificultad == 'facil'
         ? Colors.green
         : ruta.dificultad == 'dificil'
         ? Colors.red
         : Colors.orange;
 
+    // Actualizamos el conteo de inscritos localmente si el usuario se inscribe
+    int inscritosCount = ruta.inscritosCount;
+    // Comparamos el estado "nuevo" (del Cerebro) con el "viejo" (del Mock)
+    if (estaInscrito && !ruta.estaInscrito) {
+      inscritosCount++;
+    } else if (!estaInscrito && ruta.estaInscrito) {
+      inscritosCount--;
+    }
+
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Chip(
-          // Usamos los datos de la "Receta"
-          label: Text('${ruta.inscritosCount} / ${ruta.cupos} Cupos',
+          // ¡Usa el conteo actualizado!
+          label: Text('$inscritosCount / ${ruta.cupos} Cupos',
               style: const TextStyle(fontSize: 12, color: Colors.white)),
           backgroundColor: Colors.black.withOpacity(0.5),
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
@@ -234,10 +229,18 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // (Tu grilla de info, conectada a la "Receta" Ruta)
-  Widget _buildPriceAndCapacityCard(BuildContext context, Ruta ruta) {
-    // Calculamos los cupos (de la "Receta")
-    final int availableSpots = ruta.cupos - ruta.inscritosCount;
+  // ¡Ahora recibe 'estaInscrito' del Cerebro!
+  Widget _buildPriceAndCapacityCard(BuildContext context, Ruta ruta, {required bool estaInscrito}) {
+
+    // (Misma lógica de conteo actualizado)
+    int inscritosCount = ruta.inscritosCount;
+    if (estaInscrito && !ruta.estaInscrito) {
+      inscritosCount++;
+    } else if (!estaInscrito && ruta.estaInscrito) {
+      inscritosCount--;
+    }
+
+    final int availableSpots = ruta.cupos - inscritosCount;
     final bool isRouteFull = availableSpots <= 0;
 
     return Card(
@@ -252,10 +255,8 @@ class DetalleRutaPagina extends StatelessWidget {
             // Costo
             Column(
               children: [
-                // (Usamos el ícono "amigable" que te gustó)
                 const Icon(Icons.local_atm, color: Colors.green, size: 30),
                 const SizedBox(height: 4),
-                // Usamos el precio de la "Receta"
                 Text('S/ ${ruta.precio.toStringAsFixed(2)}',
                     style: const TextStyle(
                         fontSize: 18,
@@ -271,6 +272,7 @@ class DetalleRutaPagina extends StatelessWidget {
                 Icon(Icons.group,
                     color: isRouteFull ? Colors.red : Colors.indigo, size: 30),
                 const SizedBox(height: 4),
+                // ¡Usa el conteo actualizado!
                 Text('$availableSpots',
                     style: TextStyle(
                         fontSize: 18,
@@ -286,13 +288,12 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // (Tu perfil de guía, conectado a la "Receta" Ruta)
+  // (El perfil de guía y los títulos no cambian)
   Widget _buildGuideProfile(BuildContext context, Ruta ruta) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: ListTile(
         leading: CircleAvatar(
-          // Usamos la foto del guía de la "Receta"
           backgroundImage: NetworkImage(ruta.guiaFotoUrl),
         ),
         title: Text('Organizado por: ${ruta.guiaNombre}',
@@ -301,7 +302,6 @@ class DetalleRutaPagina extends StatelessWidget {
         const Text('Guía Oficial Certificado', style: TextStyle(color: Colors.green)),
         trailing: const Icon(Icons.arrow_forward_ios, size: 18),
         onTap: () {
-          // TODO: Navegar al perfil público del Guía
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Navegando a Perfil del Guía...')),
           );
@@ -310,7 +310,6 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // (Tu título de sección)
   Widget _buildSectionTitle(String title) {
     return Padding(
         padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 10.0),
@@ -318,7 +317,6 @@ class DetalleRutaPagina extends StatelessWidget {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)));
   }
 
-  // (Tu itinerario, ADAPTADO a nuestra "Receta" simple)
   Widget _buildRouteStopsList(List<String> lugaresIncluidos) {
     if (lugaresIncluidos.isEmpty) return const SizedBox.shrink();
 
@@ -326,14 +324,12 @@ class DetalleRutaPagina extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
         children: List.generate(lugaresIncluidos.length, (index) {
-          // Leemos el nombre del lugar de la "Receta"
           final lugarNombre = lugaresIncluidos[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // La línea de tiempo de tu diseño
                 Column(
                   children: [
                     CircleAvatar(
@@ -348,7 +344,6 @@ class DetalleRutaPagina extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(width: 16),
-                // El nombre del lugar (de nuestra "Receta")
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 4.0),
@@ -365,54 +360,53 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // (Tu botón inferior, CONECTADO a los "Meseros")
+  // --- ¡WIDGET DEL BOTÓN INFERIOR CONECTADO AL CEREBRO! ---
   Widget _buildRegisterButton(
       BuildContext context,
-      RutasVM vmRutas,
       AutenticacionVM vmAuth,
-      Ruta ruta,
-      ) {
-    // --- ¡LÓGICA MVVM! ---
-    //
-    // Leemos el estado de nuestros "Meseros" y "Recetas"
-    // para decidir qué botón mostrar.
-    // (Esta es la lógica de tu diseño,
-    // pero conectada a nuestra arquitectura).
+      Ruta ruta, {
+        required bool estaInscrito, // ¡Recibe el estado del Cerebro!
+      }) {
 
-    // Leemos de la "Receta"
-    final bool isTouristRegistered = ruta.estaInscrito;
-    final bool isRouteFull = (ruta.cupos - ruta.inscritosCount) <= 0;
+    // (La lógica de cupos sigue siendo local)
+    int inscritosCount = ruta.inscritosCount;
+    if (estaInscrito && !ruta.estaInscrito) {
+      inscritosCount++;
+    } else if (!estaInscrito && ruta.estaInscrito) {
+      inscritosCount--;
+    }
+    final bool isRouteFull = (ruta.cupos - inscritosCount) <= 0;
+
     // Leemos del "Mesero de Seguridad"
     final bool isUserLoggedIn = vmAuth.estaLogueado;
 
     String buttonText;
     Color buttonColor;
-    VoidCallback? onPressed; // "null" deshabilita el botón
+    VoidCallback? onPressed;
 
-    if (isTouristRegistered) {
-      // Flujo 1: Ya está registrado
+    // --- ¡LÓGICA DE ESTADO BASADA EN EL CEREBRO! ---
+    if (estaInscrito) {
+      // Flujo 1: Ya está registrado (según el Cerebro)
       buttonText = 'SALIR DE LA RUTA';
       buttonColor = Colors.red;
-      // Le damos la "orden" a nuestra función de manejo
       onPressed = () => _handleRegistration(context);
     } else if (isRouteFull) {
       // Flujo 2: Cupos Llenos
       buttonText = 'RUTA LLENA (SIN CUPOS)';
       buttonColor = Colors.grey;
-      onPressed = null; // Botón deshabilitado
+      onPressed = null;
     } else if (!isUserLoggedIn) {
       // Flujo 3: Anónimo (Requiere Login)
       buttonText = 'INICIA SESIÓN PARA UNIRTE';
       buttonColor = Colors.orange;
-      // Le damos la "orden" a nuestra función de manejo
       onPressed = () => _handleRegistration(context);
     } else {
       // Flujo 4: Disponible y Logueado
       buttonText = 'REGISTRARSE (S/ ${ruta.precio.toStringAsFixed(2)})';
       buttonColor = Colors.indigo;
-      // Le damos la "orden" a nuestra función de manejo
       onPressed = () => _handleRegistration(context);
     }
+    // --- FIN DE LA LÓGICA DE ESTADO ---
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -423,9 +417,9 @@ class DetalleRutaPagina extends StatelessWidget {
         ],
       ),
       child: ElevatedButton.icon(
-        // "onPressed" es "null" si está deshabilitado
         onPressed: onPressed,
-        icon: Icon(isTouristRegistered ? Icons.close : Icons.how_to_reg,
+        // ¡Icono conectado al Cerebro!
+        icon: Icon(estaInscrito ? Icons.close : Icons.how_to_reg,
             color: Colors.white),
         label: Text(buttonText,
             style: const TextStyle(
@@ -433,7 +427,7 @@ class DetalleRutaPagina extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           minimumSize: const Size.fromHeight(50),
           backgroundColor: buttonColor,
-          disabledBackgroundColor: Colors.grey.shade400, // Color si está deshab.
+          disabledBackgroundColor: Colors.grey.shade400,
           shape:
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           elevation: 5,
@@ -443,7 +437,6 @@ class DetalleRutaPagina extends StatelessWidget {
   }
 
   // --- WIDGET AUXILIAR: MODAL DE INVITACIÓN ---
-  // (Este es el "Bloqueo Suave" que te da una buena experiencia)
   void _showLoginRequiredModal(BuildContext context, String action) {
     final colorPrimario = Theme.of(context).colorScheme.primary;
     showDialog(

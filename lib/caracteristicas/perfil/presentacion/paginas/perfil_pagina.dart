@@ -1,42 +1,39 @@
-// --- PIEDRA 1 (BLOQUE 4): EL "MENÚ" 4 (PERFIL) ---
+// --- PIEDRA 7 (PERFIL): EL "MENÚ" DE PERFIL (CORREGIDO CON BOTONES) ---
 //
-// Esta es la versión ACTUALIZADA.
-// El botón "Solicitar ser Guía" ahora
-// SÍ navega a la pantalla del formulario.
+// 1. Mantiene tu lógica de Anónimo vs. Logueado.
+// 2. ¡CORREGIDO! Ya no muestra las listas aquí.
+// 3. Muestra BOTONES (como tú querías) para "Mis Favoritos" y "Mis Rutas".
+// 4. Activa el 'onTap' de esos botones para navegar a nuevas páginas.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-// 1. Importamos el "Mesero de Seguridad" (AuthVM)
+// --- MVVM: IMPORTACIONES ---
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
+// ¡Necesitamos RutasVM solo para el botón de "Mis Rutas Creadas"!
+import '../../../rutas/presentacion/vista_modelos/rutas_vm.dart';
+
 
 class PerfilPagina extends StatelessWidget {
   const PerfilPagina({super.key});
 
   // --- Lógica de Acciones ---
-
-  // Función para "Cerrar Sesión"
   Future<void> _cerrarSesion(BuildContext context) async {
-    // Le damos la "ORDEN 4" al "Mesero de Seguridad"
     await context.read<AutenticacionVM>().cerrarSesion();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Sesión cerrada con éxito.'),
-        duration: Duration(seconds: 1),
-      ),
-    );
   }
 
   // --- Construcción del "Menú" (UI) ---
   @override
   Widget build(BuildContext context) {
-    // "Escuchamos" (watch) al "Mesero" (AuthVM)
+    // "Escuchamos" (watch) SOLAMENTE al "Cerebro" y a RutasVM (para el botón de Guía)
     final vmAuth = context.watch<AutenticacionVM>();
+    final vmRutas = context.watch<RutasVM>(); // Para el botón de "Creadas por mí"
+
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
     // Si el "Mesero" está "cargando"
+    // Ahora solo dependemos de AuthVM, la carga es más rápida.
     if (vmAuth.estaCargando) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -49,9 +46,10 @@ class PerfilPagina extends StatelessWidget {
         title: const Text('Mi Perfil'),
         backgroundColor: colorPrimario,
         elevation: 0,
+        foregroundColor: Colors.white,
       ),
       body: vmAuth.estaLogueado
-          ? _buildPerfilLogueado(context, vmAuth, colorPrimario) // Vista 1: Logueado
+          ? _buildPerfilLogueado(context, vmAuth, vmRutas, colorPrimario) // Vista 1: Logueado
           : _buildPerfilNoLogueado(context, colorPrimario), // Vista 2: Anónimo
     );
   }
@@ -60,9 +58,15 @@ class PerfilPagina extends StatelessWidget {
 
   // --- VISTA 1: El Perfil del Usuario LOGUEADO ---
   Widget _buildPerfilLogueado(
-      BuildContext context, AutenticacionVM vmAuth, Color colorPrimario) {
+      BuildContext context,
+      AutenticacionVM vmAuth,
+      RutasVM vmRutas, // <-- Añadido
+      Color colorPrimario
+      ) {
     final usuario = vmAuth.usuarioActual!;
     final textTheme = Theme.of(context).textTheme;
+
+    // (La lógica de filtrado ya no se hace aquí, se hará en las nuevas páginas)
 
     // Lógica para mostrar el rol de forma amigable
     String rolDisplay;
@@ -80,6 +84,10 @@ class PerfilPagina extends StatelessWidget {
         rolDisplay = 'Guía (Solicitud Pendiente 🟡)';
         rolColor = Colors.orange.shade700;
         break;
+      case 'guia_rechazado':
+        rolDisplay = 'Guía (Solicitud Rechazada 🔴)';
+        rolColor = Colors.red.shade700;
+        break;
       default: // 'turista'
         rolDisplay = 'Turista 👤';
         rolColor = Colors.blueGrey.shade600;
@@ -87,6 +95,7 @@ class PerfilPagina extends StatelessWidget {
 
     return SingleChildScrollView(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // --- HEADER (Foto, Nombre, Rol) ---
           Container(
@@ -126,27 +135,35 @@ class PerfilPagina extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // --- OPCIONES DE GESTIÓN (Tu Diseño) ---
+          // --- ¡SECCIÓN CORREGIDA: Botones de Listas! ---
+          _buildTituloSeccion('Mi Actividad'),
           _buildOpcion(
             context: context,
-            icon: Icons.favorite_border,
+            icon: Icons.favorite, // Icono lleno
             titulo: 'Mis Lugares Favoritos',
-            subtitulo: 'Ver lugares que has guardado',
+            subtitulo: 'Ver los lugares que guardaste',
+            color: Colors.red.shade700,
             onTap: () {
-              // TODO: context.push('/mis-favoritos')
+              // ¡BOTÓN ACTIVADO!
+              context.push('/mis-favoritos');
             },
           ),
           _buildOpcion(
             context: context,
-            icon: Icons.alt_route,
+            icon: Icons.check_circle, // Icono lleno
             titulo: 'Mis Rutas Registradas',
-            subtitulo: 'Tours a los que te has inscrito',
+            subtitulo: 'Ver las rutas a las que te inscribiste',
+            color: Colors.green.shade700,
             onTap: () {
-              // TODO: context.push('/mis-rutas')
+              // ¡BOTÓN ACTIVADO!
+              context.push('/mis-rutas');
             },
           ),
 
-          // --- ¡LÓGICA DE ROLES (Tu Petición)! ---
+          const Divider(thickness: 1, height: 24, indent: 16, endIndent: 16),
+
+          // --- TUS OPCIONES DE GESTIÓN (Intactas) ---
+          _buildTituloSeccion('Gestión'),
 
           // CASO 1: Es un Guía Aprobado
           if (usuario.rol == 'guia_aprobado')
@@ -155,11 +172,14 @@ class PerfilPagina extends StatelessWidget {
               icon: Icons.add_road,
               titulo: 'Mis Rutas Creadas',
               subtitulo: 'Gestionar las rutas que publicaste',
-              color: Colors.green.shade700,
+              color: Colors.blue.shade700, // Color cambiado para diferenciar
               onTap: () {
-                // (Esto lo conectaremos al "Mesero de Rutas")
-                // vmRutas.cambiarPestana('Creadas por mí');
-                // (Y luego navegar a la pestaña 2)
+                context.read<RutasVM>().cambiarPestana('Creadas por mí');
+                // TODO: Navegar al Menú 2 (Rutas)
+                // (Esto requiere que la Navegación Principal maneje este estado)
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Navegando a Mis Rutas Creadas... (Próximamente)'))
+                );
               },
             ),
 
@@ -172,14 +192,7 @@ class PerfilPagina extends StatelessWidget {
               subtitulo: 'Envía tu solicitud para crear rutas',
               color: Colors.blue.shade700,
               onTap: () {
-                // --- ¡ARREGLO! (Paso 6 - Bloque 5) ---
-                //
-                // "Encendemos" el botón.
-                // Ya no muestra un SnackBar, ahora
-                // usa el "GPS" para ir a la "dirección"
-                // del formulario que ya creamos.
                 context.push('/solicitar-guia');
-                // --- FIN DEL ARREGLO ---
               },
             ),
 
@@ -189,9 +202,19 @@ class PerfilPagina extends StatelessWidget {
               leading: Icon(Icons.hourglass_top, color: Colors.orange.shade700),
               title: const Text('Solicitud de Guía en Revisión', style: TextStyle(fontWeight: FontWeight.w500)),
               subtitle: const Text('Estamos validando tus datos. ¡Gracias por tu paciencia!'),
+              isThreeLine: true,
+            ),
+
+          // CASO 4: Es un Guía Rechazado (Tu lógica del Mock)
+          if (usuario.rol == 'guia_rechazado')
+            _buildOpcion(
+              context: context,
+              icon: Icons.error_outline,
+              titulo: 'Solicitud Rechazada',
+              subtitulo: 'Toca para revisar y enviar de nuevo',
+              color: Colors.red.shade700,
               onTap: () {
-                // (Opcional) Podemos llevarlo a una pantalla
-                // que muestre el estado de su solicitud
+                context.push('/solicitar-guia');
               },
             ),
 
@@ -214,6 +237,7 @@ class PerfilPagina extends StatelessWidget {
   }
 
   // --- VISTA 2: El Perfil del Usuario ANÓNIMO ---
+  // (Tu widget 100% intacto, como lo describiste)
   Widget _buildPerfilNoLogueado(BuildContext context, Color colorPrimario) {
     return Center(
       child: Padding(
@@ -241,9 +265,9 @@ class PerfilPagina extends StatelessWidget {
               onPressed: () => context.push('/login'), // Va al "GPS"
               style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  backgroundColor: colorPrimario),
-              child: const Text('Iniciar Sesión',
-                  style: TextStyle(color: Colors.white)),
+                  backgroundColor: colorPrimario,
+                  foregroundColor: Colors.white),
+              child: const Text('Iniciar Sesión'),
             ),
             // Botón de Registro
             const SizedBox(height: 16),
@@ -257,6 +281,18 @@ class PerfilPagina extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // --- WIDGETS AUXILIARES (Tus widgets de lista se eliminaron) ---
+
+  Widget _buildTituloSeccion(String titulo) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
+      child: Text(
+        titulo,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -279,4 +315,3 @@ class PerfilPagina extends StatelessWidget {
     );
   }
 }
-

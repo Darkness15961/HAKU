@@ -1,17 +1,12 @@
-// --- PIEDRA 5 (AUTENTICACIÓN): EL "MESERO DE SEGURIDAD" (ACTUALIZADO) ---
+// --- PIEDRA 5 (AUTENTICACIÓN): EL "CEREBRO" (VERSIÓN FINAL) ---
 //
-// Esta es la versión actualizada del "Mesero".
-// Le hemos "enseñado" la nueva "ORDEN 5: solicitarSerGuia"
-// que el formulario (que vamos a crear) necesitará.
+// 1. Ahora maneja Lugares Favoritos (ya lo hacía).
+// 2. Ahora maneja Rutas Inscritas (ya lo hacía).
+// 3. ¡NUEVO! Ahora también maneja Rutas Favoritas.
 
 import 'package:flutter/material.dart';
-
-// 1. Importamos el "Enchufe" (Repositorio) de Autenticación
 import '../../dominio/repositorios/autenticacion_repositorio.dart';
-// 2. Importamos la "Receta" (Entidad) de Usuario
 import '../../dominio/entidades/usuario.dart';
-
-// 3. Importamos el "Conector" (GetIt)
 import '../../../../locator.dart';
 
 class AutenticacionVM extends ChangeNotifier {
@@ -23,11 +18,21 @@ class AutenticacionVM extends ChangeNotifier {
   Usuario? _usuarioActual;
   String? _error;
 
+  // --- ¡ESTADO DEL CEREBRO! ---
+  List<String> _lugaresFavoritosIds = [];
+  List<String> _rutasInscritasIds = [];
+  List<String> _rutasFavoritasIds = []; // <-- ¡NUEVO!
+
   // --- C. GETTERS ---
   bool get estaCargando => _estaCargando;
   Usuario? get usuarioActual => _usuarioActual;
   String? get error => _error;
   bool get estaLogueado => _usuarioActual != null;
+
+  // --- ¡GETTERS DEL CEREBRO! ---
+  List<String> get lugaresFavoritosIds => _lugaresFavoritosIds;
+  List<String> get rutasInscritasIds => _rutasInscritasIds;
+  List<String> get rutasFavoritasIds => _rutasFavoritasIds; // <-- ¡NUEVO!
 
   // --- D. CONSTRUCTOR ---
   AutenticacionVM() {
@@ -37,22 +42,34 @@ class AutenticacionVM extends ChangeNotifier {
 
   // --- E. MÉTODOS (Las "Órdenes") ---
 
-  // ORDEN 1: "Verificar si ya hay una sesión"
   Future<void> verificarEstadoSesion() async {
     _estaCargando = true;
     notifyListeners();
     _usuarioActual = await _repositorio.verificarEstadoSesion();
+
+    if (_usuarioActual != null) {
+      // (Simulación de carga)
+      _lugaresFavoritosIds = ['l2']; // Mock: Lugar 2 es favorito
+      _rutasInscritasIds = ['r2'];   // Mock: Ruta 2 está inscrita
+      _rutasFavoritasIds = ['r2'];   // Mock: Ruta 2 es favorita
+    } else {
+      _limpiarDatosUsuario();
+    }
+
     _estaCargando = false;
     notifyListeners();
   }
 
-  // ORDEN 2: "Intentar iniciar sesión"
   Future<bool> iniciarSesion(String email, String password) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
     try {
       _usuarioActual = await _repositorio.iniciarSesion(email, password);
+      // (Simulación de carga)
+      _lugaresFavoritosIds = ['l2'];
+      _rutasInscritasIds = ['r2'];
+      _rutasFavoritasIds = ['r2']; // <-- ¡NUEVO!
       _estaCargando = false;
       notifyListeners();
       return true;
@@ -64,7 +81,59 @@ class AutenticacionVM extends ChangeNotifier {
     }
   }
 
-  // ORDEN 3: "Intentar registrar un usuario"
+  Future<void> cerrarSesion() async {
+    _estaCargando = true;
+    notifyListeners();
+    await _repositorio.cerrarSesion();
+    _usuarioActual = null;
+    _limpiarDatosUsuario(); // Limpiamos el cerebro
+    _estaCargando = false;
+    notifyListeners();
+  }
+
+  // Método privado para limpiar
+  void _limpiarDatosUsuario() {
+    _lugaresFavoritosIds = [];
+    _rutasInscritasIds = [];
+    _rutasFavoritasIds = []; // <-- ¡NUEVO!
+  }
+
+  // --- MÉTODOS DE ACCIÓN DEL CEREBRO ---
+
+  // ORDEN 6: "Alternar un lugar favorito"
+  Future<void> toggleLugarFavorito(String lugarId) async {
+    if (_lugaresFavoritosIds.contains(lugarId)) {
+      _lugaresFavoritosIds.remove(lugarId);
+    } else {
+      _lugaresFavoritosIds.add(lugarId);
+    }
+    // (En un futuro, aquí llamarías al repositorio para guardarlo)
+    notifyListeners(); // Avisamos a todos los que escuchan
+  }
+
+  // ORDEN 7: "Alternar inscripción a una ruta"
+  Future<void> toggleRutaInscrita(String rutaId) async {
+    if (_rutasInscritasIds.contains(rutaId)) {
+      _rutasInscritasIds.remove(rutaId);
+    } else {
+      _rutasInscritasIds.add(rutaId);
+    }
+    notifyListeners();
+  }
+
+  // --- ¡NUEVO MÉTODO DE ACCIÓN! ---
+  // ORDEN 8: "Alternar una ruta favorita"
+  Future<void> toggleRutaFavorita(String rutaId) async {
+    if (_rutasFavoritasIds.contains(rutaId)) {
+      _rutasFavoritasIds.remove(rutaId);
+    } else {
+      _rutasFavoritasIds.add(rutaId);
+    }
+    notifyListeners();
+  }
+  // --- FIN DE NUEVO MÉTODO ---
+
+  // (El resto de métodos - registrarUsuario, solicitarSerGuia - quedan igual)
   Future<bool> registrarUsuario(
       String nombre, String email, String password, String dni) async {
     _estaCargando = true;
@@ -73,6 +142,7 @@ class AutenticacionVM extends ChangeNotifier {
     try {
       _usuarioActual =
       await _repositorio.registrarUsuario(nombre, email, password, dni);
+      _limpiarDatosUsuario(); // Usuario nuevo, listas vacías
       _estaCargando = false;
       notifyListeners();
       return true;
@@ -84,49 +154,22 @@ class AutenticacionVM extends ChangeNotifier {
     }
   }
 
-  // ORDEN 4: "Cerrar la sesión actual"
-  Future<void> cerrarSesion() async {
-    _estaCargando = true;
-    notifyListeners();
-    await _repositorio.cerrarSesion();
-    _usuarioActual = null;
-    _estaCargando = false;
-    notifyListeners();
-  }
-
-  // --- ¡NUEVO MÉTODO! (Paso 3 - Bloque 5) ---
-  //
-  // ORDEN 5: "Enviar la solicitud para ser guía"
-  // (Llamado por el formulario "solicitar_guia_pagina.dart")
   Future<bool> solicitarSerGuia(
       String experiencia, String rutaCertificado) async {
-    // 1. Encendemos el "interruptor"
     _estaCargando = true;
     _error = null;
     notifyListeners();
-
     try {
-      // 2. Le damos la "ORDEN 5" a la "Cocina" (Mock)
       await _repositorio.solicitarSerGuia(experiencia, rutaCertificado);
-
-      // 3. ¡IMPORTANTE! Después de enviar la solicitud,
-      //    volvemos a verificar el estado del usuario.
-      //    (La "Cocina Falsa" (el Canvas) habrá cambiado
-      //    el rol a "guia_pendiente", así que
-      //    "verificarEstadoSesion" traerá ese nuevo usuario).
       await verificarEstadoSesion();
-
-      // 4. Apagamos el "interruptor" y "avisamos"
       _estaCargando = false;
       notifyListeners();
-      return true; // ¡Éxito!
+      return true;
     } catch (e) {
       _estaCargando = false;
       _error = e.toString();
       notifyListeners();
-      return false; // ¡Error!
+      return false;
     }
   }
-// --- FIN DEL NUEVO MÉTODO ---
 }
-

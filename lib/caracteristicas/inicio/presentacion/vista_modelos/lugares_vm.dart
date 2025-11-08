@@ -1,9 +1,12 @@
-// --- PIEDRA 4: EL "MESERO" (ACTUALIZADO) ---
+// --- PIEDRA 4: EL "MESERO" (ACTUALIZADO CON FUTURE Y GETTER DE PERFIL) ---
 //
-// Esta es la versión actualizada del "Mesero".
-// Le hemos "enseñado" a manejar las "órdenes"
-// para la página de detalle (comentarios, favoritos, etc.).
+// 1. Se arregló el constructor (ya no carga datos).
+// 2. 'cargarDatosIniciales(AuthVM)' AHORA DEVUELVE UN FUTURE<void>
+//    para que el RefreshIndicator (en inicio_pagina) pueda "esperarlo".
+// 3. Se añadió la lógica de Favoritos (conectada al AuthVM).
+// 4. ¡CORREGIDO! Se añadió el getter 'cargaInicialRealizada'.
 
+import 'dart:async'; // <-- ¡IMPORTANTE PARA EL COMPLETER!
 import 'package:flutter/material.dart';
 
 // Importamos el "Enchufe" (El Contrato/Repositorio)
@@ -13,16 +16,19 @@ import '../../dominio/repositorios/lugares_repositorio.dart';
 import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/provincia.dart';
 import '../../dominio/entidades/categoria.dart';
-// --- ¡NUEVA IMPORTACIÓN! ---
-// Importamos la "Receta" de Comentario
 import '../../dominio/entidades/comentario.dart';
 
 // Importamos el "Conector" (GetIt)
 import '../../../../locator.dart';
 
+// --- ¡NUEVA IMPORTACIÓN! ---
+// Importamos el "Cerebro" (AuthVM)
+import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
+
 class LugaresVM extends ChangeNotifier {
-  // --- A. DEPENDENCIAS (Lo que necesita el "Mesero") ---
+  // --- A. DEPENDENCIAS ---
   late final LugaresRepositorio _repositorio;
+  AutenticacionVM? _authVM; // <-- ¡NUEVO!
 
   // --- B. ESTADO DE LA UI (INICIO_PAGINA) ---
   bool _estaCargandoInicio = true;
@@ -32,6 +38,7 @@ class LugaresVM extends ChangeNotifier {
   String _terminoBusquedaInicio = '';
   String _categoriaSeleccionadaIdInicio = '1';
   int _carouselIndex = 0;
+  bool _cargaInicialRealizada = false; // <-- ¡NUEVO!
 
   // --- C. GETTERS (INICIO_PAGINA) ---
   bool get estaCargandoInicio => _estaCargandoInicio;
@@ -39,6 +46,10 @@ class LugaresVM extends ChangeNotifier {
   List<Categoria> get categorias => _categorias;
   String get categoriaSeleccionadaIdInicio => _categoriaSeleccionadaIdInicio;
   int get carouselIndex => _carouselIndex;
+
+  // --- ¡LÍNEA AÑADIDA QUE FALTABA! ---
+  bool get cargaInicialRealizada => _cargaInicialRealizada;
+  // --- FIN DE LÍNEA AÑADIDA ---
 
   List<Provincia> get provinciasFiltradas {
     List<Provincia> provinciasFiltradas = _provincias;
@@ -91,57 +102,117 @@ class LugaresVM extends ChangeNotifier {
     return lugaresFiltrados;
   }
 
-  // --- ¡NUEVO! F. ESTADO DE LA UI (DETALLE_LUGAR_PAGINA) ---
-  //
-  // Añadimos un nuevo conjunto de variables de estado
-  // solo para la página de detalle del lugar.
-
-  // "Interruptor" de carga para los comentarios
+  // --- F. ESTADO DE LA UI (DETALLE_LUGAR_PAGINA) ---
   bool _estaCargandoComentarios = true;
-  // Lista para guardar los comentarios
   List<Comentario> _comentarios = [];
 
-  // --- ¡NUEVO! G. GETTERS (DETALLE_LUGAR_PAGINA) ---
+  // --- G. GETTERS (DETALLE_LUGAR_PAGINA) ---
   bool get estaCargandoComentarios => _estaCargandoComentarios;
   List<Comentario> get comentarios => _comentarios;
 
-  // (Nota: El estado de "favorito" lo manejaremos
-  // más adelante con el "Mesero de Seguridad",
-  // como hablamos)
+  // --- ¡NUEVO GETTER PARA EL PERFIL! (Paso 1 Acoplado) ---
+  List<Lugar> get misLugaresFavoritos {
+    // 1. Verificamos que el "Cerebro" (AuthVM) esté listo
+    if (_authVM == null || !_authVM!.estaLogueado) return [];
 
-  // --- H. CONSTRUCTOR (Cuando el "Mesero" empieza su turno) ---
+    // 2. Obtenemos los IDs del "Cerebro"
+    final ids = _authVM!.lugaresFavoritosIds;
+
+    // 3. Filtramos la lista completa de lugares
+    // (Usamos _lugaresPopulares, que es la lista principal que carga este VM)
+    return _lugaresPopulares.where((l) => ids.contains(l.id)).toList();
+  }
+  // --- FIN DE NUEVO GETTER ---
+
+  // --- H. CONSTRUCTOR (¡CORREGIDO!) ---
   LugaresVM() {
-    // 3. (En secreto, "getIt" le da la "Cocina Falsa" (Mock)
-    //    porque así lo configuramos en locator.dart)
     _repositorio = getIt<LugaresRepositorio>();
-
-    // 4. Apenas empieza el turno, el "Mesero" va a la cocina
-    //    a pedir todos los platos iniciales.
-    cargarDatosIniciales();
+    // ¡HEMOS QUITADO la llamada a cargarDatosIniciales() de aquí!
+    // El constructor ahora está limpio.
   }
 
-  // --- I. MÉTODOS (Órdenes para INICIO_PAGINA) ---
+  // --- I. MÉTODOS DE INICIALIZACIÓN (¡CORREGIDOS CON FUTURE!) ---
 
-  Future<void> cargarDatosIniciales() async {
+  // --- ¡CORREGIDO! --- Ahora devuelve un Future<void>
+  Future<void> cargarDatosIniciales(AutenticacionVM authVM) async {
+
+    // Si es la primera vez que se llama (desde initState)
+    // guardamos la referencia a AuthVM
+    if (_authVM == null) {
+      _authVM = authVM;
+      _authVM?.addListener(_onAuthChanged);
+    }
+
+    // Si AuthVM sigue cargando, esperamos
+    if (_authVM?.estaCargando ?? false) {
+      _estaCargandoInicio = true; // Mostramos spinner
+      notifyListeners();
+
+      // Creamos un Completer para que el 'await' en la Vista espere
+      final authCompleter = Completer<void>();
+
+      // Creamos un listener temporal que se auto-elimina
+      void onAuthReady() {
+        _authVM?.removeListener(onAuthReady); // Se auto-elimina
+        if (!authCompleter.isCompleted) {
+          authCompleter.complete();
+        }
+      }
+
+      _authVM?.addListener(onAuthReady);
+      await authCompleter.future; // <-- El 'await' de la Vista espera aquí
+    }
+
+    // Si AuthVM ya está listo (Anónimo o logueado), cargamos
+    // --- ¡CORREGIDO! --- Usamos 'await'
+    await _cargarCatalogos(); // <-- El 'await' de la Vista espera aquí
+  }
+
+  // Cuando el usuario inicia o cierra sesión, notificamos
+  // para que los corazones de "favorito" se redibujen.
+  void _onAuthChanged() {
+    notifyListeners();
+  }
+
+  // Este era tu antiguo "cargarDatosIniciales"
+  Future<void> _cargarCatalogos() async {
     _estaCargandoInicio = true;
-    notifyListeners();
 
-    // Pedimos las 3 "órdenes" al mismo tiempo
-    final resultados = await Future.wait([
-      _repositorio.obtenerLugaresPopulares(),
-      _repositorio.obtenerProvincias(),
-      _repositorio.obtenerCategorias(),
-    ]);
+    // Notificamos solo si NO es la primera carga
+    // (para evitar el error de 'setState' en 'build' de initState)
+    if(_cargaInicialRealizada) {
+      Future.microtask(() => notifyListeners());
+    }
 
-    // Guardamos los "platos"
-    _lugaresPopulares = resultados[0] as List<Lugar>;
-    _provincias = resultados[1] as List<Provincia>;
-    _categorias = resultados[2] as List<Categoria>;
+    try {
+      final resultados = await Future.wait([
+        _repositorio.obtenerLugaresPopulares(),
+        _repositorio.obtenerProvincias(),
+        _repositorio.obtenerCategorias(),
+      ]);
 
-    _estaCargandoInicio = false;
-    notifyListeners();
+      _lugaresPopulares = resultados[0] as List<Lugar>;
+      _provincias = resultados[1] as List<Provincia>;
+      _categorias = resultados[2] as List<Categoria>;
+
+    } catch (e) {
+      // Manejar error si es necesario
+    } finally {
+      _estaCargandoInicio = false;
+      _cargaInicialRealizada = true;
+      notifyListeners();
+    }
   }
 
+  @override
+  void dispose() {
+    _authVM?.removeListener(_onAuthChanged);
+    // (El listener _onAuthReady se auto-elimina)
+    super.dispose();
+  }
+
+  // --- J. MÉTODOS (Órdenes para INICIO_PAGINA) ---
+  // ... (buscarEnInicio, seleccionarCategoriaEnInicio, setCarouselIndex)
   void buscarEnInicio(String termino) {
     _terminoBusquedaInicio = termino;
     notifyListeners();
@@ -157,8 +228,8 @@ class LugaresVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- J. MÉTODOS (Órdenes para PROVINCIA_LUGARES_PAGINA) ---
-
+  // --- K. MÉTODOS (Órdenes para PROVINCIA_LUGARES_PAGINA) ---
+  // ... (cargarLugaresPorProvincia, buscarEnProvincia, seleccionarCategoriaEnProvincia)
   Future<void> cargarLugaresPorProvincia(String provinciaId) async {
     _estaCargandoLugaresDeProvincia = true;
     _terminoBusquedaProvincia = '';
@@ -182,49 +253,42 @@ class LugaresVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- ¡NUEVO! K. MÉTODOS (Órdenes para DETALLE_LUGAR_PAGINA) ---
-
-  // ORDEN 7: "Traer los comentarios de este lugar"
+  // --- L. MÉTODOS (Órdenes para DETALLE_LUGAR_PAGINA) ---
+  // ... (cargarComentarios, enviarComentario)
   Future<void> cargarComentarios(String lugarId) async {
-    // 1. Encendemos el "interruptor" de carga de comentarios
     _estaCargandoComentarios = true;
-    // 2. "Avisamos" a la UI que muestre un spinner
-    //    (pero solo actualizamos si la UI sigue "montada")
     notifyListeners();
 
-    // 3. Pedimos la "orden" a la "Cocina" (Mock)
     _comentarios = await _repositorio.obtenerComentarios(lugarId);
 
-    // 4. Apagamos el "interruptor"
     _estaCargandoComentarios = false;
-    // 5. "Avisamos" a la UI que la "comida" (comentarios) está lista
     notifyListeners();
   }
 
-  // ORDEN 5: "Enviar este nuevo comentario"
   Future<void> enviarComentario(
       String lugarId, String texto, double rating) async {
-    // 1. (Opcional) Mostramos un indicador de carga
-    //    (Por ahora, solo enviamos la orden)
-
-    // 2. Le damos la "orden" a la "Cocina" (Mock)
     await _repositorio.enviarComentario(lugarId, texto, rating);
-
-    // 3. (IMPORTANTE) Después de enviar, volvemos a cargar
-    //    la lista de comentarios para que el nuevo aparezca
-    //    instantáneamente (¡buena experiencia de usuario!)
     await cargarComentarios(lugarId);
   }
 
-  // ORDEN 6: "Marcar este lugar como favorito"
-  Future<void> marcarFavorito(String lugarId) async {
-    // 1. Le damos la "orden" a la "Cocina" (Mock)
-    await _repositorio.marcarFavorito(lugarId);
+  // --- ¡LÓGICA DE FAVORITOS CONECTADA! ---
 
-    // 2. (Opcional) "Avisamos" a la UI que el
-    //    estado de favorito cambió (esto lo conectaremos
-    //    con el "Mesero de Seguridad" más adelante)
-    // notifyListeners();
+  // NUEVO GETTER: La UI preguntará a este método si un lugar es favorito
+  bool esLugarFavorito(String lugarId) {
+    return _authVM?.lugaresFavoritosIds.contains(lugarId) ?? false;
+  }
+
+
+
+
+
+  // MÉTODO MODIFICADO: Ahora llama al "cerebro" (AuthVM)
+  Future<void> toggleLugarFavorito(String lugarId) async {
+    // 1. Le damos la "orden" al "Cerebro" (AuthVM)
+    await _authVM?.toggleLugarFavorito(lugarId);
+
+    // 2. No necesitamos notificar. AuthVM notificará,
+    //    y este VM (LugaresVM) escuchará ese cambio
+    //    y se redibujará automáticamente.
   }
 }
-

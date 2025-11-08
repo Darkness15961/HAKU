@@ -1,20 +1,12 @@
-// --- PIEDRA 5: EL "MENÚ" PRINCIPAL (INICIO) ---
+// --- PIEDRA 6 (INICIO): EL "MENÚ" DE INICIO (VERSIÓN FUSIONADA) ---
 //
-// Esta es la versión ACTUALIZADA.
-// 1. Hemos quitado el botón de "Favorito"
-//    de la tarjeta de Provincia (¡Gracias a tu análisis!)
-// 2. La navegación a "Detalle" está "encendida".
-// 3. ¡CORREGIDO EL IMPORT DE DART:ASYNC!
+// 1. CONSERVA tu buen diseño (Carrusel animado, Grid de Provincias).
+// 2. CONSERVA tu navegación (onTap a /provincia y /detalle-lugar).
+// 3. AÑADE la lógica de carga correcta en initState (conectada a AuthVM).
+// 4. AÑADE el header "Bienvenido, [Usuario]".
+// 5. AÑADE el botón de Favorito (corazón) al carrusel, conectado al "Cerebro".
 
-// --- ¡ARREGLO! ---
-//
-// El error que encontraste estaba aquí.
-// Estaba escrito como 'dart.async' (con punto)
-// Lo he corregido a 'dart:async' (con dos puntos)
-//
 import 'dart:async';
-// --- FIN DEL ARREGLO ---
-
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
@@ -22,8 +14,10 @@ import 'package:provider/provider.dart';
 
 // --- MVVM: IMPORTACIONES ---
 import '../vista_modelos/lugares_vm.dart';
+import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart'; // <-- ¡CONEXIÓN AL CEREBRO!
 import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/provincia.dart';
+import '../../dominio/entidades/categoria.dart'; // <-- Import añadido
 
 class InicioPagina extends StatefulWidget {
   const InicioPagina({super.key});
@@ -37,25 +31,32 @@ class _InicioPaginaState extends State<InicioPagina> {
   late final PageController _pageController;
   Timer? _autoScrollTimer;
 
-  // --- Lógica de Navegación ---
-
+  // --- Lógica de Navegación (¡Se conserva tu código!) ---
   void _irALugaresPorProvincia(Provincia provincia) {
+    // ¡TU NAVEGACIÓN ESTÁ INTACTA!
     context.push('/provincia', extra: provincia);
   }
 
   void _irAlDetalle(Lugar lugar) {
-    // Esta navegación SÍ está "encendida" y funciona
+    // ¡TU NAVEGACIÓN ESTÁ INTACTA!
     context.push('/detalle-lugar', extra: lugar);
   }
 
-  // --- Lógica de Carga Inicial ---
+  // --- Lógica de Carga Inicial (¡CORREGIDA!) ---
   @override
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 0.84, initialPage: 0);
 
     Future.microtask(() {
-      context.read<LugaresVM>().cargarDatosIniciales();
+      // --- ¡LÓGICA CORREGIDA! ---
+      // 1. Leemos ambos VMs
+      final vmAuth = context.read<AutenticacionVM>();
+      final vmLugares = context.read<LugaresVM>();
+      // 2. "Despertamos" a LugaresVM pasándole el AuthVM
+      // (Esto arregla el error de "1 positional argument expected")
+      vmLugares.cargarDatosIniciales(vmAuth);
+      // --- FIN DE CORRECCIÓN ---
     });
 
     _startAutoScroll();
@@ -73,10 +74,9 @@ class _InicioPaginaState extends State<InicioPagina> {
 
   // --- Lógica de UI (Tu código) ---
   void _startAutoScroll() {
-    // Ahora 'Timer' será reconocido
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      // (Tu lógica de autoscroll intacta)
       final populares = context.read<LugaresVM>().lugaresPopulares;
-
       if (_pageController.hasClients && populares.isNotEmpty) {
         final vm = context.read<LugaresVM>();
         final next = (vm.carouselIndex + 1) % populares.length;
@@ -93,22 +93,36 @@ class _InicioPaginaState extends State<InicioPagina> {
     context.read<LugaresVM>().buscarEnInicio(_searchCtrl.text);
   }
 
+  // --- Refresh (¡CORREGIDO!) ---
   Future<void> _handleRefresh() async {
-    await context.read<LugaresVM>().cargarDatosIniciales();
+    // --- ¡LÓGICA CORREGIDA! ---
+    // También necesita el AuthVM al recargar
+    final vmAuth = context.read<AutenticacionVM>();
+    // ¡Y AHORA SÍ FUNCIONA EL 'await'!
+    // (Porque 'cargarDatosIniciales' en el VM (del contexto) devuelve un Future)
+    await context.read<LugaresVM>().cargarDatosIniciales(vmAuth);
+    // --- FIN DE CORRECCIÓN ---
   }
 
   // --- Construcción del "Menú" (UI) ---
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<LugaresVM>();
+    // --- ¡CONECTADO A AMBOS VMs! ---
+    final vmLugares = context.watch<LugaresVM>();
+    final vmAuth = context.watch<AutenticacionVM>();
+    // --- FIN DE CONEXIÓN ---
+
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
+      // Usamos una AppBar invisible para que la barra de estado tenga
+      // el color primario, pero no se vea la barra.
       appBar: AppBar(
-          title: const Text('Xplora Cusco'),
-          backgroundColor: colorPrimario,
-          elevation: 0),
-      body: vm.estaCargandoInicio
+          toolbarHeight: 0,
+          elevation: 0,
+          backgroundColor: colorPrimario
+      ),
+      body: vmLugares.estaCargandoInicio
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
         onRefresh: _handleRefresh,
@@ -117,9 +131,13 @@ class _InicioPaginaState extends State<InicioPagina> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // --- ¡HEADER AÑADIDO! (El que te gustó) ---
+              _buildHeader(context, vmAuth),
+
+              // --- El resto de TU DISEÑO (Intacto) ---
               // SEARCH
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12), // Ajuste de padding
                 child: TextField(
                   controller: _searchCtrl,
                   decoration: InputDecoration(
@@ -159,12 +177,12 @@ class _InicioPaginaState extends State<InicioPagina> {
                     Expanded(
                       child: PageView.builder(
                         controller: _pageController,
-                        itemCount: vm.lugaresPopulares.length,
+                        itemCount: vmLugares.lugaresPopulares.length,
                         onPageChanged: (idx) {
-                          vm.setCarouselIndex(idx);
+                          vmLugares.setCarouselIndex(idx);
                         },
                         itemBuilder: (context, index) {
-                          final item = vm.lugaresPopulares[index];
+                          final item = vmLugares.lugaresPopulares[index];
                           return AnimatedBuilder(
                             animation: _pageController,
                             builder: (context, child) {
@@ -180,15 +198,18 @@ class _InicioPaginaState extends State<InicioPagina> {
                               return Transform.scale(
                                   scale: value, child: child);
                             },
-                            child: _buildCarouselCard(item),
+                            // --- ¡CONEXIÓN LÓGICA! ---
+                            // Le pasamos los VMs a tu widget
+                            child: _buildCarouselCard(item, vmLugares, vmAuth),
+                            // --- FIN DE CONEXIÓN ---
                           );
                         },
                       ),
                     ),
                     const SizedBox(height: 10),
                     _buildIndicators(
-                      count: vm.lugaresPopulares.length,
-                      currentIndex: vm.carouselIndex,
+                      count: vmLugares.lugaresPopulares.length,
+                      currentIndex: vmLugares.carouselIndex,
                       context: context,
                     ),
                   ],
@@ -208,10 +229,10 @@ class _InicioPaginaState extends State<InicioPagina> {
                             style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold))),
-                    if (vm.categoriaSeleccionadaIdInicio != '1')
+                    if (vmLugares.categoriaSeleccionadaIdInicio != '1')
                       TextButton(
                         onPressed: () {
-                          vm.seleccionarCategoriaEnInicio('1');
+                          vmLugares.seleccionarCategoriaEnInicio('1');
                         },
                         child: const Text('Borrar filtro'),
                       )
@@ -224,12 +245,16 @@ class _InicioPaginaState extends State<InicioPagina> {
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   scrollDirection: Axis.horizontal,
-                  itemCount: vm.categorias.length,
+                  itemCount: vmLugares.categorias.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
                   itemBuilder: (context, i) {
-                    final c = vm.categorias[i];
+                    // --- ARREGLO DE BUG DE CATEGORÍAS ---
+                    // Asegurarnos de no estar fuera de rango
+                    if (i >= vmLugares.categorias.length) return const SizedBox.shrink();
+
+                    final c = vmLugares.categorias[i];
                     final selected =
-                        c.id == vm.categoriaSeleccionadaIdInicio;
+                        c.id == vmLugares.categoriaSeleccionadaIdInicio;
 
                     Widget? avatar;
                     if (c.id == '1') {
@@ -259,7 +284,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                           child: Text(c.nombre)),
                       selected: selected,
                       onSelected: (_) {
-                        vm.seleccionarCategoriaEnInicio(c.id);
+                        vmLugares.seleccionarCategoriaEnInicio(c.id);
                       },
                       backgroundColor: Colors.white,
                       selectedColor: colorPrimario,
@@ -290,7 +315,7 @@ class _InicioPaginaState extends State<InicioPagina> {
               Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16.0, vertical: 8),
-                child: vm.provinciasFiltradas.isEmpty
+                child: vmLugares.provinciasFiltradas.isEmpty
                     ? Center(
                     child: Padding(
                         padding:
@@ -302,7 +327,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                     physics:
                     const NeverScrollableScrollPhysics(),
                     shrinkWrap: true,
-                    itemCount: vm.provinciasFiltradas.length,
+                    itemCount: vmLugares.provinciasFiltradas.length,
                     gridDelegate:
                     const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
@@ -311,7 +336,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                       childAspectRatio: 0.95,
                     ),
                     itemBuilder: (context, index) {
-                      final p = vm.provinciasFiltradas[index];
+                      final p = vmLugares.provinciasFiltradas[index];
                       return AnimationConfiguration
                           .staggeredGrid(
                         position: index,
@@ -321,6 +346,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                         child: ScaleAnimation(
                           child: FadeInAnimation(
                             child: GestureDetector(
+                              // --- ¡TU NAVEGACIÓN INTACTA! ---
                               onTap: () =>
                                   _irALugaresPorProvincia(p),
                               child: Card(
@@ -351,11 +377,62 @@ class _InicioPaginaState extends State<InicioPagina> {
 
   // --- Widgets de Tarjetas (Tu diseño) ---
 
-  Widget _buildCarouselCard(Lugar item) {
+  // --- ¡AÑADIDO! Widget del Header (el que te gustó) ---
+  Widget _buildHeader(BuildContext context, AutenticacionVM vmAuth) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20.0, 16.0, 20.0, 16.0),
+      color: Theme.of(context).colorScheme.primary, // Color de tu AppBar
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Bienvenido,',
+                style: TextStyle(fontSize: 16, color: Colors.white70),
+              ),
+              Text(
+                vmAuth.estaLogueado ? vmAuth.usuarioActual!.nombre : 'Visitante',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.white.withOpacity(0.2),
+            // TODO: Añadir urlFotoPerfil a la entidad Usuario y al AuthVM
+            // (El AuthVM aún no tiene fotoUrl, así que usamos iniciales)
+            // backgroundImage: vmAuth.estaLogueado
+            //     ? NetworkImage(vmAuth.usuarioActual!.urlFotoPerfil)
+            //     : null,
+            child: vmAuth.estaLogueado
+                ? Text(
+              vmAuth.usuarioActual!.nombre.substring(0, 1).toUpperCase(),
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+            )
+                : const Icon(Icons.person_outline, size: 28, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  // --- ¡TARJETA DEL CARRUSEL ACTUALIZADA! ---
+  Widget _buildCarouselCard(Lugar item, LugaresVM vmLugares, AutenticacionVM vmAuth) {
+
+    // --- ¡LÓGICA DE FAVORITOS CONECTADA! ---
+    final bool esFavorito = vmLugares.esLugarFavorito(item.id);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
       child: GestureDetector(
-        onTap: () => _irAlDetalle(item),
+        onTap: () => _irAlDetalle(item), // <-- Tu navegación intacta
         child: Card(
           elevation: 10,
           clipBehavior: Clip.antiAlias,
@@ -404,7 +481,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                                   overflow: TextOverflow.ellipsis)),
                           const SizedBox(width: 8),
                           ElevatedButton(
-                            onPressed: () => _irAlDetalle(item),
+                            onPressed: () => _irAlDetalle(item), // <-- Tu navegación intacta
                             style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white24,
                                 elevation: 2,
@@ -418,6 +495,24 @@ class _InicioPaginaState extends State<InicioPagina> {
                       const SizedBox(height: 6),
                     ]),
               ),
+
+              // --- ¡BOTÓN DE CORAZÓN AÑADIDO! ---
+              Positioned(
+                top: 8.0,
+                right: 8.0,
+                child: IconButton(
+                  icon: Icon(
+                    esFavorito ? Icons.favorite : Icons.favorite_border,
+                    color: esFavorito ? Colors.red : Colors.white,
+                    size: 30,
+                  ),
+                  onPressed: () {
+                    // Llama al helper de lógica de favoritos
+                    _onToggleFavorito(context, item.id, vmAuth, vmLugares);
+                  },
+                ),
+              ),
+              // --- FIN DE BOTÓN DE CORAZÓN ---
             ],
           ),
         ),
@@ -426,6 +521,7 @@ class _InicioPaginaState extends State<InicioPagina> {
   }
 
   Widget _buildProvinceCard(Provincia p) {
+    // (Tu diseño de provincia intacto)
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -478,12 +574,6 @@ class _InicioPaginaState extends State<InicioPagina> {
                   Text('${p.placesCount} lugares',
                       style: const TextStyle(color: Colors.white70, fontSize: 12)),
                   const Spacer(),
-                  // --- ¡ARREGLO! ---
-                  //
-                  // Aquí es donde estaba el botón de "favorito"
-                  // que no tenía sentido. Lo he borrado.
-                  //
-                  // --- FIN DEL ARREGLO ---
                 ],
               )
             ],
@@ -498,6 +588,7 @@ class _InicioPaginaState extends State<InicioPagina> {
     required int currentIndex,
     required BuildContext context,
   }) {
+    // (Tu widget de indicadores intacto)
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) {
@@ -516,5 +607,58 @@ class _InicioPaginaState extends State<InicioPagina> {
       }),
     );
   }
-}
 
+  // --- ¡NUEVOS MÉTODOS DE LÓGICA DE FAVORITOS! ---
+
+  void _onToggleFavorito(BuildContext context, String lugarId, AutenticacionVM vmAuth, LugaresVM vmLugares) {
+    // 1. Llama al "Guardia"
+    if (!_checkAndRedirect(context, 'guardar este lugar')) {
+      return; // Si es anónimo, se detiene aquí.
+    }
+
+    // 2. Si el "Guardia" da permiso...
+    vmLugares.toggleLugarFavorito(lugarId);
+  }
+
+  bool _checkAndRedirect(BuildContext context, String action) {
+    // Usamos 'read' porque estamos en un callback, no en 'build'
+    final authVM = context.read<AutenticacionVM>();
+    if (!authVM.estaLogueado) {
+      _showLoginRequiredModal(context, action);
+      return false; // BLOQUEADO
+    }
+    return true; // PERMITIDO
+  }
+
+  void _showLoginRequiredModal(BuildContext context, String action) {
+    final colorPrimario = Theme.of(context).colorScheme.primary;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Acción Requerida 🔒'),
+          content:
+          Text('Necesitas iniciar sesión o crear una cuenta para $action.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Seguir Explorando',
+                  style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                context.push('/login');
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: colorPrimario),
+              child: const Text('Iniciar Sesión',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}

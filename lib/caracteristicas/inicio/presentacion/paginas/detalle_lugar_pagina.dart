@@ -4,6 +4,10 @@
 // 1. Conectada al "Mesero de Comida" (LugaresVM).
 // 2. Conectada al "Mesero de Seguridad" (AutenticacionVM).
 // 3. Implementa el "Bloqueo Suave" (Modal) para anónimos.
+//
+// --- ¡CAMBIOS! ---
+// 1. Se cambió la llamada al método 'marcarFavorito' por 'toggleLugarFavorito'.
+// 2. El icono del corazón en la AppBar ahora es dinámico (lleno/vacío).
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -33,6 +37,15 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     super.initState();
     // Le da la "orden" al "Mesero de Comida" de cargar los comentarios
     Future.microtask(() {
+      // --- ¡ARREGLO DE ERROR! ---
+      // El VM de Lugares ahora necesita el AuthVM para "despertar".
+      // Lo más probable es que ya esté "despierto" por la InicioPagina,
+      // pero si el usuario llega aquí directo (ej. deep link),
+      // deberíamos asegurarnos de que se inicialice.
+      // Por ahora, solo cargamos comentarios.
+      // NOTA: Si esto da error, tendremos que pasar el AuthVM aquí también.
+      final vmAuth = context.read<AutenticacionVM>();
+      context.read<LugaresVM>().cargarDatosIniciales(vmAuth); // Nos aseguramos
       context.read<LugaresVM>().cargarComentarios(widget.lugar.id);
     });
   }
@@ -59,7 +72,8 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
   // --- Lógica de Acciones (Conectadas al "Mesero") ---
 
   // ¡ACCIÓN ACTUALIZADA CON SEGURIDAD!
-  void _marcarFavorito(BuildContext context) {
+  // --- ¡CORREGIDO! --- Renombramos la función
+  void _onToggleFavorito(BuildContext context) {
     // 1. Llama al "Guardia"
     if (!_checkAndRedirect(context, 'guardar este lugar')) {
       return; // Si el "Guardia" devuelve "false", se detiene aquí.
@@ -67,13 +81,10 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
 
     // 2. Si el "Guardia" da permiso (devuelve "true")...
     //    ...le damos la orden al "Mesero de Comida"
-    context.read<LugaresVM>().marcarFavorito(widget.lugar.id);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('¡Guardado en favoritos! (Simulado)'),
-        duration: Duration(seconds: 1),
-      ),
-    );
+    // --- ¡CORREGIDO! --- Llamamos al nuevo método
+    context.read<LugaresVM>().toggleLugarFavorito(widget.lugar.id);
+
+    // Opcional: Mostramos un SnackBar (el VM se actualizará solo)
   }
 
   // ¡ACCIÓN ACTUALIZADA CON SEGURIDAD!
@@ -103,6 +114,9 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     final vm = context.watch<LugaresVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
+    // --- ¡NUEVO! Leemos el estado de favorito ---
+    final bool esFavorito = vm.esLugarFavorito(widget.lugar.id);
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -114,9 +128,12 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
             backgroundColor: colorPrimario,
             actions: [
               IconButton(
-                // ¡CONECTADO A LA SEGURIDAD!
-                onPressed: () => _marcarFavorito(context),
-                icon: const Icon(Icons.favorite_border), // TODO: Lógica de estado fav
+                // --- ¡CORREGIDO Y CONECTADO! ---
+                onPressed: () => _onToggleFavorito(context),
+                icon: Icon(
+                  esFavorito ? Icons.favorite : Icons.favorite_border,
+                  color: esFavorito ? Colors.red : Colors.white,
+                ),
                 tooltip: 'Guardar en Favoritos',
               ),
               IconButton(
@@ -943,4 +960,3 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
     );
   }
 }
-

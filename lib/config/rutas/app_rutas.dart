@@ -1,8 +1,8 @@
 // --- MAPA DE RUTAS (GPS) DE LA APP ---
 //
-// Esta es la versión ACTUALIZADA de nuestro "GPS".
-// Le hemos "enseñado" la nueva "dirección"
-// para "/solicitar-guia".
+// ¡VERSIÓN FINAL!
+// Le hemos "enseñado" las dos nuevas "direcciones"
+// para "/mis-favoritos" y "/mis-rutas".
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -19,15 +19,16 @@ import 'package:xplore_cusco/caracteristicas/inicio/presentacion/paginas/comenta
 // 2. Pantallas de Autenticación
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/login_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/registro_pagina.dart';
-// --- ¡NUEVA IMPORTACIÓN! (Paso 4 - Bloque 5) ---
-//    (Dart se quejará de este import hasta
-//    que creemos el archivo en el siguiente paso)
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/solicitar_guia_pagina.dart';
-// --- FIN DE NUEVA IMPORTACIÓN ---
 
 // 3. Pantallas del Menú 2 (Rutas)
 import 'package:xplore_cusco/caracteristicas/rutas/presentacion/paginas/detalle_ruta_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/rutas/presentacion/paginas/crear_ruta_pagina.dart';
+
+// --- ¡NUEVAS IMPORTACIONES DEL PASO 4! ---
+import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/mis_lugares_favoritos_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/mis_rutas_inscritas_pagina.dart';
+// --- FIN DE NUEVAS IMPORTACIONES ---
 
 
 // --- Importaciones de "Recetas" (Entidades) ---
@@ -101,26 +102,33 @@ class AppRutas {
       GoRoute(
         path: '/crear-ruta',
         builder: (BuildContext context, GoRouterState state) {
+          // (Recuerda que esta página también necesita
+          // una lógica de "editar" si state.extra no es nulo)
           return const CrearRutaPagina();
         },
       ),
 
-      // --- ¡NUEVA RUTA AÑADIDA! (Paso 4 - Bloque 5) ---
-      //
-      // --- Dirección de Solicitud de Guía ---
-
-      // Dirección 10: Formulario de Solicitud (/solicitar-guia)
       GoRoute(
         path: '/solicitar-guia',
         builder: (BuildContext context, GoRouterState state) {
-          // El "edificio" en esta dirección es el formulario
-          // para que el Turista se convierta en Guía.
-          // (Dará un error hasta que creemos el archivo)
           return const SolicitarGuiaPagina();
+        },
+      ),
+
+      // --- ¡NUEVAS RUTAS DEL PASO 4! ---
+      GoRoute(
+        path: '/mis-favoritos',
+        builder: (BuildContext context, GoRouterState state) {
+          return const MisLugaresFavoritosPagina();
+        },
+      ),
+      GoRoute(
+        path: '/mis-rutas',
+        builder: (BuildContext context, GoRouterState state) {
+          return const MisRutasInscritasPagina();
         },
       ),
       // --- FIN DE LA NUEVA RUTA ---
     ],
   );
 }
-

@@ -1,15 +1,14 @@
-// --- PIEDRA 5 (RUTAS): EL "MESERO DE RUTAS" (VERSIÓN COMPLETA Y CORREGIDA) ---
+// --- PIEDRA 5 (RUTAS): EL "MESERO DE RUTAS" (CONECTADO AL CEREBRO Y PERFIL) ---
 //
-// Esta versión es 100% completa.
-// 1. Incluye TODOS los imports necesarios.
-// 2. Tiene el constructor vacío RutasVM() para coincidir con main.dart.
-// 3. Tiene la lógica de carga correcta en cargarDatosIniciales()
-//    para arreglar el bug de "sigue cargando".
+// 1. Sus métodos de acción (Inscribirse, Favorito) AHORA
+//    llaman al "Cerebro" (AuthVM).
+// 2. La pestaña "Guardadas" ahora filtra usando el "Cerebro".
+// 3. ¡ACOPLADO! Se añadió el getter 'misRutasInscritas' para el Menú 4 (Perfil).
 
 import 'package:flutter/material.dart';
-import '../../dominio/repositorios/rutas_repositorio.dart'; // <-- Import necesario
-import '../../dominio/entidades/ruta.dart'; // <-- Import necesario
-import '../../../../locator.dart'; // <-- Import necesario
+import '../../dominio/repositorios/rutas_repositorio.dart';
+import '../../dominio/entidades/ruta.dart';
+import '../../../../locator.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 
 class RutasVM extends ChangeNotifier {
@@ -43,46 +42,48 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  // --- D. CONSTRUCTOR (¡SÚPER LIMPIO!) ---
-  // Coincide con el create: (context) => RutasVM() de main.dart
+  // --- ¡NUEVO GETTER PARA EL PERFIL! (Paso 2 Acoplado) ---
+  List<Ruta> get misRutasInscritas {
+    // 1. Verificamos que el "Cerebro" (AuthVM) esté listo
+    if (_authVM == null || !_authVM!.estaLogueado) return [];
+
+    // 2. Obtenemos los IDs del "Cerebro"
+    final ids = _authVM!.rutasInscritasIds;
+
+    // 3. Filtramos la lista completa de rutas
+    // (Usamos _rutas, que es la lista principal que carga este VM)
+    return _rutas.where((r) => ids.contains(r.id)).toList();
+  }
+  // --- FIN DE NUEVO GETTER ---
+
+  // --- D. CONSTRUCTOR (¡LIMPIO!) ---
   RutasVM() {
     _repositorio = getIt<RutasRepositorio>();
-    // Constructor 100% limpio.
   }
 
-  // --- E. MÉTODO DE CARGA INICIAL (RECIBE EL AUTH_VM) ---
-  // La página (rutas_pagina.dart) llamará a este método
+  // --- E. MÉTODO DE CARGA INICIAL (AHORA ES INTELIGENTE) ---
   void cargarDatosIniciales(AutenticacionVM authVM) {
     if (_cargaInicialRealizada) return;
     _authVM = authVM;
 
-    // Verificamos si AuthVM está ocupado
     if (_authVM?.estaCargando ?? false) {
-      // ¡NO ponemos _estaCargando = true aquí!
-      // Solo esperamos a que AuthVM termine.
       _authVM?.addListener(_onAuthReadyParaRutas);
       return;
     }
 
-    // Si AuthVM no está ocupado (Anónimo), iniciamos.
     _iniciarCargaLogica();
   }
 
-  // Listener temporal que se llama CUANDO AuthVM termina
   void _onAuthReadyParaRutas() {
     _iniciarCargaLogica();
     _authVM?.removeListener(_onAuthReadyParaRutas);
   }
 
-  // Método privado para la lógica de carga real
   void _iniciarCargaLogica() {
-    // 1. Nos suscribimos al listener permanente
     _authVM?.addListener(_actualizarPestanaPorRol);
-    // 2. Ejecutamos la carga por primera vez
     _actualizarPestanaPorRol();
   }
 
-  // Método de Lógica de Roles
   void _actualizarPestanaPorRol() {
     final rol = _authVM?.usuarioActual?.rol;
     final esAnonimo = !(_authVM?.estaLogueado ?? false);
@@ -94,14 +95,13 @@ class RutasVM extends ChangeNotifier {
       _pestanaActual = 'Recomendadas';
     }
 
-    // Ahora que el _estaCargando de RutasVM no está
-    // atascado en 'true', este 'if' SÍ funcionará.
     if (!_estaCargando) {
       cargarRutas();
     }
   }
 
-  // ORDEN 1: "Cargar las rutas"
+  // --- ¡MÉTODO ACTUALIZADO! ---
+  // ORDEN 1: "Cargar las rutas" (Llama al Repositorio)
   Future<void> cargarRutas() async {
     _estaCargando = true;
     _error = null;
@@ -109,13 +109,28 @@ class RutasVM extends ChangeNotifier {
 
     try {
       String tipoFiltro = 'recomendadas';
+
+      // --- ¡CAMBIO DE LÓGICA! ---
       if (_pestanaActual == 'Guardadas') {
-        tipoFiltro = 'guardadas';
+        // "Guardadas" ya no es un filtro de API.
+        // Pedimos todas las rutas públicas para poder filtrarlas localmente.
+        tipoFiltro = 'recomendadas';
       } else if (_pestanaActual == 'Creadas por mí') {
         tipoFiltro = 'creadas_por_mi';
       }
+      // --- FIN DEL CAMBIO ---
 
       _rutas = await _repositorio.obtenerRutas(tipoFiltro);
+
+      // --- ¡FILTRO DEL CEREBRO! ---
+      // Si la pestaña es "Guardadas", filtramos la lista
+      // usando los IDs del AuthVM (el "Cerebro").
+      if (_pestanaActual == 'Guardadas' && (_authVM?.estaLogueado ?? false)) {
+        // Necesitamos 'rutasFavoritasIds' del AuthVM
+        final idsFavoritos = _authVM!.rutasFavoritasIds;
+        _rutas = _rutas.where((r) => idsFavoritos.contains(r.id)).toList();
+      }
+
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -125,7 +140,6 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  // --- F. LIMPIEZA DE LISTENERS ---
   @override
   void dispose() {
     _authVM?.removeListener(_actualizarPestanaPorRol);
@@ -133,7 +147,8 @@ class RutasVM extends ChangeNotifier {
     super.dispose();
   }
 
-  // --- G. MÉTODOS DE ACCIÓN (Sin cambios) ---
+  // --- G. MÉTODOS DE ACCIÓN (¡CONECTADOS AL CEREBRO!) ---
+
   void cambiarPestana(String nuevaPestana) {
     if (nuevaPestana == _pestanaActual) return;
     _pestanaActual = nuevaPestana;
@@ -147,41 +162,30 @@ class RutasVM extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- ¡MÉTODO ACTUALIZADO! ---
   Future<void> inscribirseEnRuta(String rutaId) async {
-    try {
-      await _repositorio.inscribirseEnRuta(rutaId);
-      await cargarRutas();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
+    // Ya no llama al repositorio. Llama al "Cerebro".
+    await _authVM?.toggleRutaInscrita(rutaId);
+    // (AuthVM notificará, y la UI de detalle se redibujará)
   }
 
+  // --- ¡MÉTODO ACTUALIZADO! ---
   Future<void> salirDeRuta(String rutaId) async {
-    try {
-      await _repositorio.salirDeRuta(rutaId);
-      await cargarRutas();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
+    // Llama al mismo método del "Cerebro".
+    await _authVM?.toggleRutaInscrita(rutaId);
   }
 
+  // --- ¡MÉTODO ACTUALIZADO! ---
   Future<void> toggleFavoritoRuta(String rutaId) async {
-    try {
-      await _repositorio.toggleFavoritoRuta(rutaId);
-      await cargarRutas();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
+    // Llama al nuevo método del "Cerebro".
+    await _authVM?.toggleRutaFavorita(rutaId);
   }
 
+  // Este método sí debe llamar al repositorio
   Future<void> crearRuta(Map<String, dynamic> datosRuta) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
-
     try {
       await _repositorio.crearRuta(datosRuta);
       _estaCargando = false;
@@ -194,6 +198,3 @@ class RutasVM extends ChangeNotifier {
     }
   }
 }
-
-
-
