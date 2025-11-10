@@ -1,11 +1,14 @@
 // --- MAPA DE RUTAS (GPS) DE LA APP ---
 //
-// ¡VERSIÓN FINAL!
-// Le hemos "enseñado" las dos nuevas "direcciones"
-// para "/mis-favoritos" y "/mis-rutas".
+// 1. (ACOMPLADO): Importa la 'navigatorKey' global desde 'mapa_vm.dart'.
+// 2. (ACOMPLADO): Pasa la 'navigatorKey' al constructor de GoRouter.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+// --- ¡NUEVA IMPORTACIÓN! ---
+// Importamos la key global que definimos en el VM
+import 'package:xplore_cusco/caracteristicas/mapa/presentacion/vista_modelos/mapa_vm.dart' as mapa_vm;
 
 // --- Importaciones de "Edificios" (Pantallas) ---
 
@@ -39,6 +42,12 @@ import 'package:xplore_cusco/caracteristicas/rutas/dominio/entidades/ruta.dart';
 class AppRutas {
   // Creamos el "GPS" (router) con su "mapa" (routes)
   static final router = GoRouter(
+
+    // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+    // Le pasamos la key global al constructor
+    navigatorKey: mapa_vm.navigatorKey,
+    // --- FIN DE CORRECCIÓN ---
+
     initialLocation: '/', // La app siempre arranca en el Splash
 
     // El "mapa" con la lista de todas las "direcciones"

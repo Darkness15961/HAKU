@@ -1,9 +1,10 @@
-// --- PIEDRA 9 (RUTAS): EL "MENÚ" DE DETALLE DE RUTA (CONECTADO AL 100%) ---
+// --- PIEDRA 9 (RUTAS): EL "MENÚ" DE DETALLE DE RUTA (ACOMPLADO Y SIMPLIFICADO) ---
 //
-// 1. Los botones AHORA llaman a los métodos correctos del RutasVM
-//    (que a su vez llaman al AuthVM).
-// 2. El estado (si está inscrito o favorito) se LEE
-//    directamente del "Cerebro" (AuthVM).
+// 1. (ACOMPLADO): Ahora usa los campos de la "Receta" actualizada
+//    (cuposTotales, dias). Se eliminó 'duracionHoras'.
+// 2. (DISEÑO MEJORADO): El 'Card' de información ahora muestra
+//    3 columnas (Precio, Días, Cupos).
+// 3. (LÓGICA): Se mantiene 100% conectado al "Cerebro" (AuthVM).
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -12,7 +13,7 @@ import 'package:go_router/go_router.dart';
 // --- MVVM: IMPORTACIONES ---
 import '../vista_modelos/rutas_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
-import '../../dominio/entidades/ruta.dart';
+import '../../dominio/entidades/ruta.dart'; // <-- Usará la nueva "Receta" simplificada
 
 class DetalleRutaPagina extends StatelessWidget {
   final Ruta ruta;
@@ -33,30 +34,19 @@ class DetalleRutaPagina extends StatelessWidget {
   }
 
   // --- Lógica de Acciones (Conectadas al "Mesero") ---
-
-  // --- ¡MÉTODO CORREGIDO! ---
-  // El handler del botón "Inscribirse/Salir"
   void _handleRegistration(BuildContext context) {
-    // 1. Llamamos al "Guardia"
     if (!_checkAndRedirect(context, 'inscribirte en esta ruta')) {
       return;
     }
-
-    // 2. Si el "Guardia" da permiso...
-    //    ...leemos el "Cerebro" (AuthVM) para saber el estado
-    // --- ¡CONECTADO! Leemos del Cerebro, no de 'ruta' ---
     final vmAuth = context.read<AutenticacionVM>();
     final estaInscrito = vmAuth.rutasInscritasIds.contains(ruta.id);
 
-    // 3. Le damos la "orden" al "Mesero de Rutas" (RutasVM)
     if (estaInscrito) {
-      // 4. SÍ ESTÁ INSCRITO: Le damos la "ORDEN"
       context.read<RutasVM>().salirDeRuta(ruta.id);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Has cancelado tu registro (Simulado)')),
       );
     } else {
-      // 5. NO ESTÁ INSCRITO: Le damos la "ORDEN"
       context.read<RutasVM>().inscribirseEnRuta(ruta.id);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -69,15 +59,24 @@ class DetalleRutaPagina extends StatelessWidget {
   // --- Construcción del "Menú" (UI) ---
   @override
   Widget build(BuildContext context) {
-    // "Escuchamos" (watch) a AMBOS "Meseros"
-    // final vmRutas = context.watch<RutasVM>(); // No necesitamos escuchar a RutasVM
-    final vmAuth = context.watch<AutenticacionVM>(); // ¡El Cerebro!
+    final vmAuth = context.watch<AutenticacionVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
     // --- ¡LECTURA DE ESTADO DESDE EL CEREBRO! ---
     final bool esFavorita = vmAuth.rutasFavoritasIds.contains(ruta.id);
     final bool estaInscrito = vmAuth.rutasInscritasIds.contains(ruta.id);
-    // --- FIN DE LECTURA DE ESTADO ---
+
+    // --- ¡LÓGICA ACOMPLADA! ---
+    // Calculamos los cupos disponibles usando la nueva "Receta"
+    int inscritosCount = ruta.inscritosCount;
+    if (estaInscrito && !ruta.estaInscrito) {
+      inscritosCount++;
+    } else if (!estaInscrito && ruta.estaInscrito) {
+      inscritosCount--;
+    }
+    // Usa 'cuposTotales' (el nuevo campo)
+    final int cuposDisponibles = ruta.cuposTotales - inscritosCount;
+    // --- FIN DE LÓGICA ---
 
     return Scaffold(
       body: CustomScrollView(
@@ -91,22 +90,16 @@ class DetalleRutaPagina extends StatelessWidget {
             actions: [
               IconButton(
                   onPressed: () {
-                    // 1. Verificamos si está logueado
                     if (_checkAndRedirect(context, 'guardar esta ruta')) {
-                      // 2. Si SÍ, le damos la "ORDEN" al RutasVM
-                      // (RutasVM llamará al Cerebro AuthVM)
                       context.read<RutasVM>().toggleFavoritoRuta(ruta.id);
                     }
                   },
-                  // --- ¡CONECTADO AL CEREBRO! ---
                   icon: Icon(
                     esFavorita ? Icons.favorite : Icons.favorite_border,
                     color: esFavorita ? Colors.red : Colors.white,
                   )),
               IconButton(
-                  onPressed: () {
-                    /* Lógica de Compartir */
-                  },
+                  onPressed: () { /* Lógica de Compartir */ },
                   icon: const Icon(Icons.share, color: Colors.white)),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -124,8 +117,8 @@ class DetalleRutaPagina extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  // ¡Le pasamos el estado 'estaInscrito' del Cerebro!
-                  _buildRouteMetrics(ruta, estaInscrito: estaInscrito),
+                  // ¡Le pasamos los cupos disponibles!
+                  _buildRouteMetrics(ruta, cuposDisponibles: cuposDisponibles),
                 ],
               ),
               background: Image.network(
@@ -147,9 +140,8 @@ class DetalleRutaPagina extends StatelessWidget {
           SliverList(
             delegate: SliverChildListDelegate(
               [
-                // --- Bloque 1: Info Clave (Precio y Cupos) ---
-                // ¡Le pasamos el estado 'estaInscrito' del Cerebro!
-                _buildPriceAndCapacityCard(context, ruta, estaInscrito: estaInscrito),
+                // --- Bloque 1: Info Clave (¡DISEÑO MEJORADO Y SIMPLIFICADO!) ---
+                _buildInfoCard(context, ruta, cuposDisponibles: cuposDisponibles),
 
                 // --- Bloque 2: Perfil del Guía ---
                 _buildGuideProfile(context, ruta),
@@ -163,7 +155,7 @@ class DetalleRutaPagina extends StatelessWidget {
                       style: const TextStyle(fontSize: 15, color: Colors.black87)),
                 ),
 
-                // --- Bloque 4: Itinerario (adaptado a nuestra "Receta") ---
+                // --- Bloque 4: Itinerario ---
                 _buildSectionTitle('Itinerario y Lugares Incluidos'),
                 _buildRouteStopsList(ruta.lugaresIncluidos),
 
@@ -173,39 +165,31 @@ class DetalleRutaPagina extends StatelessWidget {
           ),
         ],
       ),
-      // --- 3. Botón Inferior (Tu diseño) ---
+      // --- 3. Botón Inferior (¡ACOMPLADO!) ---
       bottomNavigationBar:
-      // ¡Le pasamos el estado 'estaInscrito' del Cerebro!
-      _buildRegisterButton(context, vmAuth, ruta, estaInscrito: estaInscrito),
+      _buildRegisterButton(context, vmAuth, ruta,
+          estaInscrito: estaInscrito,
+          cuposDisponibles: cuposDisponibles
+      ),
     );
   }
 
-  // --- WIDGETS AUXILIARES (CONECTADOS AL CEREBRO) ---
+  // --- WIDGETS AUXILIARES (ACOMPLADOS Y MEJORADOS) ---
 
-  // ¡Ahora recibe 'estaInscrito' del Cerebro!
-  Widget _buildRouteMetrics(Ruta ruta, {required bool estaInscrito}) {
+  // ¡ACOMPLADO!
+  Widget _buildRouteMetrics(Ruta ruta, {required int cuposDisponibles}) {
     Color difficultyColor = ruta.dificultad == 'facil'
         ? Colors.green
         : ruta.dificultad == 'dificil'
         ? Colors.red
         : Colors.orange;
 
-    // Actualizamos el conteo de inscritos localmente si el usuario se inscribe
-    int inscritosCount = ruta.inscritosCount;
-    // Comparamos el estado "nuevo" (del Cerebro) con el "viejo" (del Mock)
-    if (estaInscrito && !ruta.estaInscrito) {
-      inscritosCount++;
-    } else if (!estaInscrito && ruta.estaInscrito) {
-      inscritosCount--;
-    }
-
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Chip(
-          // ¡Usa el conteo actualizado!
-          label: Text('$inscritosCount / ${ruta.cupos} Cupos',
+          // ¡Usa el conteo actualizado y 'cuposTotales'!
+          label: Text('$cuposDisponibles / ${ruta.cuposTotales} Cupos',
               style: const TextStyle(fontSize: 12, color: Colors.white)),
           backgroundColor: Colors.black.withOpacity(0.5),
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
@@ -229,19 +213,10 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // ¡Ahora recibe 'estaInscrito' del Cerebro!
-  Widget _buildPriceAndCapacityCard(BuildContext context, Ruta ruta, {required bool estaInscrito}) {
-
-    // (Misma lógica de conteo actualizado)
-    int inscritosCount = ruta.inscritosCount;
-    if (estaInscrito && !ruta.estaInscrito) {
-      inscritosCount++;
-    } else if (!estaInscrito && ruta.estaInscrito) {
-      inscritosCount--;
-    }
-
-    final int availableSpots = ruta.cupos - inscritosCount;
-    final bool isRouteFull = availableSpots <= 0;
+  // --- ¡WIDGET MEJORADO Y SIMPLIFICADO! ---
+  // Ahora muestra Precio, Días y Cupos (no duración en horas)
+  Widget _buildInfoCard(BuildContext context, Ruta ruta, {required int cuposDisponibles}) {
+    final bool isRouteFull = cuposDisponibles <= 0;
 
     return Card(
       margin: const EdgeInsets.all(16.0),
@@ -266,19 +241,32 @@ class DetalleRutaPagina extends StatelessWidget {
                     style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
+            // Días (¡SIMPLIFICADO!)
+            Column(
+              children: [
+                const Icon(Icons.calendar_today, color: Colors.blueAccent, size: 30),
+                const SizedBox(height: 4),
+                Text('${ruta.dias} Día(s)', // <-- Muestra solo los días
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueAccent)),
+                const Text('Duración',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
             // Cupos
             Column(
               children: [
                 Icon(Icons.group,
                     color: isRouteFull ? Colors.red : Colors.indigo, size: 30),
                 const SizedBox(height: 4),
-                // ¡Usa el conteo actualizado!
-                Text('$availableSpots',
+                Text('$cuposDisponibles',
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: isRouteFull ? Colors.red : Colors.indigo)),
-                const Text('Cupos Disponibles',
+                const Text('Cupos Disp.',
                     style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
@@ -360,53 +348,39 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // --- ¡WIDGET DEL BOTÓN INFERIOR CONECTADO AL CEREBRO! ---
+  // --- ¡WIDGET DEL BOTÓN INFERIOR ACOMPLADO! ---
   Widget _buildRegisterButton(
       BuildContext context,
       AutenticacionVM vmAuth,
       Ruta ruta, {
-        required bool estaInscrito, // ¡Recibe el estado del Cerebro!
+        required bool estaInscrito,
+        required int cuposDisponibles, // ¡Recibe los cupos!
       }) {
 
-    // (La lógica de cupos sigue siendo local)
-    int inscritosCount = ruta.inscritosCount;
-    if (estaInscrito && !ruta.estaInscrito) {
-      inscritosCount++;
-    } else if (!estaInscrito && ruta.estaInscrito) {
-      inscritosCount--;
-    }
-    final bool isRouteFull = (ruta.cupos - inscritosCount) <= 0;
-
-    // Leemos del "Mesero de Seguridad"
+    final bool isRouteFull = cuposDisponibles <= 0;
     final bool isUserLoggedIn = vmAuth.estaLogueado;
 
     String buttonText;
     Color buttonColor;
     VoidCallback? onPressed;
 
-    // --- ¡LÓGICA DE ESTADO BASADA EN EL CEREBRO! ---
     if (estaInscrito) {
-      // Flujo 1: Ya está registrado (según el Cerebro)
       buttonText = 'SALIR DE LA RUTA';
       buttonColor = Colors.red;
       onPressed = () => _handleRegistration(context);
     } else if (isRouteFull) {
-      // Flujo 2: Cupos Llenos
       buttonText = 'RUTA LLENA (SIN CUPOS)';
       buttonColor = Colors.grey;
       onPressed = null;
     } else if (!isUserLoggedIn) {
-      // Flujo 3: Anónimo (Requiere Login)
       buttonText = 'INICIA SESIÓN PARA UNIRTE';
       buttonColor = Colors.orange;
       onPressed = () => _handleRegistration(context);
     } else {
-      // Flujo 4: Disponible y Logueado
       buttonText = 'REGISTRARSE (S/ ${ruta.precio.toStringAsFixed(2)})';
       buttonColor = Colors.indigo;
       onPressed = () => _handleRegistration(context);
     }
-    // --- FIN DE LA LÓGICA DE ESTADO ---
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -418,7 +392,6 @@ class DetalleRutaPagina extends StatelessWidget {
       ),
       child: ElevatedButton.icon(
         onPressed: onPressed,
-        // ¡Icono conectado al Cerebro!
         icon: Icon(estaInscrito ? Icons.close : Icons.how_to_reg,
             color: Colors.white),
         label: Text(buttonText,

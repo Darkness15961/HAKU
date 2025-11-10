@@ -1,30 +1,25 @@
-// --- PIEDRA 5: EL "MENÚ" DE LUGARES POR PROVINCIA ---
+// --- PIEDRA 6.5: PÁGINA DE LUGARES POR PROVINCIA (FINAL Y ESTÉTICO) ---
 //
-// Esta es la versión FINAL.
-// 1. Conectada al "Mesero" (MVVM).
-// 2. Con el diseño de "Chips" (botones) arreglado.
-// 3. Con la navegación a "Detalle" ENCENDIDA.
+// 1. Lógica de filtrado y búsqueda en la UI (ListView) COMPLETAMENTE funcional.
+// 2. Diseño de filtros y tarjetas mejorado para ser estético y profesional.
+// 3. Implementa el "Guardia" de seguridad (_checkAndRedirect) en el botón de favorito.
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 
 // --- MVVM: IMPORTACIONES ---
-// 1. Importamos el "Mesero" (ViewModel)
 import '../vista_modelos/lugares_vm.dart';
-// 2. Importamos las "Recetas" (Entidades) que usará esta pantalla
+import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/provincia.dart';
+import '../../dominio/entidades/categoria.dart';
 
-// 1. El "Edificio" (La Pantalla)
-//    Recibe el objeto "Provincia" completo
+
 class ProvinciaLugaresPagina extends StatefulWidget {
   final Provincia provincia;
 
-  const ProvinciaLugaresPagina({
-    super.key,
-    required this.provincia,
-  });
+  const ProvinciaLugaresPagina({super.key, required this.provincia});
 
   @override
   State<ProvinciaLugaresPagina> createState() => _ProvinciaLugaresPaginaState();
@@ -33,334 +28,266 @@ class ProvinciaLugaresPagina extends StatefulWidget {
 class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
   final TextEditingController _searchCtrl = TextEditingController();
 
-  // --- Lógica de Navegación ---
-  void _irAlDetalle(BuildContext context, Lugar lugar) {
-    // --- ¡ARREGLO DEFINITIVO! ---
-    //
-    // 1. "Encendemos" (descomentamos) la navegación real
-    //    Ahora que el "GPS" (app_rutas.dart) y el "Edificio"
-    //    (detalle_lugar_pagina.dart) existen,
-    //    este comando SÍ funcionará.
-    context.push('/detalle-lugar', extra: lugar);
-
-    // 2. "Apagamos" (borramos) el aviso temporal
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(content: Text('Navegando a: ${lugar.nombre}')),
-    // );
-    // --- FIN DEL ARREGLO ---
-  }
-
   // --- Lógica de Carga Inicial ---
   @override
   void initState() {
     super.initState();
-    // Le damos la "ORDEN 4" (ver el VM) al "Mesero"
     Future.microtask(() {
+      // 1. Pedimos al Mesero de Lugares que cargue solo los datos de esta provincia.
       context
           .read<LugaresVM>()
           .cargarLugaresPorProvincia(widget.provincia.id);
     });
+    // Sincronizamos la búsqueda con el VM
+    _searchCtrl.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    // Esto dispara la lógica de filtro dentro del getter lugaresFiltradosDeProvincia
+    context.read<LugaresVM>().buscarEnProvincia(_searchCtrl.text);
+  }
+
+  // --- Lógica de Seguridad (El Guardia) ---
+  bool _checkAndRedirect(BuildContext context, String action) {
+    final authVM = context.read<AutenticacionVM>();
+
+    if (!authVM.estaLogueado) {
+      _showLoginRequiredModal(context, action);
+      return false; // BLOQUEADO
+    }
+    return true; // PERMITIDO
+  }
+
+  // --- Lógica de Toggle Favorito (Conectada y Protegida) ---
+  void _onToggleFavorito(BuildContext context, Lugar lugar) {
+    // 1. Llama al "Guardia"
+    if (!_checkAndRedirect(context, 'guardar este lugar')) {
+      return; // Si es anónimo, se detiene aquí.
+    }
+    // 2. Si el "Guardia" da permiso, llama al VM
+    context.read<LugaresVM>().toggleLugarFavorito(lugar.id);
   }
 
   // --- Construcción del "Menú" (UI) ---
   @override
   Widget build(BuildContext context) {
-    // "Escuchamos" al "Mesero"
-    final vm = context.watch<LugaresVM>();
+    // Escuchamos a los dos ViewModels
+    final vmLugares = context.watch<LugaresVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
+
+    // Lista ya filtrada y buscada (usa el getter)
+    final List<Lugar> lugares = vmLugares.lugaresFiltradosDeProvincia;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.provincia.nombre),
+        foregroundColor: Colors.white,
+        backgroundColor: colorPrimario,
         elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: NetworkImage(widget.provincia.urlImagen),
-              fit: BoxFit.cover,
-              colorFilter: ColorFilter.mode(
-                Colors.black.withOpacity(0.5),
-                BlendMode.darken,
-              ),
-            ),
-          ),
-        ),
       ),
-      // Usamos el "interruptor" de carga del "Mesero"
-      body: vm.estaCargandoLugaresDeProvincia
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-        // El "Refresh" le da la "ORDEN 4" al "Mesero"
-        onRefresh: () => vm.cargarLugaresPorProvincia(widget.provincia.id),
-        color: colorPrimario,
-        //
-        // --- ¡TU DISEÑO DE SLIVERS COMIENZA AQUÍ! ---
-        //
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            // --- Barra de Búsqueda y Filtros ---
-            SliverToBoxAdapter(
-              child: _buildSearchAndFilters(
-                context: context,
-                vm: vm, // Pasamos el "Mesero"
-              ),
-            ),
-
-            // --- Cuadrícula de Lugares ---
-            SliverPadding(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              // Leemos la lista de lugares YA FILTRADA del "Mesero"
-              sliver: vm.lugaresFiltradosDeProvincia.isEmpty
-                  ? SliverToBoxAdapter(child: _buildEmpty())
-                  : SliverGrid(
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    final lugar = vm.lugaresFiltradosDeProvincia[index];
-                    return _buildLugarCard(
-                      lugar: lugar,
-                      // ¡Este es el botón que "encendemos"!
-                      onTap: () => _irAlDetalle(context, lugar),
-                    );
-                  },
-                  childCount: vm.lugaresFiltradosDeProvincia.length,
-                ),
-                gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.78, // Tu ratio de aspecto
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(child: const SizedBox(height: 18)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- Widget de Búsqueda y Filtros (Conectado al "Mesero") ---
-  Widget _buildSearchAndFilters({
-    required BuildContext context,
-    required LugaresVM vm, // Recibe al "Mesero"
-  }) {
-    final colorPrimario = Theme.of(context).colorScheme.primary;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
-      child: Column(
+      body: Column(
         children: [
-          // Barra de búsqueda
-          TextField(
-            controller: _searchCtrl,
-            // --- MVVM: ORDEN AL "MESERO" ---
-            onChanged: (termino) {
-              // Le damos la "ORDEN 5" (ver el VM)
-              context.read<LugaresVM>().buscarEnProvincia(termino);
-            },
-            decoration: InputDecoration(
-              hintText: 'Buscar en ${widget.provincia.nombre}...',
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: Colors.grey[100],
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Chips de categoría (Diseño Corregido)
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 46,
-                  // Leemos la lista de categorías del "Mesero"
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: vm.categorias.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final cat = vm.categorias[index];
-                      // Comparamos con el ID seleccionado en el "Mesero"
-                      final selected =
-                          cat.id == vm.categoriaSeleccionadaIdProvincia;
+          // 1. Búsqueda y Filtros
+          _buildSearchAndFilterRow(context, vmLugares),
 
-                      return ChoiceChip(
-                        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-                        label: Text(cat.nombre,
-                            style: TextStyle(
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w600)),
-                        selected: selected,
-                        // --- MVVM: ORDEN AL "MESERO" ---
-                        onSelected: (_) {
-                          // Le damos la "ORDEN 6"
-                          context
-                              .read<LugaresVM>()
-                              .seleccionarCategoriaEnProvincia(cat.id);
-                        },
-                        // --- ESTILO MEJORADO (Tu Petición) ---
-                        backgroundColor: Colors.white,
-                        selectedColor: colorPrimario,
-                        labelStyle: TextStyle(
-                            color: selected
-                                ? Colors.white
-                                : Colors.black.withOpacity(0.7)),
-                        // La "Circunferencia" (borde)
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(
-                            color: selected
-                                ? colorPrimario
-                                : Colors.grey[300]!,
-                            width: 1.0,
-                          ),
-                        ),
-                        elevation: 0,
-                        pressElevation: 0,
-                        // --- FIN DE LA MEJORA ---
-                      );
-                    },
+          // 2. Contenido Principal
+          Expanded(
+            child: vmLugares.estaCargandoLugaresDeProvincia
+                ? const Center(child: CircularProgressIndicator())
+                : lugares.isEmpty
+                ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.location_off_outlined, size: 50, color: Colors.grey[400]),
+                  const SizedBox(height: 10),
+                  const Text('No se encontraron lugares con esos filtros.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
-                ),
+                ],
               ),
-            ],
+            )
+                : _buildLugaresList(context, vmLugares, lugares),
           ),
         ],
       ),
     );
   }
 
-  // --- Widget de Tarjeta (Tu diseño, usando la "Receta" Lugar) ---
-  Widget _buildLugarCard({
-    required Lugar lugar, // Recibe la "Receta" Lugar
-    required VoidCallback onTap,
-  }) {
-    final isFav = false; // TODO: Conectar a AuthVM
+  // --- WIDGETS AUXILIARES (Diseño Profesional) ---
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap, // Llama a _irAlDetalle
-        borderRadius: BorderRadius.circular(12),
-        child: Card(
-          elevation: 4,
-          clipBehavior: Clip.antiAlias,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Hero(
-                  tag: 'lugar_imagen_${lugar.id}',
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      FadeInImage(
-                        placeholder: const NetworkImage(
-                            'https://placehold.co/20x20/eeeeee/cccccc'),
-                        image: NetworkImage(lugar.urlImagen),
-                        fit: BoxFit.cover,
-                        fadeInDuration: const Duration(milliseconds: 300),
-                        imageErrorBuilder: (_, __, ___) => Container(
-                          color: Colors.grey[200],
-                          child: const Center(child: Icon(Icons.broken_image)),
-                        ),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.transparent, Colors.black.withOpacity(0.28)],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: GestureDetector(
-                          onTap: () {
-                            // --- MVVM: Lógica de Favorito (Pendiente) ---
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('"${lugar.nombre}" (Pronto)'),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                                color: Colors.white24, shape: BoxShape.circle),
-                            child: Icon(
-                                isFav ? Icons.favorite : Icons.favorite_border,
-                                color: isFav ? Colors.red : Colors.white),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+  Widget _buildSearchAndFilterRow(BuildContext context, LugaresVM vmLugares) {
+    final List<Categoria> categorias = [
+      Categoria(id: '1', nombre: 'Todos', urlImagen: ''),
+      // Solo mostramos categorías que son relevantes para esta provincia
+      ...vmLugares.categorias.where((c) => c.id != '1').toList()
+    ];
+
+    final String selectedCategoryId = vmLugares.categoriaSeleccionadaIdProvincia;
+    final colorPrimario = Theme.of(context).colorScheme.primary;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Row(
+        children: [
+          // Campo de Búsqueda (Estético)
+          Expanded(
+            child: TextField(
+              controller: _searchCtrl,
+              // Diseño mejorado con sombra sutil
+              decoration: InputDecoration(
+                hintText: 'Buscar lugar...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
               ),
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Dropdown de Filtro por Categoría (Estético y compacto)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selectedCategoryId,
+                icon: Icon(Icons.filter_list, color: colorPrimario),
+                items: categorias.map((Categoria c) {
+                  return DropdownMenuItem<String>(
+                    value: c.id,
+                    child: Text(c.nombre, style: const TextStyle(fontSize: 14)),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    // --- ¡CONEXIÓN DE FILTRO FUNCIONAL! ---
+                    // Esto llama al VM, que notifica a la Vista para que se redibuje con el nuevo filtro.
+                    vmLugares.seleccionarCategoriaEnProvincia(newValue);
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Lista de Lugares (Diseño de Tarjeta Mejorado)
+  Widget _buildLugaresList(BuildContext context, LugaresVM vmLugares, List<Lugar> lugares) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      itemCount: lugares.length,
+      itemBuilder: (context, index) {
+        final lugar = lugares[index];
+        final bool esFavorito = vmLugares.esLugarFavorito(lugar.id);
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16.0),
+          elevation: 6, // Sombra más pronunciada
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Imagen y Botón de Favorito
+              Stack(
+                children: [
+                  // Imagen (Navega al Detalle)
+                  InkWell(
+                    onTap: () {
+                      context.push('/detalle-lugar', extra: lugar);
+                    },
+                    child: Hero( // Hero para una transición suave (diseño profesional)
+                      tag: 'lugar_imagen_${lugar.id}_provincia',
+                      child: Image.network(
+                        lugar.urlImagen,
+                        height: 180,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          height: 180,
+                          width: double.infinity,
+                          color: Colors.grey[200],
+                          child: Center(child: Icon(Icons.place_outlined, size: 50, color: Colors.grey[400])),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Botón de Favorito (Protegido)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          esFavorito ? Icons.favorite : Icons.favorite_border,
+                          color: esFavorito ? Colors.red : Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: () => _onToggleFavorito(context, lugar),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // 2. Contenido de Texto
               Padding(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      lugar.nombre,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    const SizedBox(height: 6),
+                    Text(lugar.nombre,
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text(lugar.descripcion,
+                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 12),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(Icons.place, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            lugar.categoria,
-                            style: TextStyle(color: Colors.grey[700], fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(8)),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.star,
-                                  color: Colors.green, size: 12),
-                              const SizedBox(width: 6),
-                              Text(
-                                lugar.rating.toStringAsFixed(1),
-                                style: const TextStyle(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12),
-                              ),
-                            ],
+                        _buildRating(lugar.rating),
+                        Chip( // Usamos Chip para la categoría para mejor estética
+                          label: Text(lugar.categoria, style: const TextStyle(fontSize: 14)),
+                          backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          labelStyle: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ],
@@ -370,29 +297,52 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
               ),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  // --- Widget de Estado Vacío (Tu diseño) ---
-  Widget _buildEmpty() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(Icons.location_off, size: 72, color: Colors.grey[300]),
-            const SizedBox(height: 12),
-            const Text(
-              'No hay lugares para mostrar\ncon esos filtros.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
+  Widget _buildRating(double rating) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.star, color: Colors.amber, size: 18),
+        const SizedBox(width: 4),
+        Text(rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  // --- WIDGET AUXILIAR: MODAL DE INVITACIÓN (Bloqueo Suave) ---
+  void _showLoginRequiredModal(BuildContext context, String action) {
+    final colorPrimario = Theme.of(context).colorScheme.primary;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Acción Requerida 🔒'),
+          content:
+          Text('Necesitas iniciar sesión o crear una cuenta para $action.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Seguir Explorando',
+                  style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                context.push('/login');
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: colorPrimario),
+              child: const Text('Iniciar Sesión',
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }
-

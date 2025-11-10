@@ -1,145 +1,397 @@
-// --- PIEDRA 5 (MAPA): EL "MESERO DE MAPA" (CORREGIDO) ---
+// --- PIEDRA 5 (MAPA): EL "SUPER-MESERO" (VERSIÓN CON CAMBIO DE MAPA) ---
 //
-// Sigue la misma lógica que el RutasVM.
-// Se crea "tonto" y la MapaPagina lo "despierta"
-// pasándole las dependencias.
-//
-// --- CAMBIOS ---
-// - Se corrigió 'estaCargando' por 'estaCargandoInicio'
-// - Se corrigió 'lugares' por 'lugaresPopulares'
-// - Se corrigió la lógica de 'favoritos' (ya que 'Lugar' no tiene 'esFavorita')
-// - ¡SE CORRIGIÓ EL TYPO EN EL IMPORT DE AUTENTICACION!
+// 1. (¡NUEVO!): Se añade '_currentMapType' y 'toggleMapType()'
+//    para manejar el cambio de relieve (satélite/normal).
+// 2. (ESTABLE): Mantiene todas las correcciones de Bucle, GPS y Controlador.
 
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
-// --- ¡CORREGIDO! ---
-import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
-import '../../../inicio/dominio/entidades/lugar.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+
+// VMs (se mantienen)
+import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
+import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
+import '../../../rutas/presentacion/vista_modelos/rutas_vm.dart';
+
+// Entidades (se mantienen)
+import '../../../inicio/dominio/entidades/lugar.dart';
+import '../../../rutas/dominio/entidades/ruta.dart';
+
+// --- ¡NUEVO! Key Global para acceder al Theme ---
+// (Movido FUERA de la clase para ser importable)
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+enum TipoCarrusel { ninguno, lugares, rutas }
 
 class MapaVM extends ChangeNotifier {
-  // --- A. DEPENDENCIAS (Inicialmente nulas) ---
+  // --- A. DEPENDENCIAS (se mantienen) ---
   LugaresVM? _lugaresVM;
   AutenticacionVM? _authVM;
+  RutasVM? _rutasVM;
 
-  // --- B. ESTADO DE LA UI ---
+  // --- B. ESTADO DEL MAPA (¡CON TIPO DE MAPA!) ---
   bool _estaCargando = false;
   Set<Marker> _markers = {};
   String? _error;
   bool _cargaInicialRealizada = false;
-  List<Lugar> _favoritos = []; // Estado para el carrusel
+  Completer<GoogleMapController> _mapController = Completer();
+  Set<Polyline> _polylines = {};
 
-  // --- C. GETTERS ---
+  // --- ¡NUEVO ESTADO PARA TIPO DE MAPA! ---
+  MapType _currentMapType = MapType.normal;
+  // --- FIN NUEVO ESTADO ---
+
+  // --- GEOLOCATOR (se mantienen) ---
+  StreamSubscription<Position>? _positionStreamSubscription;
+  LatLng? _currentLocation;
+
+  LatLng? get currentLocation => _currentLocation;
+
+  // --- C. ESTADO DE LA UI (se mantienen) ---
+  TipoCarrusel _carruselActual = TipoCarrusel.ninguno;
+  List<Lugar> _lugaresFiltrados = [];
+  List<Ruta> _rutasFiltradas = [];
+
+  // --- D. GETTERS (¡CON TIPO DE MAPA!) ---
   bool get estaCargando => _estaCargando;
   Set<Marker> get markers => _markers;
+  Set<Polyline> get polylines => _polylines;
+  MapType get currentMapType => _currentMapType; // <-- ¡NUEVO GETTER!
   String? get error => _error;
-  List<Lugar> get favoritos => _favoritos;
+  TipoCarrusel get carruselActual => _carruselActual;
+  List<Lugar> get lugaresFiltrados => _lugaresFiltrados;
+  List<Ruta> get rutasFiltradas => _rutasFiltradas;
+  // (mapController sigue eliminado)
 
-  // --- D. CONSTRUCTOR (¡SÚPER LIMPIO!) ---
-  MapaVM() {
-    // Constructor 100% limpio.
-    // Coincide con el create: (context) => MapaVM() de main.dart
+
+  // --- MÉTODO PARA RECONSTRUIR EL CONTROLADOR (se mantiene) ---
+  void setNewMapController(GoogleMapController controller) {
+    if (_mapController.isCompleted) {
+      _mapController = Completer();
+    }
+    _mapController.complete(controller);
   }
 
-  // --- E. MÉTODO DE CARGA INICIAL (RECIBE DEPENDENCIAS) ---
-  // La página (mapa_pagina.dart) llamará a este método
-  void cargarDatosIniciales(LugaresVM lugaresVM, AutenticacionVM authVM) {
-    if (_cargaInicialRealizada) return;
+  // --- E. CONSTRUCTOR (se mantiene) ---
+  MapaVM() {}
 
-    // 1. Guardamos las referencias
-    _lugaresVM = lugaresVM;
-    _authVM = authVM;
-
-    // 2. Verificamos si los VMs de los que dependemos están listos
-    // --- ¡CORREGIDO! ---
-    if ((_lugaresVM?.estaCargandoInicio ?? false) || (_authVM?.estaCargando ?? false)) {
-      _estaCargando = true;
-      notifyListeners();
-      // Agregamos listeners temporales a AMBOS
-      _lugaresVM?.addListener(_onDependenciasReady);
-      _authVM?.addListener(_onDependenciasReady);
+  // --- F. MÉTODOS DE INICIALIZACIÓN (se mantienen) ---
+  void actualizarDependencias(
+      LugaresVM lugaresVM, AutenticacionVM authVM, RutasVM rutasVM) {
+    if (_cargaInicialRealizada) {
+      if (_authVM?.usuarioActual != authVM.usuarioActual) {
+        _lugaresVM = lugaresVM;
+        _authVM = authVM;
+        _rutasVM = rutasVM;
+        mostrarTodosLosLugares();
+      }
       return;
     }
-
-    // 3. Si ambos están listos (Anónimo y lugares cargados), iniciamos.
+    _lugaresVM = lugaresVM;
+    _authVM = authVM;
+    _rutasVM = rutasVM;
+    if (lugaresVM.estaCargandoInicio || authVM.estaCargando) {
+      _estaCargando = true;
+      notifyListeners();
+      lugaresVM.addListener(_onDependenciasReady);
+      authVM.addListener(_onDependenciasReady);
+      rutasVM.addListener(_onDependenciasReady);
+      return;
+    }
     _iniciarCargaLogica();
   }
 
-  // Listener temporal
+  // Listener temporal (se mantiene)
   void _onDependenciasReady() {
-    // Se llamará dos veces, pero la lógica interna lo maneja
-    // --- ¡CORREGIDO! ---
-    if (!(_lugaresVM?.estaCargandoInicio ?? false) && !(_authVM?.estaCargando ?? false)) {
-      // Cuando AMBOS estén listos
+    if (_cargaInicialRealizada) return;
+    if (!(_lugaresVM?.estaCargandoInicio ?? true) &&
+        !(_authVM?.estaCargando ?? true))
+    {
       _iniciarCargaLogica();
-      // Quitamos los listeners
       _lugaresVM?.removeListener(_onDependenciasReady);
       _authVM?.removeListener(_onDependenciasReady);
+      _rutasVM?.removeListener(_onDependenciasReady);
     }
   }
 
-  // Lógica de carga real
+  // Lógica de carga real (se mantiene)
   void _iniciarCargaLogica() {
-    // Nos suscribimos a listeners permanentes
-    _lugaresVM?.addListener(_actualizarMarcadoresYFavoritos);
-    _authVM?.addListener(_actualizarMarcadoresYFavoritos);
-
-    // Ejecutamos la carga por primera vez
-    _actualizarMarcadoresYFavoritos();
+    _cargaInicialRealizada = true;
+    _estaCargando = false;
+    _lugaresVM?.addListener(_actualizarListasYMarcadores);
+    _authVM?.addListener(_actualizarListasYMarcadores);
+    _rutasVM?.addListener(_actualizarListasYMarcadores);
+    _actualizarListasYMarcadores();
+    notifyListeners();
+    iniciarSeguimientoUbicacion();
   }
 
-  // Método que actualiza todo
-  void _actualizarMarcadoresYFavoritos() {
-    if (_lugaresVM == null || _authVM == null) return; // Seguridad
-
-    _estaCargando = true;
-    _error = null;
-    Future.microtask(() => notifyListeners());
-
+  // --- MÉTODO DE GEOLOCATOR (se mantiene) ---
+  Future<bool> iniciarSeguimientoUbicacion() async {
+    if (_positionStreamSubscription != null) return true;
+    bool serviceEnabled;
+    LocationPermission permission;
     try {
-      // 1. Lógica de Marcadores (de LugaresVM)
-      // --- ¡CORREGIDO! ---
-      final lugares = _lugaresVM!.lugaresPopulares;
-      _markers = lugares.map((lugar) {
-        return Marker(
-          markerId: MarkerId(lugar.id),
-          position: LatLng(lugar.latitud, lugar.longitud),
-          infoWindow: InfoWindow(title: lugar.nombre),
-          // TODO: Añadir onTap para navegar
-        );
-      }).toSet();
-
-      // 2. Lógica de Favoritos (de AuthVM y LugaresVM)
-      if (_authVM!.estaLogueado) {
-        // --- ¡CORREGIDO! ---
-        // Tu entidad 'Lugar' no tiene la propiedad 'esFavorita'.
-        // Esta lógica debe conectarse al estado de favoritos del AuthVM
-        // o un repositorio de favoritos dedicado.
-        // Por ahora, lo dejamos vacío para que no crashee.
-        _favoritos = [];
-        // _favoritos = _lugaresVM!.lugaresPopulares.where((l) => l.esFavorita).toList();
-      } else {
-        _favoritos = []; // Anónimo no tiene favoritos
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) { return false; }
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) { return false; }
       }
-
-      _estaCargando = false;
-      _cargaInicialRealizada = true;
-      notifyListeners();
-
+      if (permission == LocationPermission.deniedForever) { return false; }
+      final locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      );
+      _positionStreamSubscription?.cancel();
+      _positionStreamSubscription = Geolocator.getPositionStream(
+          locationSettings: locationSettings
+      ).listen((Position position) {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+        notifyListeners();
+      });
+      return true;
     } catch (e) {
-      _estaCargando = false;
+      print("Error en Geolocator: $e");
+      return false;
+    }
+  }
+
+  void detenerSeguimientoUbicacion() {
+    _positionStreamSubscription?.cancel();
+    _positionStreamSubscription = null;
+  }
+
+  // --- G. LÓGICA DE FILTRADO (¡ACOMPLADA!) ---
+  void _actualizarListasYMarcadores() {
+    if (!_cargaInicialRealizada || _lugaresVM == null || _authVM == null || _rutasVM == null) {
+      return;
+    }
+    try {
+      final todosLosLugares = _lugaresVM!.lugaresTotales;
+      final idsFavoritos = _authVM!.lugaresFavoritosIds;
+      _lugaresFiltrados = todosLosLugares.where((l) => idsFavoritos.contains(l.id)).toList();
+      _rutasFiltradas = _rutasVM!.misRutasInscritas;
+      if (_carruselActual == TipoCarrusel.ninguno) {
+        _markers = {};
+        _polylines = {};
+      }
+      notifyListeners();
+    } catch (e) {
       _error = e.toString();
       notifyListeners();
     }
   }
 
-  // --- F. LIMPIEZA DE LISTENERS ---
+  // Helper para crear UN marcador (se mantiene)
+  Marker _crearUnMarcador(Lugar lugar) {
+    return Marker(
+      markerId: MarkerId(lugar.id),
+      position: LatLng(lugar.latitud, lugar.longitud),
+      infoWindow: InfoWindow(
+        title: lugar.nombre,
+        snippet: lugar.categoria,
+      ),
+    );
+  }
+
+  // --- H. ÓRDENES DE LA UI (¡ACOMPLADAS!) ---
+  void mostrarCarruselLugares() {
+    if (_carruselActual == TipoCarrusel.lugares) {
+      _carruselActual = TipoCarrusel.ninguno;
+      _markers = {};
+      _polylines = {};
+    } else {
+      _carruselActual = TipoCarrusel.lugares;
+      _markers = {};
+      _polylines = {};
+    }
+    _actualizarListasYMarcadores();
+  }
+
+  void mostrarCarruselRutas() {
+    if (_carruselActual == TipoCarrusel.rutas) {
+      _carruselActual = TipoCarrusel.ninguno;
+      _markers = {};
+      _polylines = {};
+    } else {
+      _carruselActual = TipoCarrusel.rutas;
+      _markers = {};
+      _polylines = {};
+    }
+    _actualizarListasYMarcadores();
+  }
+
+  void mostrarTodosLosLugares() {
+    if (_carruselActual == TipoCarrusel.ninguno) return;
+    _carruselActual = TipoCarrusel.ninguno;
+    _actualizarListasYMarcadores();
+  }
+
+  Future<void> limpiarMarcadores() async {
+    _markers = {};
+    _polylines = {}; // <-- Limpia Polilíneas
+    notifyListeners();
+    if (!_mapController.isCompleted) return;
+    final controller = await _mapController.future;
+    controller.animateCamera(CameraUpdate.newLatLngZoom(const LatLng(-13.517, -71.978), 12));
+  }
+
+  // --- ¡NUEVO MÉTODO PARA CAMBIAR TIPO DE MAPA! ---
+  void toggleMapType() {
+    _currentMapType = (_currentMapType == MapType.normal)
+        ? MapType.satellite // Cambia a satélite
+        : MapType.normal; // Vuelve a normal
+    notifyListeners();
+  }
+  // --- FIN DE NUEVO MÉTODO ---
+
+  // --- MÉTODOS DE ZOOM (se mantienen) ---
+  Future<void> zoomIn() async {
+    if (!_mapController.isCompleted) return;
+    final controller = await _mapController.future;
+    controller.animateCamera(CameraUpdate.zoomIn());
+  }
+
+  Future<void> zoomOut() async {
+    if (!_mapController.isCompleted) return;
+    final controller = await _mapController.future;
+    controller.animateCamera(CameraUpdate.zoomOut());
+  }
+
+  // --- MÉTODO DE CENTRADO (se mantiene) ---
+  Future<void> enfocarMiUbicacion() async {
+    if (!_mapController.isCompleted) {
+      throw Exception('El mapa no está listo.');
+    }
+    if (_currentLocation != null) {
+      final controller = await _mapController.future;
+      controller.animateCamera(CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: _currentLocation!,
+          zoom: 16,
+        ),
+      ));
+    } else {
+      final bool exito = await iniciarSeguimientoUbicacion();
+      if (!exito) {
+        throw Exception('Por favor, activa el GPS y otorga permisos.');
+      }
+      await Future.delayed(const Duration(seconds: 1));
+      if (_currentLocation != null) {
+        final controller = await _mapController.future;
+        controller.animateCamera(CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: _currentLocation!,
+            zoom: 16,
+          ),
+        ));
+      } else {
+        throw Exception('Buscando ubicación...');
+      }
+    }
+  }
+
+
+  // --- ÓRDENES DEL CARRUSEL (¡ANIMACIÓN CORREGIDA!) ---
+  Future<void> enfocarLugarEnMapa(Lugar lugar) async {
+    if (lugar.latitud == 0.0 && lugar.longitud == 0.0) return;
+    if (!_mapController.isCompleted) return;
+    final controller = await _mapController.future;
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: LatLng(lugar.latitud, lugar.longitud),
+          zoom: 16,
+        ),
+      ),
+    );
+    _markers.add(_crearUnMarcador(lugar));
+    _polylines = {}; // Limpia polilíneas al ver un solo lugar
+    notifyListeners();
+  }
+
+  // --- ¡MÉTODO DE RUTA ACOMPLADO CON POLILÍNEAS! ---
+  Future<void> enfocarRutaEnMapa(Ruta ruta, List<Lugar> todosLosLugares) async {
+    if (!_mapController.isCompleted) return;
+    final controller = await _mapController.future;
+
+    final List<Lugar> lugaresDeLaRuta = todosLosLugares
+        .where((lugar) =>
+    ruta.lugaresIncluidos.contains(lugar.nombre) &&
+        lugar.latitud != 0.0 &&
+        lugar.longitud != 0.0)
+        .toList();
+
+    if (lugaresDeLaRuta.isEmpty) {
+      controller.animateCamera(CameraUpdate.newLatLngZoom(const LatLng(-13.517, -71.978), 12));
+      return;
+    }
+
+    _markers = {};
+    _polylines = {}; // Limpia polilíneas anteriores
+
+    if (lugaresDeLaRuta.length == 1) {
+      await enfocarLugarEnMapa(lugaresDeLaRuta.first);
+      return;
+    }
+
+    // 1. Calcula los límites
+    double minLat = lugaresDeLaRuta.first.latitud;
+    double maxLat = lugaresDeLaRuta.first.latitud;
+    double minLng = lugaresDeLaRuta.first.longitud;
+    double maxLng = lugaresDeLaRuta.first.longitud;
+    for (var lugar in lugaresDeLaRuta) {
+      if (lugar.latitud < minLat) minLat = lugar.latitud;
+      if (lugar.latitud > maxLat) maxLat = lugar.latitud;
+      if (lugar.longitud < minLng) minLng = lugar.longitud;
+      if (lugar.longitud > maxLng) maxLng = lugar.longitud;
+    }
+    final LatLngBounds bounds = LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    );
+
+    // 2. Anima la cámara PRIMERO
+    await controller.animateCamera(
+      CameraUpdate.newLatLngBounds(bounds, 60.0),
+    );
+
+    // 3. Añade TODOS los marcadores
+    for (var lugar in lugaresDeLaRuta) {
+      _markers.add(_crearUnMarcador(lugar));
+    }
+
+    // 4. ¡AÑADE LA POLILÍNEA!
+    // (Usa la navigatorKey global que definimos arriba)
+    _polylines.add(
+        Polyline(
+          polylineId: PolylineId(ruta.id),
+          points: lugaresDeLaRuta.map((l) => LatLng(l.latitud, l.longitud)).toList(),
+          color: Theme.of(navigatorKey.currentContext!).colorScheme.primary, // Usa el color primario
+          width: 5,
+          startCap: Cap.roundCap,
+          endCap: Cap.roundCap,
+        )
+    );
+
+    // 5. Notifica a la UI (marcadores y polilínea)
+    notifyListeners();
+  }
+
+
+  // --- I. LIMPIEZA DE LISTENERS (se mantiene) ---
   @override
   void dispose() {
+    detenerSeguimientoUbicacion();
     _lugaresVM?.removeListener(_onDependenciasReady);
     _authVM?.removeListener(_onDependenciasReady);
-    _lugaresVM?.removeListener(_actualizarMarcadoresYFavoritos);
-    _authVM?.removeListener(_actualizarMarcadoresYFavoritos);
+    _rutasVM?.removeListener(_onDependenciasReady);
+    _lugaresVM?.removeListener(_actualizarListasYMarcadores);
+    _authVM?.removeListener(_actualizarListasYMarcadores);
+    _rutasVM?.removeListener(_actualizarListasYMarcadores);
     super.dispose();
   }
 }

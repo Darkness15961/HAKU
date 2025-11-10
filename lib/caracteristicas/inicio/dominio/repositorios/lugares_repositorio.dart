@@ -6,9 +6,10 @@
 
 // 1. Importamos todas las "Recetas" (Entidades)
 //    que este "Enchufe" va a manejar.
-import '../entidades/lugar.dart';
-import '../entidades/provincia.dart';
-import '../entidades/categoria.dart';
+import '../../dominio/entidades/lugar.dart';
+import '../../dominio/entidades/provincia.dart';
+import '../../dominio/entidades/categoria.dart';
+import '../../dominio/entidades/comentario.dart';
 
 // --- ¡NUEVA IMPORTACIÓN! ---
 // Importamos la "Receta" de Comentario que acabamos de crear.
@@ -32,11 +33,16 @@ abstract class LugaresRepositorio {
   // (Devuelve una lista de "Recetas" Categoria)
   Future<List<Categoria>> obtenerCategorias();
 
+  // ¡MÉTODO CRÍTICO AÑADIDO! (El contrato para la Lista Maestra)
+  Future<List<Lugar>> obtenerTodosLosLugares();
+
   // --- Órdenes para ProvinciaLugaresPagina ---
 
   // ORDEN 4: "Traer los lugares filtrados por provincia"
   // (Le enviamos un "provinciaId" y devuelve una lista de "Recetas" Lugar)
   Future<List<Lugar>> obtenerLugaresPorProvincia(String provinciaId);
+
+  
 
   // --- ¡NUEVAS ÓRDENES! (Para DetalleLugarPagina - Paso 6.3) ---
 

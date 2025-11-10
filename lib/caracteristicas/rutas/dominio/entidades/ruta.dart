@@ -1,50 +1,36 @@
-// --- PIEDRA 1 (RUTAS): LA "RECETA" DE RUTA ---
+// --- CARACTERISTICAS/RUTAS/DOMINIO/ENTIDADES/RUTA.DART (Receta Final) ---
 //
-// Este es el "Molde" que le dice a tu app
-// qué forma tienen los datos de una "Ruta"
-// cuando los recibimos de la "Cocina" (API o Mock).
-//
-// Está basado 100% en tu MER FINAL.
+// 1. (SIMPLIFICADO): Se eliminó 'duracionHoras'.
+// 2. 'dias' es la única fuente de verdad para la duración.
 
 class Ruta {
   // --- Atributos de la "Receta" ---
-
-  // 1. Campos directos de la tabla "Rutas"
   final String id;
   final String nombre;
   final String descripcion;
   final String urlImagenPrincipal;
-  final double precio; // El costo por persona
-  final String dificultad; // (Ej: 'facil', 'medio', 'dificil')
-  final int cupos; // Cupos totales disponibles
-  final bool visible; // Si es pública o privada
+  final double precio;
+  final String dificultad;
+  final int cuposTotales; // <-- Campo nuevo
+  final int cuposDisponibles; // <-- Campo nuevo
+  final bool visible;
+  final int dias; // <-- Campo principal
 
-  // 2. Campos "Calculados" o Relacionados
-
-  // Datos del guía (Calculado de la tabla "Usuarios")
-  final String guiaId; // Lo necesitamos para el filtro de Rutas Creadas
+  // Campos "Calculados"
+  final String guiaId;
   final String guiaNombre;
   final String guiaFotoUrl;
-
-  // Conteo y promedio (Calculado de "Comentarios")
   final double rating;
-  final int reviewsCount; // Conteo de reseñas
+  final int reviewsCount;
+  final int inscritosCount;
+  final List<String> lugaresIncluidos; // Nombres (para UI)
+  final List<String> lugaresIncluidosIds; // IDs (para BD)
 
-  // Relación Muchos-a-Muchos (Calculado de "Lugar_Ruta")
-  final List<String> lugaresIncluidos; // Lista simple con los nombres
-
-  // Relación Muchos-a-Muchos (Calculado de "Inscripciones_Ruta")
-  final int inscritosCount; // Conteo de turistas inscritos
-
-  // --- Campos de Estado del Usuario Actual ---
-  // (La "Cocina" revisará las tablas pivote y nos dirá el estado)
-
-  // Calculado de "Favoritos_Ruta"
+  // Campos de Estado
   final bool esFavorita;
-  // Calculado de "Inscripciones_Ruta"
   final bool estaInscrito;
 
-  // --- Constructor (El "Molde") ---
+  // --- Constructor (Simplificado) ---
   Ruta({
     required this.id,
     required this.nombre,
@@ -52,8 +38,10 @@ class Ruta {
     required this.urlImagenPrincipal,
     required this.precio,
     required this.dificultad,
-    required this.cupos,
+    required this.cuposTotales,
+    required this.cuposDisponibles,
     required this.visible,
+    required this.dias,
 
     // Atributos Relacionados
     required this.guiaId,
@@ -62,11 +50,11 @@ class Ruta {
     required this.rating,
     required this.reviewsCount,
     required this.lugaresIncluidos,
+    required this.lugaresIncluidosIds,
     required this.inscritosCount,
 
-    // Campos de estado de la sesión actual
+    // Campos de estado
     required this.esFavorita,
     required this.estaInscrito,
   });
 }
-

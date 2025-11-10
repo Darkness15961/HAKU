@@ -1,7 +1,8 @@
-// --- PIEDRA 7 (RUTAS): EL "MENÚ" DE RUTAS (SOLUCIÓN MEDIADORA) ---
+// --- CARACTERISTICAS/RUTAS/PRESENTACION/PAGINAS/RUTAS_PAGINA.DART ---
 //
-// La Vista (Página) ahora es la "mediadora".
-// En initState, toma el AuthVM y se lo pasa al RutasVM.
+// 1. (BUG CORREGIDO): Se cambió 'ruta.cupos' por 'ruta.cuposTotales'
+//    en _buildRouteCard para "acoplarlo" a la nueva "Receta" (ruta.dart).
+// 2. (DISEÑO): Se mantiene tu diseño de AppBar nativa.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -21,215 +22,247 @@ class RutasPagina extends StatefulWidget {
 }
 
 class _RutasPaginaState extends State<RutasPagina> {
+  // Las pestañas disponibles
+  final List<String> _pestanasBase = ['Recomendadas', 'Guardadas', 'Creadas por mí'];
 
   @override
   void initState() {
     super.initState();
-    // --- LÓGICA DE CARGA MEDIADORA ---
-    Future.microtask(() {
-      // 1. Obtenemos los dos VMs (sin escuchar)
-      final vmAuth = context.read<AutenticacionVM>();
-      final vmRutas = context.read<RutasVM>();
-
-      // 2. Le pasamos el AuthVM al RutasVM para que se "despierte"
-      vmRutas.cargarDatosIniciales(vmAuth);
+    // LÓGICA DE CARGA MÁS SEGURA
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final vmAuth = context.read<AutenticacionVM>();
+        context.read<RutasVM>().cargarDatosIniciales(vmAuth);
+      }
     });
   }
 
+  // --- Lógica de Navegación y Recarga ---
+  void _irAlDetalleRuta(Ruta ruta) {
+    context.push('/detalle-ruta', extra: ruta);
+  }
+
+  Future<void> _handleRefresh() async {
+    await context.read<RutasVM>().cargarRutas();
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    // Escuchamos a los dos ViewModels
     final vmRutas = context.watch<RutasVM>();
-    final vmAuth = context.watch<AutenticacionVM>(); // Aún lo necesitamos para los botones
+    final vmAuth = context.watch<AutenticacionVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
-    // --- LÓGICA DE BUILD SIMPLE ---
-    // La página solo confía en el estado de RutasVM.
-    // RutasVM es responsable de manejar la espera de AuthVM.
-
-    return Scaffold(
-      appBar: AppBar(toolbarHeight: 0),
-      body: Column(
-        children: [
-          _buildHeader(context, vmAuth, colorPrimario),
-          _buildTabs(context, vmRutas, vmAuth),
-          _buildDifficultyChips(context, vmRutas),
-          Expanded(
-            // Simplemente reaccionamos al estado de RutasVM.
-            child: vmRutas.estaCargando
-                ? const Center(child: CircularProgressIndicator())
-                : vmRutas.error != null
-                ? Center(child: Text('Error: ${vmRutas.error}'))
-                : vmRutas.rutasFiltradas.isEmpty
-                ? const Center(
-              child: Text(
-                'No se encontraron rutas\ncon esos filtros.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            )
-                : AnimationLimiter(
-              // (El resto del ListView.builder queda igual)
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0, vertical: 8.0),
-                itemCount: vmRutas.rutasFiltradas.length,
-                itemBuilder: (context, index) {
-                  final ruta = vmRutas.rutasFiltradas[index];
-                  return AnimationConfiguration.staggeredList(
-                    position: index,
-                    duration: const Duration(milliseconds: 300),
-                    child: SlideAnimation(
-                      verticalOffset: 50.0,
-                      child: FadeInAnimation(
-                        child: _buildRouteCard(context, ruta),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- WIDGETS AUXILIARES (Sin cambios) ---
-  // (Pega aquí tus _buildHeader, _buildTabs,
-  // _buildDifficultyChips, _buildRouteCard, _buildInfoIcon)
-
-  Widget _buildHeader(
-      BuildContext context, AutenticacionVM vmAuth, Color colorPrimario) {
-    // (Lógica de roles corregida)
-    final bool puedeCrearRutas = vmAuth.estaLogueado &&
-        (vmAuth.usuarioActual?.rol == 'guia_aprobado' ||
-            vmAuth.usuarioActual?.rol == 'admin');
-
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text('Rutas',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          if (puedeCrearRutas)
-            ElevatedButton.icon(
-              onPressed: () {
-                context.push('/crear-ruta');
-              },
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Crear Nueva Ruta',
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: colorPrimario,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30)),
-                  elevation: 5),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabs(
-      BuildContext context, RutasVM vmRutas, AutenticacionVM vmAuth) {
-    // (Lógica de roles corregida)
-    final List<String> tabs = ['Recomendadas'];
+    // Lógica para determinar qué pestañas mostrar dinámicamente
     final rol = vmAuth.usuarioActual?.rol;
+    List<String> pestanasVisibles = ['Recomendadas'];
     if (vmAuth.estaLogueado) {
-      tabs.add('Guardadas');
+      pestanasVisibles.add('Guardadas');
       if (rol == 'guia_aprobado' || rol == 'admin') {
-        tabs.add('Creadas por mí');
+        pestanasVisibles.add('Creadas por mí');
       }
     }
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Container(
-        decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: Colors.grey, width: 1.0))),
-        child: Row(
-          children: tabs.map((label) {
-            // (Usa "pestanaActual" sin ñ)
-            final bool isActive = vmRutas.pestanaActual == label;
-            return Expanded(
-              child: TextButton(
-                onPressed: () {
-                  // (Usa "cambiarPestana" sin ñ)
-                  context.read<RutasVM>().cambiarPestana(label);
-                },
-                child: Text(label,
-                    style: TextStyle(
-                        color: isActive
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.grey[600],
-                        fontWeight:
-                        isActive ? FontWeight.bold : FontWeight.normal)),
+
+    // Manejar estado de carga inicial
+    if (vmRutas.estaCargando && !vmRutas.cargaInicialRealizada) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Si la pestaña actual ya no es visible (ej. cierra sesión como guía)
+    if (!pestanasVisibles.contains(vmRutas.pestanaActual)) {
+      // Usamos microtask para evitar error de 'setState' durante el 'build'
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        vmRutas.cambiarPestana('Recomendadas');
+      });
+    }
+
+    // Encontramos el índice de la pestaña actual para el DefaultTabController
+    final int initialIndex = pestanasVisibles.indexOf(vmRutas.pestanaActual);
+
+
+    return DefaultTabController(
+      length: pestanasVisibles.length,
+      initialIndex: initialIndex < 0 ? 0 : initialIndex, // Seguridad por si el índice es -1
+      child: Scaffold(
+        // --- AppBar NATIVA ---
+        appBar: AppBar(
+          backgroundColor: colorPrimario,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          title: const Text('Rutas y Tours',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+          actions: [
+            _buildCrearRutaButton(context, vmAuth, colorPrimario)
+          ],
+          bottom: TabBar(
+            isScrollable: true,
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+            onTap: (index) {
+              if (index < pestanasVisibles.length) {
+                context.read<RutasVM>().cambiarPestana(pestanasVisibles[index]);
+              }
+            },
+            tabs: pestanasVisibles.map((label) => Tab(text: label)).toList(),
+          ),
+        ),
+
+        // --- Body Fijo ---
+        body: Column(
+          children: [
+            _buildDifficultyChips(context, vmRutas),
+
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _handleRefresh,
+                child: TabBarView(
+                  // Evitamos que el usuario deslice entre pestañas,
+                  // forzando el control por el 'onTap' del TabBar
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: pestanasVisibles.map((pestana) =>
+                      _buildContenidoPestana(vmRutas, context)
+                  ).toList(),
+                ),
               ),
-            );
-          }).toList(),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDifficultyChips(BuildContext context, RutasVM vmRutas) {
-    // (Sin ñ)
-    final difficulties = ['Todos', 'Facil', 'Medio', 'Dificil'];
+  // --- WIDGETS DE DISEÑO RESTAURADO ---
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      child: Row(
-          children: difficulties.map((label) {
-            final bool isSelected = vmRutas.dificultadActual == label;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: ChoiceChip(
-                label: Text(label),
-                selected: isSelected,
-                onSelected: (bool selected) {
-                  context.read<RutasVM>().cambiarDificultad(label);
-                },
-                selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                backgroundColor: Colors.grey[100],
-                labelStyle: TextStyle(
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.black87,
-                    fontWeight: FontWeight.w600),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.grey[300]!,
-                    width: 1.0,
-                  ),
-                ),
-              ),
-            );
-          }).toList()),
+  Widget _buildCrearRutaButton(
+      BuildContext context, AutenticacionVM vmAuth, Color colorPrimario) {
+    final bool puedeCrearRutas = vmAuth.estaLogueado &&
+        (vmAuth.usuarioActual?.rol == 'guia_aprobado' ||
+            vmAuth.usuarioActual?.rol == 'admin');
+
+    if (!puedeCrearRutas) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: ElevatedButton.icon(
+        onPressed: () {
+          context.push('/crear-ruta');
+        },
+        icon: const Icon(Icons.add, color: Colors.white, size: 20),
+        label: const Text('Crear Ruta',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white.withOpacity(0.25),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 12)),
+      ),
     );
   }
 
+  Widget _buildDifficultyChips(BuildContext context, RutasVM vmRutas) {
+    final difficulties = ['Todos', 'Facil', 'Medio', 'Dificil'];
+
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Row(
+            children: difficulties.map((label) {
+              final bool isSelected = vmRutas.dificultadActual == label;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: ChoiceChip(
+                  label: Text(label),
+                  selected: isSelected,
+                  onSelected: (bool selected) {
+                    context.read<RutasVM>().cambiarDificultad(label);
+                  },
+                  selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  backgroundColor: Colors.grey[100],
+                  labelStyle: TextStyle(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.black87,
+                      fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.grey[300]!,
+                      width: 1.0,
+                    ),
+                  ),
+                ),
+              );
+            }).toList()),
+      ),
+    );
+  }
+
+  // --- WIDGET DE CONTENIDO (que usa el filtro de chips) ---
+  Widget _buildContenidoPestana(RutasVM vmRutas, BuildContext context) {
+    final rutas = vmRutas.rutasFiltradas;
+
+    if (vmRutas.estaCargando && rutas.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (rutas.isEmpty) {
+      return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Text(
+              vmRutas.error ?? 'No hay rutas disponibles para "${vmRutas.pestanaActual}" con dificultad "${vmRutas.dificultadActual}".',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          )
+      );
+    }
+
+    return AnimationLimiter(
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        itemCount: rutas.length,
+        itemBuilder: (context, index) {
+          final ruta = rutas[index];
+          return AnimationConfiguration.staggeredList(
+            position: index,
+            duration: const Duration(milliseconds: 300),
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: _buildRouteCard(context, ruta),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // --- WIDGETS RESTANTES (Tarjetas) ---
   Widget _buildRouteCard(BuildContext context, Ruta ruta) {
-    // (Sin ñ)
     Color difficultyColor = ruta.dificultad == 'facil'
         ? Colors.green
         : ruta.dificultad == 'dificil'
         ? Colors.red
         : Colors.orange;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
       elevation: 4,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: () {
-          context.push('/detalle-ruta', extra: ruta);
-        },
+        onTap: () => _irAlDetalleRuta(ruta),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -286,6 +319,7 @@ class _RutasPaginaState extends State<RutasPagina> {
                       CircleAvatar(
                         radius: 14,
                         backgroundImage: NetworkImage(ruta.guiaFotoUrl),
+                        backgroundColor: Colors.grey[300],
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -301,11 +335,14 @@ class _RutasPaginaState extends State<RutasPagina> {
                     ],
                   ),
                   const Divider(height: 24),
+
+                  // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildInfoIcon(Icons.schedule,
-                          '${ruta.cupos} Cupos', Colors.grey),
+                          // Usa el nuevo campo 'cuposTotales'
+                          '${ruta.cuposTotales} Cupos', Colors.grey),
                       _buildInfoIcon(Icons.place,
                           '${ruta.lugaresIncluidos.length} Lugares', Colors.grey),
                       Chip(
@@ -321,6 +358,8 @@ class _RutasPaginaState extends State<RutasPagina> {
                       ),
                     ],
                   ),
+                  // --- FIN DE LA CORRECCIÓN ---
+
                 ],
               ),
             ),

@@ -1,45 +1,28 @@
-// --- PIEDRA 10 (RUTAS): EL "MENÚ" DE CREAR RUTA (¡DISEÑO AMIGABLE!) ---
+// --- PIEDRA 10 (RUTAS): EL "MENÚ" DE CREAR RUTA (VERSIÓN ELEGANTE Y SIMPLIFICADA) ---
 //
-// Esta es la pantalla (el "Edificio") que corresponde
-// a la dirección "/crear-ruta".
-//
-// ¡USA TU DISEÑO "AMIGABLE"! (Stack, Footer, ReorderableList)
-//
-// Está conectada al "Mesero" (RutasVM) solo en el
-// botón de "Guardar".
+// 1. (DISEÑO): Se eliminó el campo de "minutos" de la tarjeta del lugar.
+// 2. (DISEÑO): Se eliminó el cálculo de "Duración" del footer.
+// 3. (DISEÑO): Se añadieron Dividers y se mejoró el espaciado.
+// 4. (LÓGICA): El formulario ya no envía 'duracionTotalMinutos'.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/services.dart'; // Para filtrar números
+import 'package:flutter/services.dart';
 
 // --- MVVM: IMPORTACIONES ---
-// 1. Importamos el "Mesero de Rutas" (ViewModel)
 import '../vista_modelos/rutas_vm.dart';
-// 2. Importamos las "Recetas" (Entidades)
-//    (Usaremos la "Receta" de Lugar para el selector)
+import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
 import '../../../inicio/dominio/entidades/lugar.dart';
 
 // Helper: Clase simple para representar un Lugar en la Ruta
-// (Esta es la clase de tu "molde". ¡La mantenemos
-// para que el formulario funcione!)
+// --- ¡SIMPLIFICADO! Ya no tiene 'durationMinutes' ---
 class RouteLocation {
-  final String name;
-  // TODO: Cambiar esto a un objeto "Lugar" real
-  // final Lugar lugar;
-  final String imagePath; // (Simulación)
-  int durationMinutes;
-
-  RouteLocation({
-    required this.name,
-    required this.imagePath,
-    this.durationMinutes = 60,
-  });
+  final Lugar lugar;
+  RouteLocation({ required this.lugar });
 }
 
 // 1. El "Edificio" (La Pantalla)
-//    (Cambiamos el nombre a "CrearRutaPagina"
-//    para que coincida con nuestro "GPS" app_rutas.dart)
 class CrearRutaPagina extends StatefulWidget {
   const CrearRutaPagina({super.key});
 
@@ -49,26 +32,22 @@ class CrearRutaPagina extends StatefulWidget {
 
 class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   // --- Estado Local de la UI ---
-  // (¡Mantenemos todo tu estado local de formulario!)
   final TextEditingController _nombreCtrl = TextEditingController();
   final TextEditingController _descripcionCtrl = TextEditingController();
   final TextEditingController _precioCtrl = TextEditingController(text: '0');
   final TextEditingController _diasCtrl = TextEditingController(text: '1');
-  final TextEditingController _newLocationNameController =
-  TextEditingController();
+  final TextEditingController _cuposCtrl = TextEditingController(text: '10');
 
-  // (El "key" para validar el formulario)
   final _formKey = GlobalKey<FormState>();
 
-  String _selectedDifficulty = 'medio'; // (Sin tilde, como en nuestro VM)
-  String _visibility = 'Privada'; // Visibilidad
+  String _selectedDifficulty = 'medio';
+  String _visibility = 'Privada';
+  bool _estaGuardando = false;
 
-  // (Tu lista de lugares seleccionados)
   List<RouteLocation> _locations = [];
 
-  // --- Lógica de Envío de Formulario (¡CONECTADA A MVVM!) ---
+  // --- Lógica de Envío de Formulario (¡SIMPLIFICADA!) ---
   Future<void> _submitCrearRuta() async {
-    // 1. Validamos el formulario
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_locations.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -80,28 +59,28 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       return;
     }
 
-    // 2. Creamos el "mapa" (JSON) de datos
-    //    que nuestra "Cocina Falsa" (Mock) espera
-    final datosRuta = {
+    setState(() { _estaGuardando = true; });
+
+    final String diasText = _diasCtrl.text.isEmpty ? '1' : _diasCtrl.text;
+    final String cuposText = _cuposCtrl.text.isEmpty ? '10' : _cuposCtrl.text;
+
+    final Map<String, dynamic> datosRuta = {
       'nombre': _nombreCtrl.text,
       'descripcion': _descripcionCtrl.text,
       'precio': double.tryParse(_precioCtrl.text) ?? 0.0,
-      'cupos': 20, // (Simulado, ¡falta este campo en tu diseño!)
+      'cupos': int.tryParse(cuposText) ?? 10,
       'dificultad': _selectedDifficulty,
       'visible': _visibility == 'Pública',
-      // (Mapeamos tu lista de objetos a una lista simple de nombres)
-      'lugares': _locations.map((loc) => loc.name).toList(),
+      'dias': int.tryParse(diasText) ?? 1,
+      // 'duracionTotalMinutos' YA NO SE ENVÍA
+      'lugaresIds': _locations.map((loc) => loc.lugar.id).toList(),
+      'lugaresNombres': _locations.map((loc) => loc.lugar.nombre).toList(),
     };
 
-    // 3. --- ¡ARREGLO! (Usamos try/catch) ---
     try {
       if (!mounted) return;
-
-      // 4. (Llamamos al "Mesero")
-      //    Le damos la "ORDEN 7" (crearRuta)
       await context.read<RutasVM>().crearRuta(datosRuta);
 
-      // 5. ¡ÉXITO!
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -109,14 +88,11 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
             backgroundColor: Colors.green,
           ),
         );
-        // 6. Volvemos a la pantalla anterior
         context.pop();
       }
     } catch (e) {
-      // 7. ¡ERROR!
       if (mounted) {
-        final errorMsg = context.read<RutasVM>().error ??
-            'Ocurrió un error desconocido.';
+        final errorMsg = e.toString().replaceFirst("Exception: ", "");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMsg),
@@ -124,17 +100,121 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
           ),
         );
       }
+    } finally {
+      if(mounted) {
+        setState(() { _estaGuardando = false; });
+      }
     }
   }
 
-  // --- Tus Métodos de UI (¡Perfectos!) ---
+
+  // --- MÉTODO DEL SELECTOR (Corregido y Simplificado) ---
+  void _mostrarSelectorLugares() {
+    final vmLugares = context.read<LugaresVM>();
+    final lugaresDisponibles = vmLugares.lugaresTotales;
+    List<String> idsSeleccionados = _locations.map((rl) => rl.lugar.id).toList();
+
+    Set<String> seleccionTemporal = idsSeleccionados.toSet();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder( // <-- Diseño
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: Column(
+                children: [
+                  // Header del Modal
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Seleccione Lugares', style: Theme.of(context).textTheme.titleLarge),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.of(modalContext).pop(),
+                        )
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: lugaresDisponibles.length,
+                      itemBuilder: (context, index) {
+                        final lugar = lugaresDisponibles[index];
+                        final estaSeleccionado = seleccionTemporal.contains(lugar.id);
+                        return CheckboxListTile(
+                          title: Text(lugar.nombre),
+                          subtitle: Text(lugar.categoria),
+                          value: estaSeleccionado,
+                          onChanged: (bool? seleccionado) {
+                            setModalState(() {
+                              if (seleccionado == true) {
+                                seleccionTemporal.add(lugar.id);
+                              } else {
+                                seleccionTemporal.remove(lugar.id);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  // Footer del Modal
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 5, offset: Offset(0, -2))]
+                    ),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text('Confirmar (${seleccionTemporal.length}) Lugares'),
+                      onPressed: () {
+                        setState(() {
+                          _locations = seleccionTemporal.map((id) {
+                            final lugarEncontrado = lugaresDisponibles.firstWhere((l) => l.id == id);
+                            // ¡SIMPLIFICADO! Ya no pasamos 'durationMinutes'
+                            return RouteLocation(lugar: lugarEncontrado);
+                          }).toList();
+                        });
+                        Navigator.of(modalContext).pop();
+                      },
+                    ),
+                  )
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- Métodos de UI (se mantienen) ---
   @override
   void initState() {
     super.initState();
-    // (Añadimos el listener para el formulario)
     _nombreCtrl.addListener(() => setState(() {}));
     _descripcionCtrl.addListener(() => setState(() {}));
     _precioCtrl.addListener(() => setState(() {}));
+    _diasCtrl.addListener(() => setState(() {}));
+    _cuposCtrl.addListener(() => setState(() {}));
   }
 
   @override
@@ -143,7 +223,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     _descripcionCtrl.dispose();
     _precioCtrl.dispose();
     _diasCtrl.dispose();
-    _newLocationNameController.dispose();
+    _cuposCtrl.dispose();
     super.dispose();
   }
 
@@ -157,28 +237,8 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     });
   }
 
-  void _addLocationFromText() {
-    final name = _newLocationNameController.text.trim();
-    if (name.isEmpty) return;
-    final newLocation = RouteLocation(
-      name: name,
-      imagePath: 'https://placehold.co/100x100/grey/FFFFFF?text=Lugar',
-      durationMinutes: 45,
-    );
-    setState(() {
-      _locations.add(newLocation);
-      _newLocationNameController.clear();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Lugar "$name" añadido al itinerario.')),
-    );
-  }
-
-  // Condición de Guardado (¡Conectada al "Mesero"!)
   bool _canSave(RutasVM vmRutas) {
-    // 1. Revisa si el "Mesero" está ocupado
     if (vmRutas.estaCargando) return false;
-    // 2. Revisa tu lógica local
     return _nombreCtrl.text.isNotEmpty &&
         _descripcionCtrl.text.isNotEmpty &&
         _locations.isNotEmpty &&
@@ -188,25 +248,26 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   // --- Construcción del "Menú" (UI) ---
   @override
   Widget build(BuildContext context) {
-    // "Escuchamos" (`watch`) al "Mesero"
     final vmRutas = context.watch<RutasVM>();
-    final canSave = _canSave(vmRutas); // Revisamos si se puede guardar
+    final canSave = _canSave(vmRutas);
 
     return Scaffold(
       appBar: AppBar(
         title:
         const Text('Crear Ruta', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          // --- ¡BOTÓN DE GUARDAR CONECTADO! ---
-          TextButton(
-            // 1. Llama a nuestra lógica MVVM
+          _estaGuardando
+              ? const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.blue, strokeWidth: 3))),
+          )
+              : TextButton(
             onPressed: canSave ? _submitCrearRuta : null,
             child: Text(
               'Guardar',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                // 2. Se deshabilita si "canSave" es falso
-                color: canSave ? Colors.indigo : Colors.grey,
+                color: canSave ? Theme.of(context).colorScheme.primary : Colors.grey,
               ),
             ),
           ),
@@ -214,37 +275,29 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       ),
       body: Form(
         key: _formKey,
-        // --- ¡TU DISEÑO DE STACK Y FOOTER! ---
         child: Stack(
           children: [
-            // 1. Contenido Principal Desplazable
             SingleChildScrollView(
-              // (Usamos un "padding" para que el footer
-              // no tape el último item)
               padding: const EdgeInsets.only(
                   left: 16.0, right: 16.0, top: 8.0, bottom: 120.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildRouteDetailsInputs(),
-                  const SizedBox(height: 16),
+                  const Divider(height: 32), // <-- Diseño Elegante
                   _buildRouteProperties(),
-                  const SizedBox(height: 16),
+                  const Divider(height: 32), // <-- Diseño Elegante
                   _buildLocationList(),
-                  const SizedBox(height: 16),
-                  _buildAddLocationSection(),
-                  const SizedBox(height: 24),
+                  const Divider(height: 32), // <-- Diseño Elegante
                   _buildVisibilityTools(),
                 ],
               ),
             ),
-
-            // 2. FOOTER Flotante Fijo (¡Tu diseño!)
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: _buildFixedFooter(),
+              child: _buildFixedFooter(), // <-- ¡SIMPLIFICADO!
             ),
           ],
         ),
@@ -252,7 +305,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     );
   }
 
-  // --- TUS WIDGETS AUXILIARES (¡Perfectos!) ---
+  // --- TUS WIDGETS AUXILIARES (¡Adaptados!) ---
 
   Widget _buildInputLabel(String label) {
     return Padding(
@@ -262,6 +315,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   }
 
   Widget _buildRouteDetailsInputs() {
+    // (Sin cambios)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -295,6 +349,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   }
 
   Widget _buildRouteProperties() {
+    // (Sin cambios, se mantiene tu diseño)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -302,44 +357,61 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: _buildNumericInput(
-                  'Días', _diasCtrl, Icons.calendar_today, isInteger: true),
+              flex: 2,
+              child: _buildNumericInput('Precio (S/) *', _precioCtrl,
+                  Icons.monetization_on, isInteger: false),
             ),
             const SizedBox(width: 16),
             Expanded(
-              // --- ¡ARREGLO DE DISEÑO (Tu Petición)! ---
-              // Ícono de moneda local, no de dólar
-              child: _buildNumericInput('Precio (S/) *', _precioCtrl,
-                  Icons.local_atm, isInteger: false),
+              flex: 1,
+              child: _buildNumericInput(
+                  'Cupos *', _cuposCtrl, Icons.people, isInteger: true),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        _buildInputLabel('Dificultad *'),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade400),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _selectedDifficulty,
-              isExpanded: true,
-              // (Valores sin tilde, para que coincidan con el VM)
-              items: ['facil', 'medio', 'dificil'].map((String value) {
-                return DropdownMenuItem<String>(
-                  // Mostramos el texto amigable
-                    child: Text(value[0].toUpperCase() + value.substring(1)),
-                    value: value);
-              }).toList(),
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedDifficulty = newValue!;
-                });
-              },
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _buildNumericInput(
+                  'Días *', _diasCtrl, Icons.calendar_today, isInteger: true),
             ),
-          ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Container(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInputLabel('Dificultad *'),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedDifficulty,
+                          isExpanded: true,
+                          items: ['facil', 'medio', 'dificil'].map((String value) {
+                            return DropdownMenuItem<String>(
+                                child: Text(value[0].toUpperCase() + value.substring(1)),
+                                value: value);
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _selectedDifficulty = newValue!;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -347,6 +419,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
 
   Widget _buildNumericInput(String label, TextEditingController controller,
       IconData icon, {required bool isInteger}) {
+    // (Sin cambios)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -360,45 +433,114 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
               ? [FilteringTextInputFormatter.digitsOnly]
               : [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))],
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: Colors.indigo),
+            prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
           validator: (v) =>
-          (v == null || v.isEmpty) ? 'Este campo es obligatorio' : null,
+          (v == null || v.isEmpty) ? 'Requerido' : null,
         ),
       ],
     );
   }
 
-  Widget _buildAddLocationSection() {
+  // --- WIDGET DE LISTA DE LUGARES (Sin cambios) ---
+  Widget _buildLocationList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildInputLabel('Añadir Lugar (Escribe y Añade)'),
-        TextField(
-          controller: _newLocationNameController,
-          onSubmitted: (_) => _addLocationFromText(), // Permite añadir con Enter
-          decoration: InputDecoration(
-            hintText: 'Escribe el nombre del lugar...',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.add_location_alt, color: Colors.indigo),
-              onPressed: _addLocationFromText,
-            ),
+        _buildInputLabel('Lugares del Itinerario (${_locations.length}) *'),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.add_location_alt_outlined),
+          label: const Text('Añadir / Editar Lugares de la Lista'),
+          style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 44),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
           ),
+          onPressed: _mostrarSelectorLugares,
         ),
-        const SizedBox(height: 4),
-        Text(
-            'El Guía escribe el nombre y lo añade. (Simulación)',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        const SizedBox(height: 16),
+        if (_locations.isEmpty)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 24.0),
+              child: Text('Aún no has añadido lugares.',
+                  style: TextStyle(color: Colors.grey)),
+            ),
+          )
+        else
+          ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _locations.length,
+            onReorder: _onReorder,
+            itemBuilder: (context, index) {
+              final location = _locations[index];
+              return Dismissible(
+                key: ValueKey(location.lugar.id + index.toString()),
+                direction: DismissDirection.endToStart,
+                onDismissed: (direction) {
+                  setState(() {
+                    _locations.removeAt(index);
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${location.lugar.nombre} eliminado.')));
+                },
+                background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    color: Colors.red.shade400,
+                    child: const Icon(Icons.delete, color: Colors.white)),
+                child: _buildLocationCard(context, location),
+              );
+            },
+          ),
       ],
     );
   }
 
+  // --- WIDGET DE TARJETA DE LUGAR (¡SIMPLIFICADO!) ---
+  Widget _buildLocationCard(BuildContext context, RouteLocation routeLocation) {
+    final lugar = routeLocation.lugar;
+
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          children: [
+            ReorderableDragStartListener(
+                index: _locations.indexOf(routeLocation),
+                child: Icon(Icons.drag_indicator, color: Colors.grey.shade600)),
+            const SizedBox(width: 8),
+            ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.network(
+                    lugar.urlImagen,
+                    width: 60, height: 50, fit: BoxFit.cover,
+                    errorBuilder: (_,__,___) => Container(
+                        width: 60, height: 50, color: Colors.grey[300],
+                        child: const Icon(Icons.image, size: 24, color: Colors.grey)
+                    )
+                )),
+            const SizedBox(width: 12),
+            // --- ¡SIMPLIFICADO! Se quitó el campo de minutos ---
+            Expanded(
+              child: Text(lugar.nombre,
+                  style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- WIDGET DE VISIBILIDAD (Sin cambios) ---
   Widget _buildVisibilityTools() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -428,123 +570,6 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     );
   }
 
-  Widget _buildLocationList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildInputLabel('Lugares de la ruta (${_locations.length})'),
-        const SizedBox(height: 8),
-        if (_locations.isEmpty)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 24.0),
-              child: Text('Aún no has añadido lugares.',
-                  style: TextStyle(color: Colors.grey)),
-            ),
-          )
-        else
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _locations.length,
-            onReorder: _onReorder,
-            itemBuilder: (context, index) {
-              final location = _locations[index];
-              return Dismissible(
-                // (Usamos "ValueKey" para que la "key" sea única)
-                key: ValueKey(location.name + index.toString()),
-                direction: DismissDirection.endToStart,
-                onDismissed: (direction) {
-                  setState(() {
-                    _locations.removeAt(index);
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${location.name} eliminado.')));
-                },
-                background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    color: Colors.red.shade400,
-                    child: const Icon(Icons.delete, color: Colors.white)),
-                child: _buildLocationCard(context, location),
-              );
-            },
-          ),
-      ],
-    );
-  }
-
-  Widget _buildLocationCard(BuildContext context, RouteLocation location) {
-    return Card(
-      elevation: 1,
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Row(
-          children: [
-            ReorderableDragStartListener(
-                index: _locations.indexOf(location),
-                child: Icon(Icons.drag_indicator, color: Colors.grey.shade600)),
-            const SizedBox(width: 8),
-            Container(
-                width: 60,
-                height: 50,
-                decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    color: Colors.grey[300]),
-                child: const Icon(Icons.landscape, size: 24, color: Colors.grey)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(location.name,
-                      style:
-                      const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.timer, size: 16, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      SizedBox(
-                        width: 40,
-                        child: TextField(
-                          controller: TextEditingController(
-                              text: location.durationMinutes.toString()),
-                          keyboardType: TextInputType.number,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 14),
-                          decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                              border: UnderlineInputBorder()),
-                          onChanged: (value) {
-                            location.durationMinutes = int.tryParse(value) ?? 0;
-                            // (No necesitamos setState, el footer lo recalcula)
-                          },
-                        ),
-                      ),
-                      const Text('min',
-                          style: TextStyle(fontSize: 14, color: Colors.grey)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () {
-                  setState(() {
-                    _locations.remove(location);
-                  });
-                }),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildVisibilityButton(String label) {
     final bool isSelected = _visibility == label;
     return Expanded(
@@ -556,9 +581,9 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: isSelected ? Colors.white : Colors.transparent,
-          foregroundColor: isSelected ? Colors.indigo : Colors.grey.shade600,
+          foregroundColor: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade600,
           elevation: isSelected ? 2 : 0,
-          shadowColor: Colors.indigo.withOpacity(0.2),
+          shadowColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
         child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -566,18 +591,9 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     );
   }
 
+  // --- WIDGET DE FOOTER (¡SIMPLIFICADO!) ---
   Widget _buildFixedFooter() {
-    // (Calculamos la duración total)
-    final totalDurationMinutes =
-    _locations.fold(0, (sum, item) => sum + item.durationMinutes);
-    String formattedDuration;
-    final hours = totalDurationMinutes ~/ 60;
-    final minutes = totalDurationMinutes % 60;
-    if (hours > 0) {
-      formattedDuration = '${hours}h ${minutes}m';
-    } else {
-      formattedDuration = '${minutes}m';
-    }
+    // ¡Se eliminó el cálculo de 'totalDurationMinutes'!
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -592,43 +608,41 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Ahora hay 3 elementos, 'spaceAround' los centrará mejor
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
+          // Días
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Duración estimada',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-              Text(formattedDuration,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16)),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Días totales',
+              Text('Días',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               Text('${_diasCtrl.text} día(s)',
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 16)),
             ],
           ),
-          ElevatedButton.icon(
+          // Cupos
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Cupos',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              Text('${_cuposCtrl.text} pers.',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          // Botón Previsualizar
+          ElevatedButton(
             onPressed: () {
               ScaffoldMessenger.of(context)
-                  .showSnackBar(const SnackBar(content: Text('Previsualizando Ruta...')));
+                  .showSnackBar(const SnackBar(content: Text('Previsualizando Ruta... (Próximamente)')));
             },
-            icon: const Icon(Icons.visibility, color: Colors.white),
-            label: const Text('Previsualizar',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14)),
+            child: const Icon(Icons.visibility, color: Colors.white),
             style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
-                padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8))),
           ),
@@ -638,3 +652,12 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   }
 }
 
+// Extensión (se mantiene)
+extension ListExtension<T> on List<T> {
+  T? firstWhereOrNull(bool Function(T element) test) {
+    for (T element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
+}

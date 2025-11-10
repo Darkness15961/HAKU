@@ -1,9 +1,8 @@
-// --- PUNTO DE ENTRADA PRINCIPAL DE LA APP ---
+// --- PUNTO DE ENTRADA PRINCIPAL DE LA APP (VERSIÓN FINAL) ---
 //
-// Esta es la versión corregida.
-// Simplificamos TODOS los providers.
-// Los ViewModels se crean "tontos" y las Páginas
-// (como RutasPagina) se encargan de "despertarlos".
+// 1. (CORREGIDO): Se eliminó la línea '..routerDelegate.navigatorKey'
+//    que causaba el error.
+// 2. Se mantiene el ProxyProvider3 para el MapaVM.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,15 +19,12 @@ import 'caracteristicas/inicio/presentacion/vista_modelos/lugares_vm.dart';
 import 'caracteristicas/autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import 'caracteristicas/rutas/presentacion/vista_modelos/rutas_vm.dart';
 import 'caracteristicas/mapa/presentacion/vista_modelos/mapa_vm.dart';
+// (Ya no necesitamos la importación 'as mapa_vm')
 
-// "void main()" es lo primero que se ejecuta
+
 void main() {
-  // "Encendemos" la "Central de Conexiones" (GetIt)
   setupLocator();
-
-  // "Corremos" la aplicación
   runApp(
-    // "MultiProvider" es el "Gerente"
     MultiProvider(
       providers: [
         // --- CONTRATO 1: "Mesero de Comida" ---
@@ -36,40 +32,44 @@ void main() {
           create: (_) => LugaresVM(),
         ),
 
-        // --- CONTRATO 2: "Mesero de Seguridad" ---
+        // --- CONTRATO 2: "Mesero de Seguridad" (Cerebro) ---
         ChangeNotifierProvider(
           create: (_) => AutenticacionVM(),
         ),
 
-        // --- CONTRATO 3: "Mesero de Rutas" (¡CORREGIDO!) ---
-        // Se crea "tonto". La RutasPagina lo "despierta".
-        // Esto corrige el error: "1 positional argument expected..."
-        // porque coincide con el constructor RutasVM() de tu archivo.
+        // --- CONTRATO 3: "Mesero de Rutas" ---
         ChangeNotifierProvider(
           create: (context) => RutasVM(),
         ),
 
-        // --- CONTRATO 4: "Mesero de Mapa" (¡CORREGIDO!) ---
-        // Ya no usamos ProxyProvider2.
-        // Se crea "tonto". La MapaPagina lo "despertará".
-        // Esto corrige el error: "'actualizarDependencias' isn't defined..."
-        ChangeNotifierProvider(
+        // --- CONTRATO 4: "Mesero de Mapa" ---
+        // (Esta es la "Super-Conexión" que necesitas)
+        ChangeNotifierProxyProvider3<LugaresVM, AutenticacionVM, RutasVM, MapaVM>(
           create: (context) => MapaVM(),
+          update: ( context, lugaresVM, authVM, rutasVM, previousMapaVM) {
+            return (previousMapaVM ?? MapaVM())
+              ..actualizarDependencias(lugaresVM, authVM, rutasVM);
+          },
         ),
+
       ],
       child: const MyApp(),
     ),
   );
 }
 
-// "MyApp" es el widget raíz
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
+      // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+      // Simplemente usamos el router como antes.
+      // La 'navigatorKey' se configurará DENTRO de AppRutas.
       routerConfig: AppRutas.router,
+      // --- FIN DE CORRECCIÓN ---
+
       debugShowCheckedModeBanner: false,
       title: 'Xplora Cusco',
       theme: AppTema.temaAzulAventura,
