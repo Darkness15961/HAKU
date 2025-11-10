@@ -1,10 +1,9 @@
-// --- PIEDRA 9 (RUTAS): EL "MENÚ" DE DETALLE DE RUTA (ACOMPLADO Y SIMPLIFICADO) ---
+// --- PIEDRA 9 (RUTAS): EL "MENÚ" DE DETALLE DE RUTA (REGLA DE GUÍA ACOMPLADA) ---
 //
-// 1. (ACOMPLADO): Ahora usa los campos de la "Receta" actualizada
-//    (cuposTotales, dias). Se eliminó 'duracionHoras'.
-// 2. (DISEÑO MEJORADO): El 'Card' de información ahora muestra
-//    3 columnas (Precio, Días, Cupos).
-// 3. (LÓGICA): Se mantiene 100% conectado al "Cerebro" (AuthVM).
+// 1. (REGLA DE NEGOCIO ACOMPLADA): El botón inferior ahora comprueba si
+//    el usuario actual es el 'guiaId' de la ruta.
+// 2. (UX CORREGIDA): Si es el propietario, muestra "Gestionar Ruta".
+// 3. (LÓGICA): Mantiene la lógica del "Cerebro" (AuthVM) para todo lo demás.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,7 +12,7 @@ import 'package:go_router/go_router.dart';
 // --- MVVM: IMPORTACIONES ---
 import '../vista_modelos/rutas_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
-import '../../dominio/entidades/ruta.dart'; // <-- Usará la nueva "Receta" simplificada
+import '../../dominio/entidades/ruta.dart';
 
 class DetalleRutaPagina extends StatelessWidget {
   final Ruta ruta;
@@ -66,15 +65,19 @@ class DetalleRutaPagina extends StatelessWidget {
     final bool esFavorita = vmAuth.rutasFavoritasIds.contains(ruta.id);
     final bool estaInscrito = vmAuth.rutasInscritasIds.contains(ruta.id);
 
+    // --- ¡REGLA DE NEGOCIO ACOMPLADA! ---
+    final String? usuarioIdActual = vmAuth.usuarioActual?.id;
+    // Es propietario si el ID del usuario logueado es el mismo que el ID del guía de la ruta
+    final bool esPropietario = (vmAuth.estaLogueado && usuarioIdActual == ruta.guiaId);
+    // --- FIN DE REGLA ---
+
     // --- ¡LÓGICA ACOMPLADA! ---
-    // Calculamos los cupos disponibles usando la nueva "Receta"
     int inscritosCount = ruta.inscritosCount;
     if (estaInscrito && !ruta.estaInscrito) {
       inscritosCount++;
     } else if (!estaInscrito && ruta.estaInscrito) {
       inscritosCount--;
     }
-    // Usa 'cuposTotales' (el nuevo campo)
     final int cuposDisponibles = ruta.cuposTotales - inscritosCount;
     // --- FIN DE LÓGICA ---
 
@@ -117,7 +120,6 @@ class DetalleRutaPagina extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  // ¡Le pasamos los cupos disponibles!
                   _buildRouteMetrics(ruta, cuposDisponibles: cuposDisponibles),
                 ],
               ),
@@ -140,13 +142,8 @@ class DetalleRutaPagina extends StatelessWidget {
           SliverList(
             delegate: SliverChildListDelegate(
               [
-                // --- Bloque 1: Info Clave (¡DISEÑO MEJORADO Y SIMPLIFICADO!) ---
                 _buildInfoCard(context, ruta, cuposDisponibles: cuposDisponibles),
-
-                // --- Bloque 2: Perfil del Guía ---
                 _buildGuideProfile(context, ruta),
-
-                // --- Bloque 3: Descripción ---
                 _buildSectionTitle('Detalles de la Experiencia'),
                 Padding(
                   padding:
@@ -154,10 +151,8 @@ class DetalleRutaPagina extends StatelessWidget {
                   child: Text(ruta.descripcion,
                       style: const TextStyle(fontSize: 15, color: Colors.black87)),
                 ),
-
-                // --- Bloque 4: Itinerario ---
                 _buildSectionTitle('Itinerario y Lugares Incluidos'),
-                _buildRouteStopsList(ruta.lugaresIncluidos),
+                _buildRouteStopsList(ruta.lugaresIncluidosIds), // <-- Usamos IDs
 
                 const SizedBox(height: 120), // Espacio para el botón inferior
               ],
@@ -165,18 +160,18 @@ class DetalleRutaPagina extends StatelessWidget {
           ),
         ],
       ),
-      // --- 3. Botón Inferior (¡ACOMPLADO!) ---
+      // --- 3. Botón Inferior (¡ACOMPLADO CON REGLA!) ---
       bottomNavigationBar:
       _buildRegisterButton(context, vmAuth, ruta,
           estaInscrito: estaInscrito,
-          cuposDisponibles: cuposDisponibles
+          cuposDisponibles: cuposDisponibles,
+          esPropietario: esPropietario // <-- ¡Regla Acoplada!
       ),
     );
   }
 
   // --- WIDGETS AUXILIARES (ACOMPLADOS Y MEJORADOS) ---
 
-  // ¡ACOMPLADO!
   Widget _buildRouteMetrics(Ruta ruta, {required int cuposDisponibles}) {
     Color difficultyColor = ruta.dificultad == 'facil'
         ? Colors.green
@@ -188,7 +183,6 @@ class DetalleRutaPagina extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Chip(
-          // ¡Usa el conteo actualizado y 'cuposTotales'!
           label: Text('$cuposDisponibles / ${ruta.cuposTotales} Cupos',
               style: const TextStyle(fontSize: 12, color: Colors.white)),
           backgroundColor: Colors.black.withOpacity(0.5),
@@ -213,8 +207,6 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // --- ¡WIDGET MEJORADO Y SIMPLIFICADO! ---
-  // Ahora muestra Precio, Días y Cupos (no duración en horas)
   Widget _buildInfoCard(BuildContext context, Ruta ruta, {required int cuposDisponibles}) {
     final bool isRouteFull = cuposDisponibles <= 0;
 
@@ -241,12 +233,12 @@ class DetalleRutaPagina extends StatelessWidget {
                     style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
-            // Días (¡SIMPLIFICADO!)
+            // Días
             Column(
               children: [
                 const Icon(Icons.calendar_today, color: Colors.blueAccent, size: 30),
                 const SizedBox(height: 4),
-                Text('${ruta.dias} Día(s)', // <-- Muestra solo los días
+                Text('${ruta.dias} Día(s)',
                     style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -276,7 +268,6 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // (El perfil de guía y los títulos no cambian)
   Widget _buildGuideProfile(BuildContext context, Ruta ruta) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -308,11 +299,15 @@ class DetalleRutaPagina extends StatelessWidget {
   Widget _buildRouteStopsList(List<String> lugaresIncluidos) {
     if (lugaresIncluidos.isEmpty) return const SizedBox.shrink();
 
+    // ¡ACOMPLADO! Leemos los Nombres (lugaresIncluidos)
+    // (La lógica de IDs es solo para el mapa, la UI muestra los nombres)
+    final lugaresNombres = lugaresIncluidos;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
-        children: List.generate(lugaresIncluidos.length, (index) {
-          final lugarNombre = lugaresIncluidos[index];
+        children: List.generate(lugaresNombres.length, (index) {
+          final lugarNombre = lugaresNombres[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
             child: Row(
@@ -326,7 +321,7 @@ class DetalleRutaPagina extends StatelessWidget {
                         child: Text('${index + 1}',
                             style: const TextStyle(
                                 color: Colors.white, fontSize: 12))),
-                    if (index < lugaresIncluidos.length - 1)
+                    if (index < lugaresNombres.length - 1)
                       Container(
                           width: 2, height: 40, color: Colors.indigo.shade200),
                   ],
@@ -348,13 +343,14 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // --- ¡WIDGET DEL BOTÓN INFERIOR ACOMPLADO! ---
+  // --- ¡WIDGET DEL BOTÓN INFERIOR ACOMPLADO CON REGLA! ---
   Widget _buildRegisterButton(
       BuildContext context,
       AutenticacionVM vmAuth,
       Ruta ruta, {
         required bool estaInscrito,
-        required int cuposDisponibles, // ¡Recibe los cupos!
+        required int cuposDisponibles,
+        required bool esPropietario, // <-- ¡Regla Acoplada!
       }) {
 
     final bool isRouteFull = cuposDisponibles <= 0;
@@ -363,24 +359,44 @@ class DetalleRutaPagina extends StatelessWidget {
     String buttonText;
     Color buttonColor;
     VoidCallback? onPressed;
+    IconData buttonIcon; // <-- ¡Icono dinámico!
 
-    if (estaInscrito) {
+    // --- ¡REGLA DE NEGOCIO IMPLEMENTADA! ---
+    if (esPropietario) {
+      // Flujo 1: Es el Guía Propietario
+      buttonText = 'GESTIONAR MI RUTA';
+      buttonColor = Colors.blueGrey; // Un color de "gestión"
+      buttonIcon = Icons.edit_note;
+      onPressed = () {
+        // TODO: Navegar a /editar-ruta (futuro)
+        context.push('/crear-ruta', extra: ruta); // Reutilizamos la página de crear
+      };
+    } else if (estaInscrito) {
+      // Flujo 2: Ya está registrado
       buttonText = 'SALIR DE LA RUTA';
       buttonColor = Colors.red;
+      buttonIcon = Icons.close;
       onPressed = () => _handleRegistration(context);
     } else if (isRouteFull) {
+      // Flujo 3: Cupos Llenos
       buttonText = 'RUTA LLENA (SIN CUPOS)';
       buttonColor = Colors.grey;
+      buttonIcon = Icons.group_off;
       onPressed = null;
     } else if (!isUserLoggedIn) {
+      // Flujo 4: Anónimo (Requiere Login)
       buttonText = 'INICIA SESIÓN PARA UNIRTE';
-      buttonColor = Colors.orange;
+      buttonColor = Colors.orange.shade700;
+      buttonIcon = Icons.login;
       onPressed = () => _handleRegistration(context);
     } else {
+      // Flujo 5: Disponible y Logueado
       buttonText = 'REGISTRARSE (S/ ${ruta.precio.toStringAsFixed(2)})';
-      buttonColor = Colors.indigo;
+      buttonColor = Theme.of(context).colorScheme.primary; // Color principal
+      buttonIcon = Icons.how_to_reg;
       onPressed = () => _handleRegistration(context);
     }
+    // --- FIN DE LA REGLA DE NEGOCIO ---
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -392,7 +408,7 @@ class DetalleRutaPagina extends StatelessWidget {
       ),
       child: ElevatedButton.icon(
         onPressed: onPressed,
-        icon: Icon(estaInscrito ? Icons.close : Icons.how_to_reg,
+        icon: Icon(buttonIcon, // <-- Icono dinámico
             color: Colors.white),
         label: Text(buttonText,
             style: const TextStyle(

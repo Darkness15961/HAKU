@@ -1,13 +1,13 @@
 // --- MAPA DE RUTAS (GPS) DE LA APP ---
 //
-// 1. (ACOMPLADO): Importa la 'navigatorKey' global desde 'mapa_vm.dart'.
-// 2. (ACOMPLADO): Pasa la 'navigatorKey' al constructor de GoRouter.
+// 1. (ACOMPLADO): Se importa 'admin_dashboard_pagina.dart'.
+// 2. (ACOMPLADO): La ruta '/panel-admin' ahora apunta al Dashboard.
+// 3. (ACOMPLADO): Se crea la nueva ruta '/admin/gestion-guias'.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-// --- ¡NUEVA IMPORTACIÓN! ---
-// Importamos la key global que definimos en el VM
+// --- Importamos la key global ---
 import 'package:xplore_cusco/caracteristicas/mapa/presentacion/vista_modelos/mapa_vm.dart' as mapa_vm;
 
 // --- Importaciones de "Edificios" (Pantallas) ---
@@ -28,10 +28,16 @@ import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/
 import 'package:xplore_cusco/caracteristicas/rutas/presentacion/paginas/detalle_ruta_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/rutas/presentacion/paginas/crear_ruta_pagina.dart';
 
-// --- ¡NUEVAS IMPORTACIONES DEL PASO 4! ---
+// 4. Pantallas del Menú 4 (Perfil)
 import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/mis_lugares_favoritos_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/mis_rutas_inscritas_pagina.dart';
-// --- FIN DE NUEVAS IMPORTACIONES ---
+
+// --- ¡IMPORTACIONES DE ADMIN ACOMPLADAS! ---
+// (Importamos el Dashboard)
+import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_dashboard_pagina.dart';
+// (Importamos la página de Gestión de Guías - ¡LA QUE RENOMBRAMOS!)
+import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_gestion_guias_pagina.dart';
+// --- FIN DE IMPORTACIONES ---
 
 
 // --- Importaciones de "Recetas" (Entidades) ---
@@ -43,16 +49,11 @@ class AppRutas {
   // Creamos el "GPS" (router) con su "mapa" (routes)
   static final router = GoRouter(
 
-    // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-    // Le pasamos la key global al constructor
     navigatorKey: mapa_vm.navigatorKey,
-    // --- FIN DE CORRECCIÓN ---
+    initialLocation: '/',
 
-    initialLocation: '/', // La app siempre arranca en el Splash
-
-    // El "mapa" con la lista de todas las "direcciones"
     routes: [
-      // --- Direcciones del Menú 1 (Completas) ---
+      // ... (Rutas de Menú 1, Auth, Menú 2 y Perfil se mantienen igual)
       GoRoute(
         path: '/',
         builder: (BuildContext context, GoRouterState state) {
@@ -85,8 +86,6 @@ class AppRutas {
           return const ComentariosPagina();
         },
       ),
-
-      // --- Direcciones de Autenticación (Completas) ---
       GoRoute(
         path: '/login',
         builder: (BuildContext context, GoRouterState state) {
@@ -99,8 +98,6 @@ class AppRutas {
           return const RegistroPagina();
         },
       ),
-
-      // --- Direcciones del Menú 2 (Rutas - Completas) ---
       GoRoute(
         path: '/detalle-ruta',
         builder: (BuildContext context, GoRouterState state) {
@@ -111,20 +108,17 @@ class AppRutas {
       GoRoute(
         path: '/crear-ruta',
         builder: (BuildContext context, GoRouterState state) {
-          // (Recuerda que esta página también necesita
-          // una lógica de "editar" si state.extra no es nulo)
-          return const CrearRutaPagina();
+          // (A futuro: acoplar la lógica de 'extra' para editar)
+          final ruta = state.extra as Ruta?;
+          return CrearRutaPagina(ruta: ruta); // Pasar la ruta (si existe)
         },
       ),
-
       GoRoute(
         path: '/solicitar-guia',
         builder: (BuildContext context, GoRouterState state) {
           return const SolicitarGuiaPagina();
         },
       ),
-
-      // --- ¡NUEVAS RUTAS DEL PASO 4! ---
       GoRoute(
         path: '/mis-favoritos',
         builder: (BuildContext context, GoRouterState state) {
@@ -137,7 +131,21 @@ class AppRutas {
           return const MisRutasInscritasPagina();
         },
       ),
-      // --- FIN DE LA NUEVA RUTA ---
+
+      // --- ¡RUTAS DE ADMIN ACOMPLADAS! ---
+      GoRoute(
+        path: '/panel-admin', // (La ruta principal del Admin)
+        builder: (BuildContext context, GoRouterState state) {
+          return const AdminDashboardPagina(); // <-- Apunta al Dashboard
+        },
+      ),
+      GoRoute(
+        path: '/admin/gestion-guias', // (La sub-página de guías)
+        builder: (BuildContext context, GoRouterState state) {
+          return const AdminGestionGuiasPagina(); // <-- Apunta al archivo renombrado
+        },
+      ),
+      // --- FIN DE RUTAS DE ADMIN ---
     ],
   );
 }

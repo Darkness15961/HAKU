@@ -1,57 +1,60 @@
 // --- CARACTERISTICAS/RUTAS/DATOS/REPOSITORIOS/RUTAS_REPOSITORIO_MOCK.DART (¡Corregido!) ---
 //
-// 1. (ACOMPLADO): _rutasFalsasDB usa la "Receta" (Ruta) simplificada.
-// 2. (BUG CORREGIDO): El método 'crearRuta' AHORA SÍ AÑADE la nueva ruta
-//    a la lista '_rutasFalsasDB', solucionando el bug de "desaparición".
+// 1. (BUG DE IMAGEN CORREGIDO): Se reemplazaron las URLs 'unsplash.com'
+//    por URLs fiables de 'picsum.photos' para evitar el bloqueo de red.
+// 2. (ESTABLE): Mantiene la lógica de IDs de lugares ('l3', 'l4', 'l6').
 
 import '../../dominio/entidades/ruta.dart';
 import '../../dominio/repositorios/rutas_repositorio.dart';
 
 // --- Simulación de "Base de Datos Falsa" de Rutas ---
-// ¡ACOMPLADO! Ahora usa la "Receta" (ruta.dart) simplificada
 final List<Ruta> _rutasFalsasDB = [
   Ruta(
     id: 'r1',
     nombre: 'Aventura en el Valle Sagrado (1 Día)',
     descripcion: 'Disfruta de la experiencia completa del Valle Sagrado...',
+    // --- ¡IMAGEN FIABLE! ---
     urlImagenPrincipal:
-    'https://placehold.co/1000x600/0D47A1/FFFFFF?text=Valle+Sagrado',
+    'https://picsum.photos/seed/valle_sagrado/1000/600',
+    // --------------------
     precio: 80.00,
     dificultad: 'facil',
-    cuposTotales: 30, // <-- Acoplado
-    cuposDisponibles: 25, // <-- Acoplado
+    cuposTotales: 30,
+    cuposDisponibles: 25,
     visible: true,
-    dias: 1, // <-- Acoplado
+    dias: 1,
     guiaId: 'g1',
     guiaNombre: 'Alejandro Quispe',
     guiaFotoUrl: 'https://placehold.co/100x100/333333/FFFFFF?text=AQ',
     rating: 4.8,
     reviewsCount: 120,
-    lugaresIncluidos: ['Pisac', 'Ollantaytambo', 'Chinchero'],
-    lugaresIncluidosIds: ['l_pisac', 'l_ollanta', 'l_chinchero'],
+    lugaresIncluidos: ['Plaza de Armas', 'Salineras de Maras'],
+    lugaresIncluidosIds: ['l6', 'l3'], // IDs Reales
     inscritosCount: 12,
     esFavorita: false,
     estaInscrito: false,
   ),
   Ruta(
     id: 'r2',
-    nombre: 'Trekking Salkantay (5 Días)',
-    descripcion: 'Una ruta alternativa increíble a Machu Picchu...',
+    nombre: 'Maras, Moray y Chinchero',
+    descripcion: 'Un tour cultural por las salineras, el laboratorio inca y el pueblo textil.',
+    // --- ¡IMAGEN FIABLE! ---
     urlImagenPrincipal:
-    'https://placehold.co/1000x600/00897B/FFFFFF?text=Salkantay',
+    'https://picsum.photos/seed/maras_moray/1000/600',
+    // --------------------
     precio: 900.00,
     dificultad: 'dificil',
-    cuposTotales: 40, // <-- Acoplado
-    cuposDisponibles: 10, // <-- Acoplado
+    cuposTotales: 40,
+    cuposDisponibles: 10,
     visible: true,
-    dias: 5, // <-- Acoplado
+    dias: 5,
     guiaId: 'g2',
     guiaNombre: 'Maria Fernanda',
     guiaFotoUrl: 'https://placehold.co/100x100/6A5ACD/FFFFFF?text=MF',
     rating: 4.9,
     reviewsCount: 350,
-    lugaresIncluidos: ['Mollepata', 'Salkantay', 'Aguas Calientes'],
-    lugaresIncluidosIds: ['l_molle', 'l_salkan', 'l_aguas'],
+    lugaresIncluidos: ['Salineras de Maras', 'Mercado de Chinchero'],
+    lugaresIncluidosIds: ['l3', 'l4'], // IDs Reales
     inscritosCount: 20,
     esFavorita: false,
     estaInscrito: false,
@@ -60,21 +63,23 @@ final List<Ruta> _rutasFalsasDB = [
     id: 'r3',
     nombre: 'Explorando la Montaña de 7 Colores',
     descripcion: 'Un tour de día completo a Vinicunca...',
+    // --- ¡IMAGEN FIABLE! ---
     urlImagenPrincipal:
-    'https://placehold.co/1000x600/8B4513/FFFFFF?text=Vinicunca',
+    'https://picsum.photos/seed/vinicunca_ruta/1000/600',
+    // --------------------
     precio: 60.00,
     dificultad: 'medio',
-    cuposTotales: 25, // <-- Acoplado
-    cuposDisponibles: 0, // <-- Acoplado
+    cuposTotales: 25,
+    cuposDisponibles: 0,
     visible: false,
-    dias: 1, // <-- Acoplado
+    dias: 1,
     guiaId: 'g_usuario_actual',
     guiaNombre: 'Mi Propia Ruta (Guía)',
     guiaFotoUrl: 'https://placehold.co/100x100/AAAAAA/FFFFFF?text=YO',
     rating: 0.0,
     reviewsCount: 0,
-    lugaresIncluidos: ['Vinicunca'],
-    lugaresIncluidosIds: ['l_vinicunca'],
+    lugaresIncluidos: ['Montaña de 7 Colores'],
+    lugaresIncluidosIds: ['l5'], // IDs Reales
     inscritosCount: 0,
     esFavorita: false,
     estaInscrito: false,
@@ -112,7 +117,9 @@ class RutasRepositorioMock implements RutasRepositorio {
       id: 'ruta_mock_${DateTime.now().millisecondsSinceEpoch}',
       nombre: datosRuta['nombre'],
       descripcion: datosRuta['descripcion'],
-      urlImagenPrincipal: 'https://placehold.co/1000x600/0288D1/FFFFFF?text=${Uri.encodeComponent(datosRuta['nombre'])}',
+      // --- ¡IMAGEN FIABLE! ---
+      urlImagenPrincipal: 'https://picsum.photos/seed/${datosRuta['nombre']}/1000/600',
+      // ---------------------
       precio: datosRuta['precio'],
       dificultad: datosRuta['dificultad'],
       cuposTotales: datosRuta['cupos'],
@@ -120,7 +127,7 @@ class RutasRepositorioMock implements RutasRepositorio {
       visible: datosRuta['visible'],
       dias: datosRuta['dias'],
 
-      guiaId: 'g_usuario_actual', // ¡Asignamos el ID correcto!
+      guiaId: 'g_usuario_actual',
       guiaNombre: 'Mi Propia Ruta (Guía)',
       guiaFotoUrl: 'https://placehold.co/100x100/AAAAAA/FFFFFF?text=YO',
 
@@ -135,8 +142,6 @@ class RutasRepositorioMock implements RutasRepositorio {
       estaInscrito: false,
     );
 
-    // --- ¡AQUÍ ESTÁ LA SOLUCIÓN AL BUG! ---
-    // AHORA SÍ la añadimos a la "Base de Datos Falsa" (la RAM)
     _rutasFalsasDB.insert(0, nuevaRuta);
     print('----------------------------------');
   }

@@ -1,8 +1,8 @@
-// --- PIEDRA 5 (AUTENTICACIÓN): EL "CEREBRO" (VERSIÓN FINAL) ---
+// --- PIEDRA 5 (AUTENTICACIÓN): EL "CEREBRO" (ACOMPLADO CON ADMIN) ---
 //
-// 1. Ahora maneja Lugares Favoritos (ya lo hacía).
-// 2. Ahora maneja Rutas Inscritas (ya lo hacía).
-// 3. ¡NUEVO! Ahora también maneja Rutas Favoritas.
+// 1. (ACOMPLADO): Ahora maneja el rol 'admin' al iniciar sesión.
+// 2. (ACOMPLADO): Carga la lista de 'usuariosPendientes' si eres admin.
+// 3. (ACOMPLADO): Tiene los métodos 'aprobarGuia' y 'rechazarGuia'.
 
 import 'package:flutter/material.dart';
 import '../../dominio/repositorios/autenticacion_repositorio.dart';
@@ -21,18 +21,29 @@ class AutenticacionVM extends ChangeNotifier {
   // --- ¡ESTADO DEL CEREBRO! ---
   List<String> _lugaresFavoritosIds = [];
   List<String> _rutasInscritasIds = [];
-  List<String> _rutasFavoritasIds = []; // <-- ¡NUEVO!
+  List<String> _rutasFavoritasIds = [];
+
+  // --- ¡NUEVO ESTADO DE ADMIN! ---
+  List<Usuario> _usuariosPendientes = [];
+  bool _estaCargandoAdmin = false;
+  // --- FIN NUEVO ESTADO ---
 
   // --- C. GETTERS ---
   bool get estaCargando => _estaCargando;
   Usuario? get usuarioActual => _usuarioActual;
   String? get error => _error;
   bool get estaLogueado => _usuarioActual != null;
+  bool get esAdmin => _usuarioActual?.rol == 'admin'; // <-- ¡NUEVO GETTER!
 
   // --- ¡GETTERS DEL CEREBRO! ---
   List<String> get lugaresFavoritosIds => _lugaresFavoritosIds;
   List<String> get rutasInscritasIds => _rutasInscritasIds;
-  List<String> get rutasFavoritasIds => _rutasFavoritasIds; // <-- ¡NUEVO!
+  List<String> get rutasFavoritasIds => _rutasFavoritasIds;
+
+  // --- ¡NUEVOS GETTERS DE ADMIN! ---
+  List<Usuario> get usuariosPendientes => _usuariosPendientes;
+  bool get estaCargandoAdmin => _estaCargandoAdmin;
+  // --- FIN NUEVOS GETTERS ---
 
   // --- D. CONSTRUCTOR ---
   AutenticacionVM() {
@@ -42,6 +53,7 @@ class AutenticacionVM extends ChangeNotifier {
 
   // --- E. MÉTODOS (Las "Órdenes") ---
 
+  // (¡MÉTODO ACTUALIZADO!)
   Future<void> verificarEstadoSesion() async {
     _estaCargando = true;
     notifyListeners();
@@ -49,9 +61,16 @@ class AutenticacionVM extends ChangeNotifier {
 
     if (_usuarioActual != null) {
       // (Simulación de carga)
-      _lugaresFavoritosIds = ['l2']; // Mock: Lugar 2 es favorito
-      _rutasInscritasIds = ['r2'];   // Mock: Ruta 2 está inscrita
-      _rutasFavoritasIds = ['r2'];   // Mock: Ruta 2 es favorita
+      _lugaresFavoritosIds = ['l2'];
+      _rutasInscritasIds = ['r2'];
+      _rutasFavoritasIds = ['r2'];
+
+      // ¡NUEVA LÓGICA DE ADMIN!
+      if (esAdmin) {
+        // Si el usuario es Admin, cargamos las solicitudes
+        await cargarSolicitudesPendientes();
+      }
+
     } else {
       _limpiarDatosUsuario();
     }
@@ -60,16 +79,24 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
   }
 
+  // (¡MÉTODO ACTUALIZADO!)
   Future<bool> iniciarSesion(String email, String password) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
     try {
       _usuarioActual = await _repositorio.iniciarSesion(email, password);
+
       // (Simulación de carga)
       _lugaresFavoritosIds = ['l2'];
       _rutasInscritasIds = ['r2'];
-      _rutasFavoritasIds = ['r2']; // <-- ¡NUEVO!
+      _rutasFavoritasIds = ['r2'];
+
+      // ¡NUEVA LÓGICA DE ADMIN!
+      if (esAdmin) {
+        await cargarSolicitudesPendientes();
+      }
+
       _estaCargando = false;
       notifyListeners();
       return true;
@@ -86,7 +113,7 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
     await _repositorio.cerrarSesion();
     _usuarioActual = null;
-    _limpiarDatosUsuario(); // Limpiamos el cerebro
+    _limpiarDatosUsuario();
     _estaCargando = false;
     notifyListeners();
   }
@@ -95,23 +122,20 @@ class AutenticacionVM extends ChangeNotifier {
   void _limpiarDatosUsuario() {
     _lugaresFavoritosIds = [];
     _rutasInscritasIds = [];
-    _rutasFavoritasIds = []; // <-- ¡NUEVO!
+    _rutasFavoritasIds = [];
+    _usuariosPendientes = []; // <-- ¡ACOMPLADO!
   }
 
-  // --- MÉTODOS DE ACCIÓN DEL CEREBRO ---
-
-  // ORDEN 6: "Alternar un lugar favorito"
+  // --- MÉTODOS DE ACCIÓN DEL CEREBRO (Turista/Guía) ---
   Future<void> toggleLugarFavorito(String lugarId) async {
     if (_lugaresFavoritosIds.contains(lugarId)) {
       _lugaresFavoritosIds.remove(lugarId);
     } else {
       _lugaresFavoritosIds.add(lugarId);
     }
-    // (En un futuro, aquí llamarías al repositorio para guardarlo)
-    notifyListeners(); // Avisamos a todos los que escuchan
+    notifyListeners();
   }
 
-  // ORDEN 7: "Alternar inscripción a una ruta"
   Future<void> toggleRutaInscrita(String rutaId) async {
     if (_rutasInscritasIds.contains(rutaId)) {
       _rutasInscritasIds.remove(rutaId);
@@ -121,8 +145,6 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- ¡NUEVO MÉTODO DE ACCIÓN! ---
-  // ORDEN 8: "Alternar una ruta favorita"
   Future<void> toggleRutaFavorita(String rutaId) async {
     if (_rutasFavoritasIds.contains(rutaId)) {
       _rutasFavoritasIds.remove(rutaId);
@@ -131,7 +153,6 @@ class AutenticacionVM extends ChangeNotifier {
     }
     notifyListeners();
   }
-  // --- FIN DE NUEVO MÉTODO ---
 
   // (El resto de métodos - registrarUsuario, solicitarSerGuia - quedan igual)
   Future<bool> registrarUsuario(
@@ -142,7 +163,7 @@ class AutenticacionVM extends ChangeNotifier {
     try {
       _usuarioActual =
       await _repositorio.registrarUsuario(nombre, email, password, dni);
-      _limpiarDatosUsuario(); // Usuario nuevo, listas vacías
+      _limpiarDatosUsuario();
       _estaCargando = false;
       notifyListeners();
       return true;
@@ -161,6 +182,7 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
     try {
       await _repositorio.solicitarSerGuia(experiencia, rutaCertificado);
+      // Actualizamos el estado para que el rol cambie a 'guia_pendiente'
       await verificarEstadoSesion();
       _estaCargando = false;
       notifyListeners();
@@ -172,4 +194,54 @@ class AutenticacionVM extends ChangeNotifier {
       return false;
     }
   }
+
+  // --- ¡NUEVOS MÉTODOS DE ACCIÓN DEL ADMIN! (ACOMPLADO) ---
+
+  // ORDEN 6 (Admin): Cargar la lista
+  Future<void> cargarSolicitudesPendientes() async {
+    if (esAdmin == false) return; // Seguridad
+    _estaCargandoAdmin = true;
+    notifyListeners();
+    try {
+      _usuariosPendientes = await _repositorio.obtenerSolicitudesPendientes();
+    } catch (e) {
+      _error = e.toString();
+    }
+    _estaCargandoAdmin = false;
+    notifyListeners();
+  }
+
+  // ORDEN 7 (Admin): Aprobar
+  Future<void> aprobarGuia(String usuarioId) async {
+    if (esAdmin == false) return; // Seguridad
+    _estaCargandoAdmin = true;
+    notifyListeners();
+    try {
+      await _repositorio.aprobarGuia(usuarioId);
+      // Refrescamos la lista
+      await cargarSolicitudesPendientes();
+    } catch (e) {
+      _error = e.toString();
+    }
+    _estaCargandoAdmin = false;
+    notifyListeners();
+  }
+
+  // ORDEN 8 (Admin): Rechazar
+  Future<void> rechazarGuia(String usuarioId) async {
+    if (esAdmin == false) return; // Seguridad
+    _estaCargandoAdmin = true;
+    notifyListeners();
+    try {
+      await _repositorio.rechazarGuia(usuarioId);
+      // Refrescamos la lista
+      await cargarSolicitudesPendientes();
+    } catch (e) {
+      _error = e.toString();
+    }
+    _estaCargandoAdmin = false;
+    notifyListeners();
+  }
+// --- FIN DE NUEVOS MÉTODOS ---
+
 }

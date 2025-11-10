@@ -1,9 +1,8 @@
 // --- PIEDRA 10 (RUTAS): EL "MENÚ" DE CREAR RUTA (VERSIÓN ELEGANTE Y SIMPLIFICADA) ---
 //
-// 1. (DISEÑO): Se eliminó el campo de "minutos" de la tarjeta del lugar.
-// 2. (DISEÑO): Se eliminó el cálculo de "Duración" del footer.
-// 3. (DISEÑO): Se añadieron Dividers y se mejoró el espaciado.
-// 4. (LÓGICA): El formulario ya no envía 'duracionTotalMinutos'.
+// 1. (DISEÑO SIMPLIFICADO): Se eliminó el campo de "minutos" de la tarjeta del lugar.
+// 2. (DISEÑO SIMPLIFICADO): Se eliminó el cálculo de "Duración" del footer.
+// 3. (LÓGICA SIMPLIFICADA): El formulario ya no envía 'duracionTotalMinutos'.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +13,8 @@ import 'package:flutter/services.dart';
 import '../vista_modelos/rutas_vm.dart';
 import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
 import '../../../inicio/dominio/entidades/lugar.dart';
+// ¡Importamos la Receta para el 'extra' en app_rutas.dart!
+import '../../dominio/entidades/ruta.dart';
 
 // Helper: Clase simple para representar un Lugar en la Ruta
 // --- ¡SIMPLIFICADO! Ya no tiene 'durationMinutes' ---
@@ -24,7 +25,13 @@ class RouteLocation {
 
 // 1. El "Edificio" (La Pantalla)
 class CrearRutaPagina extends StatefulWidget {
-  const CrearRutaPagina({super.key});
+  // --- ¡ACOMPLADO! Acepta la ruta para "Editar" ---
+  final Ruta? ruta;
+
+  const CrearRutaPagina({
+    super.key,
+    this.ruta, // <-- Acepta la ruta (nulable)
+  });
 
   @override
   State<CrearRutaPagina> createState() => _CrearRutaPaginaState();
@@ -119,7 +126,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder( // <-- Diseño
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
@@ -215,6 +222,28 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     _precioCtrl.addListener(() => setState(() {}));
     _diasCtrl.addListener(() => setState(() {}));
     _cuposCtrl.addListener(() => setState(() {}));
+
+    // (Lógica para "Editar Ruta")
+    if (widget.ruta != null) {
+      _nombreCtrl.text = widget.ruta!.nombre;
+      _descripcionCtrl.text = widget.ruta!.descripcion;
+      _precioCtrl.text = widget.ruta!.precio.toString();
+      _diasCtrl.text = widget.ruta!.dias.toString();
+      _cuposCtrl.text = widget.ruta!.cuposTotales.toString();
+      _selectedDifficulty = widget.ruta!.dificultad;
+      _visibility = widget.ruta!.visible ? 'Pública' : 'Privada';
+
+      // (Pre-cargamos los lugares si estamos editando)
+      // (Necesitamos el LugaresVM para esto)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final vmLugares = context.read<LugaresVM>();
+        _locations = widget.ruta!.lugaresIncluidosIds.map((id) {
+          final lugar = vmLugares.lugaresTotales.firstWhere((l) => l.id == id);
+          return RouteLocation(lugar: lugar);
+        }).toList();
+        setState(() {});
+      });
+    }
   }
 
   @override
@@ -250,11 +279,12 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   Widget build(BuildContext context) {
     final vmRutas = context.watch<RutasVM>();
     final canSave = _canSave(vmRutas);
+    final bool modoEdicion = widget.ruta != null;
 
     return Scaffold(
       appBar: AppBar(
         title:
-        const Text('Crear Ruta', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text(modoEdicion ? 'Editar Ruta' : 'Crear Ruta', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           _estaGuardando
               ? const Padding(
@@ -284,11 +314,11 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildRouteDetailsInputs(),
-                  const Divider(height: 32), // <-- Diseño Elegante
+                  const Divider(height: 32),
                   _buildRouteProperties(),
-                  const Divider(height: 32), // <-- Diseño Elegante
+                  const Divider(height: 32),
                   _buildLocationList(),
-                  const Divider(height: 32), // <-- Diseño Elegante
+                  const Divider(height: 32),
                   _buildVisibilityTools(),
                 ],
               ),
@@ -608,7 +638,6 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         ],
       ),
       child: Row(
-        // Ahora hay 3 elementos, 'spaceAround' los centrará mejor
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           // Días

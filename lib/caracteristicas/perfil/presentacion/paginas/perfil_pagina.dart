@@ -1,9 +1,10 @@
-// --- PIEDRA 7 (PERFIL): EL "MENÚ" DE PERFIL (CORREGIDO CON BOTONES) ---
+// --- PIEDRA 7 (PERFIL): EL "MENÚ" DE PERFIL (ACOMPLADO CON STRING? NULABLE) ---
 //
-// 1. Mantiene tu lógica de Anónimo vs. Logueado.
-// 2. ¡CORREGIDO! Ya no muestra las listas aquí.
-// 3. Muestra BOTONES (como tú querías) para "Mis Favoritos" y "Mis Rutas".
-// 4. Activa el 'onTap' de esos botones para navegar a nuevas páginas.
+// 1. (BUG CORREGIDO): El 'CircleAvatar' ahora comprueba si
+//    'usuario.urlFotoPerfil' es nulo ('String?') antes de usarlo
+//    en 'NetworkImage'.
+// 2. (UX MEJORADA): Si la foto es nula, muestra las iniciales.
+// 3. (ACOMPLADO): Usa los botones 'mis-favoritos' y 'mis-rutas'.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -110,11 +111,26 @@ class PerfilPagina extends StatelessWidget {
             ),
             child: Column(
               children: [
+
+                // --- ¡AQUÍ ESTÁ LA CORRECCIÓN DEL BUG! ---
                 CircleAvatar(
                   radius: 40,
-                  backgroundImage: NetworkImage(usuario.urlFotoPerfil),
                   backgroundColor: Colors.white,
+                  // 1. Comprueba si la URL NO es nula Y NO está vacía
+                  backgroundImage: (usuario.urlFotoPerfil != null && usuario.urlFotoPerfil!.isNotEmpty)
+                      ? NetworkImage(usuario.urlFotoPerfil!) // Si es válida, úsala
+                      : null, // Si es nula, no pongas imagen de fondo
+
+                  // 2. Si la URL ES nula O está vacía, muestra las iniciales
+                  child: (usuario.urlFotoPerfil == null || usuario.urlFotoPerfil!.isEmpty)
+                      ? Text(
+                    usuario.nombre.substring(0, 1).toUpperCase(),
+                    style: TextStyle(color: colorPrimario, fontSize: 32, fontWeight: FontWeight.bold),
+                  )
+                      : null, // Si hay imagen de fondo, no muestres nada encima
                 ),
+                // --- FIN DE LA CORRECCIÓN ---
+
                 const SizedBox(height: 12),
                 Text(
                   usuario.nombre,
@@ -172,11 +188,9 @@ class PerfilPagina extends StatelessWidget {
               icon: Icons.add_road,
               titulo: 'Mis Rutas Creadas',
               subtitulo: 'Gestionar las rutas que publicaste',
-              color: Colors.blue.shade700, // Color cambiado para diferenciar
+              color: Colors.blue.shade700,
               onTap: () {
                 context.read<RutasVM>().cambiarPestana('Creadas por mí');
-                // TODO: Navegar al Menú 2 (Rutas)
-                // (Esto requiere que la Navegación Principal maneje este estado)
                 ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Navegando a Mis Rutas Creadas... (Próximamente)'))
                 );
@@ -205,7 +219,7 @@ class PerfilPagina extends StatelessWidget {
               isThreeLine: true,
             ),
 
-          // CASO 4: Es un Guía Rechazado (Tu lógica del Mock)
+          // CASO 4: Es un Guía Rechazado
           if (usuario.rol == 'guia_rechazado')
             _buildOpcion(
               context: context,
@@ -215,6 +229,20 @@ class PerfilPagina extends StatelessWidget {
               color: Colors.red.shade700,
               onTap: () {
                 context.push('/solicitar-guia');
+              },
+            ),
+
+          // CASO 5: Es un Administrador
+          if (vmAuth.esAdmin)
+            _buildOpcion(
+              context: context,
+              icon: Icons.admin_panel_settings,
+              titulo: 'Panel de Administrador',
+              subtitulo: 'Gestionar solicitudes de guías',
+              color: Colors.purple.shade700,
+              onTap: () {
+                // ¡ACOMPLADO! Navega al panel de admin
+                context.push('/panel-admin');
               },
             ),
 
@@ -237,7 +265,6 @@ class PerfilPagina extends StatelessWidget {
   }
 
   // --- VISTA 2: El Perfil del Usuario ANÓNIMO ---
-  // (Tu widget 100% intacto, como lo describiste)
   Widget _buildPerfilNoLogueado(BuildContext context, Color colorPrimario) {
     return Center(
       child: Padding(
@@ -260,19 +287,17 @@ class PerfilPagina extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            // Botón de Login
             ElevatedButton(
-              onPressed: () => context.push('/login'), // Va al "GPS"
+              onPressed: () => context.push('/login'),
               style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
                   backgroundColor: colorPrimario,
                   foregroundColor: Colors.white),
               child: const Text('Iniciar Sesión'),
             ),
-            // Botón de Registro
             const SizedBox(height: 16),
             OutlinedButton(
-              onPressed: () => context.push('/registro'), // Va al "GPS"
+              onPressed: () => context.push('/registro'),
               style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
                   side: BorderSide(color: colorPrimario)),
@@ -285,7 +310,7 @@ class PerfilPagina extends StatelessWidget {
     );
   }
 
-  // --- WIDGETS AUXILIARES (Tus widgets de lista se eliminaron) ---
+  // --- WIDGETS AUXILIARES ---
 
   Widget _buildTituloSeccion(String titulo) {
     return Padding(
@@ -297,14 +322,13 @@ class PerfilPagina extends StatelessWidget {
     );
   }
 
-  // Widget Reutilizable para Opciones del Perfil
   Widget _buildOpcion({
     required BuildContext context,
     required IconData icon,
     required String titulo,
     required String subtitulo,
     required VoidCallback onTap,
-    Color color = Colors.black87, // Color por defecto
+    Color color = Colors.black87,
   }) {
     return ListTile(
       leading: Icon(icon, color: color),

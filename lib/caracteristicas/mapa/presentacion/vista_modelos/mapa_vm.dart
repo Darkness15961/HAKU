@@ -1,8 +1,10 @@
-// --- PIEDRA 5 (MAPA): EL "SUPER-MESERO" (VERSIÓN CON CAMBIO DE MAPA) ---
+// --- PIEDRA 5 (MAPA): EL "SUPER-MESERO" (VERSIÓN FINAL CON LÓGICA DE RUTA CORREGIDA) ---
 //
-// 1. (¡NUEVO!): Se añade '_currentMapType' y 'toggleMapType()'
-//    para manejar el cambio de relieve (satélite/normal).
-// 2. (ESTABLE): Mantiene todas las correcciones de Bucle, GPS y Controlador.
+// 1. (BUG DE RUTA CORREGIDO): 'enfocarRutaEnMapa' AHORA compara
+//    usando 'lugar.id' contra 'ruta.lugaresIncluidosIds'.
+//    Esto soluciona el bug que te redirigía a Cusco.
+// 2. (ESTABLE): Mantiene la lógica de Polilíneas, Zoom y GPS.
+// 3. (ESTABLE): Mantiene la corrección del bucle de carga.
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -18,8 +20,7 @@ import '../../../rutas/presentacion/vista_modelos/rutas_vm.dart';
 import '../../../inicio/dominio/entidades/lugar.dart';
 import '../../../rutas/dominio/entidades/ruta.dart';
 
-// --- ¡NUEVO! Key Global para acceder al Theme ---
-// (Movido FUERA de la clase para ser importable)
+// --- Key Global para acceder al Theme ---
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 enum TipoCarrusel { ninguno, lugares, rutas }
@@ -30,17 +31,14 @@ class MapaVM extends ChangeNotifier {
   AutenticacionVM? _authVM;
   RutasVM? _rutasVM;
 
-  // --- B. ESTADO DEL MAPA (¡CON TIPO DE MAPA!) ---
+  // --- B. ESTADO DEL MAPA (¡CON POLILÍNEAS!) ---
   bool _estaCargando = false;
   Set<Marker> _markers = {};
   String? _error;
   bool _cargaInicialRealizada = false;
   Completer<GoogleMapController> _mapController = Completer();
   Set<Polyline> _polylines = {};
-
-  // --- ¡NUEVO ESTADO PARA TIPO DE MAPA! ---
   MapType _currentMapType = MapType.normal;
-  // --- FIN NUEVO ESTADO ---
 
   // --- GEOLOCATOR (se mantienen) ---
   StreamSubscription<Position>? _positionStreamSubscription;
@@ -53,11 +51,11 @@ class MapaVM extends ChangeNotifier {
   List<Lugar> _lugaresFiltrados = [];
   List<Ruta> _rutasFiltradas = [];
 
-  // --- D. GETTERS (¡CON TIPO DE MAPA!) ---
+  // --- D. GETTERS (¡CON POLILÍNEAS!) ---
   bool get estaCargando => _estaCargando;
   Set<Marker> get markers => _markers;
   Set<Polyline> get polylines => _polylines;
-  MapType get currentMapType => _currentMapType; // <-- ¡NUEVO GETTER!
+  MapType get currentMapType => _currentMapType;
   String? get error => _error;
   TipoCarrusel get carruselActual => _carruselActual;
   List<Lugar> get lugaresFiltrados => _lugaresFiltrados;
@@ -76,7 +74,7 @@ class MapaVM extends ChangeNotifier {
   // --- E. CONSTRUCTOR (se mantiene) ---
   MapaVM() {}
 
-  // --- F. MÉTODOS DE INICIALIZACIÓN (se mantienen) ---
+  // --- F. MÉTODOS DE INICIALIZACIÓN (¡CORREGIDO!) ---
   void actualizarDependencias(
       LugaresVM lugaresVM, AutenticacionVM authVM, RutasVM rutasVM) {
     if (_cargaInicialRealizada) {
@@ -102,9 +100,10 @@ class MapaVM extends ChangeNotifier {
     _iniciarCargaLogica();
   }
 
-  // Listener temporal (se mantiene)
+  // Listener temporal (¡CORREGIDO!)
   void _onDependenciasReady() {
     if (_cargaInicialRealizada) return;
+    // (CORRECCIÓN DE BUCLE)
     if (!(_lugaresVM?.estaCargandoInicio ?? true) &&
         !(_authVM?.estaCargando ?? true))
     {
@@ -232,7 +231,7 @@ class MapaVM extends ChangeNotifier {
 
   Future<void> limpiarMarcadores() async {
     _markers = {};
-    _polylines = {}; // <-- Limpia Polilíneas
+    _polylines = {};
     notifyListeners();
     if (!_mapController.isCompleted) return;
     final controller = await _mapController.future;
@@ -242,11 +241,10 @@ class MapaVM extends ChangeNotifier {
   // --- ¡NUEVO MÉTODO PARA CAMBIAR TIPO DE MAPA! ---
   void toggleMapType() {
     _currentMapType = (_currentMapType == MapType.normal)
-        ? MapType.satellite // Cambia a satélite
-        : MapType.normal; // Vuelve a normal
+        ? MapType.satellite
+        : MapType.normal;
     notifyListeners();
   }
-  // --- FIN DE NUEVO MÉTODO ---
 
   // --- MÉTODOS DE ZOOM (se mantienen) ---
   Future<void> zoomIn() async {
@@ -295,7 +293,7 @@ class MapaVM extends ChangeNotifier {
   }
 
 
-  // --- ÓRDENES DEL CARRUSEL (¡ANIMACIÓN CORREGIDA!) ---
+  // --- ÓRDENES DEL CARRUSEL (ANIMACIÓN CORREGIDA) ---
   Future<void> enfocarLugarEnMapa(Lugar lugar) async {
     if (lugar.latitud == 0.0 && lugar.longitud == 0.0) return;
     if (!_mapController.isCompleted) return;
@@ -309,23 +307,28 @@ class MapaVM extends ChangeNotifier {
       ),
     );
     _markers.add(_crearUnMarcador(lugar));
-    _polylines = {}; // Limpia polilíneas al ver un solo lugar
+    _polylines = {};
     notifyListeners();
   }
 
-  // --- ¡MÉTODO DE RUTA ACOMPLADO CON POLILÍNEAS! ---
+  // --- ¡MÉTODO DE RUTA CON LÓGICA DE ID CORREGIDA! ---
   Future<void> enfocarRutaEnMapa(Ruta ruta, List<Lugar> todosLosLugares) async {
     if (!_mapController.isCompleted) return;
     final controller = await _mapController.future;
 
+    // --- ¡AQUÍ ESTÁ LA CORRECCIÓN DEL BUG! ---
+    // Usamos 'lugaresIncluidosIds' (la lista de IDs)
+    // para comparar con 'lugar.id'.
     final List<Lugar> lugaresDeLaRuta = todosLosLugares
         .where((lugar) =>
-    ruta.lugaresIncluidos.contains(lugar.nombre) &&
+    ruta.lugaresIncluidosIds.contains(lugar.id) && // <-- CORREGIDO
         lugar.latitud != 0.0 &&
         lugar.longitud != 0.0)
         .toList();
+    // --- FIN DE LA CORRECCIÓN ---
 
     if (lugaresDeLaRuta.isEmpty) {
+      // (Fallback: te redirige a Cusco si no encuentra lugares)
       controller.animateCamera(CameraUpdate.newLatLngZoom(const LatLng(-13.517, -71.978), 12));
       return;
     }
@@ -365,12 +368,11 @@ class MapaVM extends ChangeNotifier {
     }
 
     // 4. ¡AÑADE LA POLILÍNEA!
-    // (Usa la navigatorKey global que definimos arriba)
     _polylines.add(
         Polyline(
           polylineId: PolylineId(ruta.id),
           points: lugaresDeLaRuta.map((l) => LatLng(l.latitud, l.longitud)).toList(),
-          color: Theme.of(navigatorKey.currentContext!).colorScheme.primary, // Usa el color primario
+          color: Theme.of(navigatorKey.currentContext!).colorScheme.primary,
           width: 5,
           startCap: Cap.roundCap,
           endCap: Cap.roundCap,

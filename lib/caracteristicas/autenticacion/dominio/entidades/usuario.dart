@@ -1,35 +1,36 @@
-// --- PIEDRA 1 (AUTENTICACIÓN): LA "RECETA" DE USUARIO ---
+// --- PIEDRA 1 (AUTENTICACIÓN): LA "RECETA" DE USUARIO (ACOMPLADA CON ADMIN) ---
 //
-// Este es el "Molde" que le dice a tu app
-// qué forma tienen los datos de un "Usuario"
-// cuando los recibimos de la "Cocina" (API o Mock).
-//
-// Está basado 100% en tu MER FINAL.
+// 1. (ACOMPLADO): Se añadieron campos de solicitud (estado, experiencia)
+//    para que el Admin pueda leerlos.
+// 2. (ACOMPLADO): 'urlFotoPerfil' y 'dni' ahora son nullables ('String?')
+//    para ser compatibles con el registro y el mock.
 
 class Usuario {
   // --- Atributos (Ingredientes) ---
-  //
-  // (Estos campos vienen de la tabla "Usuarios" en tu MER FINAL)
-  final String id; // (Ej: '1', '2', etc.)
-  final String nombre; // (Ej: 'Alex Gálvez')
+  final String id;
+  final String nombre;
   final String email;
   final String rol; // (Ej: 'turista', 'guia_aprobado', 'admin')
-  final String urlFotoPerfil; // (La URL de la imagen que añadimos)
-  final String dni;
+  final String? urlFotoPerfil; // <-- ACOMPLADO (puede ser nulo)
+  final String? dni; // <-- ACOMPLADO (puede ser nulo)
 
-  // --- Atributo del Backend ---
-  // (Este no lo mostramos, pero lo necesitamos
-  // para hablar con el "Guardia de Seguridad" (Backend))
+  // --- ¡NUEVOS CAMPOS PARA EL PANEL DE ADMIN! ---
+  final String? solicitudEstado; // (Ej: 'pendiente', 'aprobado', 'rechazado')
+  final String? solicitudExperiencia; // (Datos que envió el guía)
+  // --- FIN DE NUEVOS CAMPOS ---
+
   final String token; // El "Pase" de seguridad
 
-  // --- Constructor (El "Molde") ---
+  // --- Constructor (El "Molde" Acoplado) ---
   Usuario({
     required this.id,
     required this.nombre,
     required this.email,
     required this.rol,
-    required this.urlFotoPerfil,
-    required this.dni,
+    this.urlFotoPerfil, // <-- ACOMPLADO
+    this.dni, // <-- ACOMPLADO
+    this.solicitudEstado, // <-- ACOMPLADO
+    this.solicitudExperiencia, // <-- ACOMPLADO
     required this.token,
   });
 }

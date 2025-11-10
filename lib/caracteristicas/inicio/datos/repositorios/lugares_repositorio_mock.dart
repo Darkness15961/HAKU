@@ -1,9 +1,8 @@
-// --- PIEDRA 3 (INICIO): LA "COCINA FALSA" (VERSIÓN CORREGIDA) ---
+// --- PIEDRA 3 (INICIO): LA "COCINA FALSA" (VERSIÓN CON IMÁGENES FIABLES) ---
 //
-// 1. Incluye la lista maestra _allLugaresDB con TODAS las coordenadas.
-// 2. Implementa el método CRÍTICO 'obtenerTodosLosLugares' (la lista maestra).
-// 3. ¡CORREGIDO! Los strings de 'categoria' ahora coinciden
-//    con la lista de Categorías ('Naturaleza', 'Cultural').
+// 1. (BUG CORREGIDO): Se reemplazaron las URLs de 'Unsplash' (que estaban
+//    siendo bloqueadas por la red) por URLs de 'Picsum Photos'.
+// 2. (ESTABLE): Mantiene la lógica de 'obtenerTodosLosLugares'.
 
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/lugar.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';
@@ -12,32 +11,36 @@ import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/comentario
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/repositorios/lugares_repositorio.dart';
 
 
-// --- Base de Datos Falsa MAESTRA de Lugares (Con Coordenadas) ---
+// --- Base de Datos Falsa MAESTRA de Lugares (Con Fotos Reales) ---
 final List<Lugar> _allLugaresDB = [
-  // L1: Cusco (Popular)
+  // L1: Machu Picchu (Urubamba)
   Lugar(
     id: 'l1',
     nombre: 'Machu Picchu',
-    descripcion: 'Antigua ciudad inca en las alturas de los Andes. Maravilla del mundo.',
-    urlImagen: 'https://placehold.co/1000x600/0D47A1/FFFFFF?text=Machu+Picchu',
+    descripcion: 'Antigua ciudadela inca en lo alto de los Andes. Maravilla del mundo.',
+    // --- ¡URL FIABLE! ---
+    urlImagen: 'https://picsum.photos/seed/mp/1000/600',
+    // ----------------------
     rating: 4.9,
-    categoria: 'Arqueología', // Coincide con el chip
+    categoria: 'Arqueología',
     reviewsCount: 1500,
     horario: '6:00 - 17:00',
     costoEntrada: 'S/ 152.00',
     puntosInteres: ['Intihuatana', 'Templo del Sol', 'Huayna Picchu'],
     latitud: -13.1631,
     longitud: -72.5450,
-    provinciaId: 'p2', // Urubamba (Corregido para ser preciso)
+    provinciaId: 'p2', // Urubamba
   ),
-  // L2: Cusco (Popular y Favorito, para pruebas)
+  // L2: Sacsayhuamán (Cusco)
   Lugar(
     id: 'l2',
     nombre: 'Sacsayhuamán',
     descripcion: 'Impresionante fortaleza ceremonial inca con bloques ciclópeos.',
-    urlImagen: 'https://placehold.co/1000x600/FF5722/FFFFFF?text=SXY',
+    // --- ¡URL FIABLE! ---
+    urlImagen: 'https://picsum.photos/seed/sxy/1000/600',
+    // ----------------------
     rating: 4.7,
-    categoria: 'Arqueología', // Coincide con el chip
+    categoria: 'Arqueología',
     reviewsCount: 800,
     horario: '7:00 - 18:00',
     costoEntrada: 'S/ 70.00',
@@ -46,15 +49,16 @@ final List<Lugar> _allLugaresDB = [
     longitud: -71.9839,
     provinciaId: 'p1', // Cusco
   ),
-  // L3: Urubamba (Ruta 1 y 2)
+  // L3: Salineras de Maras (Urubamba)
   Lugar(
     id: 'l3',
     nombre: 'Salineras de Maras',
     descripcion: 'Pozos de sal preincas que crean un paisaje espectacular.',
-    urlImagen: 'https://placehold.co/1000x600/4CAF50/FFFFFF?text=SLS',
+    // --- ¡URL FIABLE! ---
+    urlImagen: 'https://picsum.photos/seed/maras/1000/600',
+    // ----------------------
     rating: 4.6,
-    // --- ¡CORREGIDO! ---
-    categoria: 'Naturaleza', // Antes 'Natural'
+    categoria: 'Naturaleza',
     reviewsCount: 400,
     horario: '9:00 - 17:00',
     costoEntrada: 'S/ 10.00',
@@ -63,15 +67,16 @@ final List<Lugar> _allLugaresDB = [
     longitud: -72.1557,
     provinciaId: 'p2', // Urubamba
   ),
-  // L4: Urubamba (Ruta 2)
+  // L4: Mercado de Chinchero (Urubamba)
   Lugar(
     id: 'l4',
     nombre: 'Mercado de Chinchero',
     descripcion: 'Famoso mercado de artesanías y textiles de la zona andina.',
-    urlImagen: 'https://placehold.co/1000x600/795548/FFFFFF?text=CHINCHERO',
+    // --- ¡URL FIABLE! ---
+    urlImagen: 'https://picsum.photos/seed/chinchero/1000/600',
+    // ----------------------
     rating: 4.5,
-    // --- ¡CORREGIDO! ---
-    categoria: 'Cultural', // Antes 'Cultura'
+    categoria: 'Cultural',
     reviewsCount: 250,
     horario: 'Domingos',
     costoEntrada: 'Gratuito',
@@ -80,15 +85,16 @@ final List<Lugar> _allLugaresDB = [
     longitud: -72.0460,
     provinciaId: 'p2', // Urubamba
   ),
-  // L5: Quispicanchi (Ruta 3)
+  // L5: Montaña 7 Colores (Quispicanchi)
   Lugar(
     id: 'l5',
-    nombre: 'Montaña de 7 Colores',
+    nombre: 'Montaña de Siete Colores',
     descripcion: 'La majestuosa montaña Vinicunca.',
-    urlImagen: 'https://placehold.co/1000x600/A52A2A/FFFFFF?text=VIN',
+    // --- ¡URL FIABLE! ---
+    urlImagen: 'https://picsum.photos/seed/vinicunca/1000/600',
+    // ----------------------
     rating: 4.8,
-    // --- ¡CORREGIDO! ---
-    categoria: 'Naturaleza', // Antes 'Natural'
+    categoria: 'Naturaleza',
     reviewsCount: 1000,
     horario: '5:00 - 15:00',
     costoEntrada: 'S/ 20.00',
@@ -97,15 +103,16 @@ final List<Lugar> _allLugaresDB = [
     longitud: -71.2985,
     provinciaId: 'p4', // Quispicanchi
   ),
-  // L6: Cusco (Ruta 1)
+  // L6: Plaza de Armas (Cusco)
   Lugar(
     id: 'l6',
     nombre: 'Plaza de Armas',
     descripcion: 'Centro neurálgico de Cusco, con catedrales y arquitectura colonial.',
-    urlImagen: 'https://placehold.co/1000x600/1E88E5/FFFFFF?text=PLAZA',
+    // --- ¡URL FIABLE! ---
+    urlImagen: 'https://picsum.photos/seed/plaza/1000/600',
+    // ----------------------
     rating: 4.8,
-    // --- ¡CORREGIDO! ---
-    categoria: 'Cultural', // Antes 'Cultura'
+    categoria: 'Cultural',
     reviewsCount: 1200,
     horario: 'Todo el día',
     costoEntrada: 'Gratuito',
@@ -116,27 +123,26 @@ final List<Lugar> _allLugaresDB = [
   ),
 ];
 
-// --- Base de Datos Falsa de Provincias ---
+// --- Base de Datos Falsa de Provincias (¡Con Imágenes Fiables!) ---
 final List<Provincia> _provinciasDB = [
   Provincia(
     id: 'p1',
     nombre: 'Cusco',
-    urlImagen: 'https://placehold.co/300x200/F06292/FFFFFF?text=Cusco',
+    urlImagen: 'https://picsum.photos/seed/cusco_plaza/800/600',
     categories: ['Arqueología', 'Cultural'],
     placesCount: 2,
   ),
   Provincia(
     id: 'p2',
     nombre: 'Urubamba',
-    urlImagen: 'https://placehold.co/300x200/7CB342/FFFFFF?text=Urubamba',
-    categories: ['Naturaleza', 'Aventura', 'Cultural'], // Añadido Cultural
+    urlImagen: 'https://picsum.photos/seed/urubamba_valle/800/600',
+    categories: ['Naturaleza', 'Aventura', 'Cultural'],
     placesCount: 3,
   ),
   Provincia(
     id: 'p4',
     nombre: 'Quispicanchi',
-    urlImagen:
-    'https://placehold.co/300x200/283593/FFFFFF?text=Quispicanchi',
+    urlImagen: 'https://picsum.photos/seed/quispicanchi_montana/800/600',
     placesCount: 1,
     categories: ['Naturaleza'],
   ),
@@ -152,15 +158,12 @@ class LugaresRepositorioMock implements LugaresRepositorio {
     return _allLugaresDB.where((l) => ['l1', 'l2', 'l5'].contains(l.id)).toList();
   }
 
-  // --- ¡MÉTODO CRÍTICO IMPLEMENTADO! ---
-  // Este método es requerido por el nuevo contrato y lo usa LugaresVM
+  // --- RESTO DE MÉTODOS (Se mantienen igual) ---
   @override
   Future<List<Lugar>> obtenerTodosLosLugares() async {
     await Future.delayed(const Duration(milliseconds: 200));
-    // Devuelve la lista MAESTRA completa
     return _allLugaresDB;
   }
-  // --- FIN DE MÉTODO CRÍTICO ---
 
   @override
   Future<List<Provincia>> obtenerProvincias() async {
@@ -196,14 +199,11 @@ class LugaresRepositorioMock implements LugaresRepositorio {
     ];
   }
 
-  // Este método es parte del contrato y lo implementamos (aunque LugaresVM ya no lo use directamente)
   @override
   Future<List<Lugar>> obtenerLugaresPorProvincia(String provinciaId) async {
     await Future.delayed(const Duration(milliseconds: 600));
     return _allLugaresDB.where((l) => l.provinciaId == provinciaId).toList();
   }
-
-  // --- ÓRDENES PARA DETALLE ---
 
   @override
   Future<List<Comentario>> obtenerComentarios(String lugarId) async {
