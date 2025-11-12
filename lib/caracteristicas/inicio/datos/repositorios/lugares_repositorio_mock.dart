@@ -1,8 +1,8 @@
-// --- PIEDRA 3 (INICIO): LA "COCINA FALSA" (VERSIÓN CON IMÁGENES FIABLES) ---
+// --- PIEDRA 3 (INICIO): LA "COCina FALSA" (VERSIÓN FINAL ESTABLE) ---
 //
-// 1. (BUG CORREGIDO): Se reemplazaron las URLs de 'Unsplash' (que estaban
-//    siendo bloqueadas por la red) por URLs de 'Picsum Photos'.
-// 2. (ESTABLE): Mantiene la lógica de 'obtenerTodosLosLugares'.
+// 1. (ACOMPLADO): Usa las URLs fiables de 'picsum.photos'.
+// 2. (ACOMPLADO): Usa la lógica de 'enviarComentario' que guarda en RAM.
+// 3. (ACOMPLADO): Usa la "Receta" de Comentario con 'lugarId' y 'usuarioId'.
 
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/lugar.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';
@@ -11,7 +11,7 @@ import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/comentario
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/repositorios/lugares_repositorio.dart';
 
 
-// --- Base de Datos Falsa MAESTRA de Lugares (Con Fotos Reales) ---
+// --- Base de Datos Falsa MAESTRA de Lugares (Con Fotos Fiables) ---
 final List<Lugar> _allLugaresDB = [
   // L1: Machu Picchu (Urubamba)
   Lugar(
@@ -148,29 +148,55 @@ final List<Provincia> _provinciasDB = [
   ),
 ];
 
+// --- ¡BASE DE DATOS FALSA DE COMENTARIOS (ACOMPLADA)! ---
+final Map<String, List<Comentario>> _comentariosFalsosDB = {
+  'l1': [
+    Comentario(
+      id: 'c1',
+      texto: '¡Un lugar absolutamente increíble! La energía es única.',
+      rating: 5.0,
+      fecha: 'hace 2 días',
+      lugarId: 'l1',
+      usuarioId: '1',
+      usuarioNombre: 'Alex Gálvez',
+      usuarioFotoUrl: 'https://placehold.co/100x100/333333/FFFFFF?text=AG',
+    ),
+    Comentario(
+      id: 'c2',
+      texto:
+      'Recomiendo ir muy temprano para evitar las multitudes. Llev... ',
+      rating: 4.0,
+      fecha: 'hace 1 semana',
+      lugarId: 'l1',
+      usuarioId: '2',
+      usuarioNombre: 'Maria Fernanda',
+      usuarioFotoUrl: 'https://placehold.co/100x100/6A5ACD/FFFFFF?text=MF',
+    ),
+  ],
+};
+// --- FIN DE NUEVA BASE DE DATOS ---
+
+
 // --- Implementación del Repositorio (La "Cocina") ---
 class LugaresRepositorioMock implements LugaresRepositorio {
 
+  // (obtenerLugaresPopulares, obtenerTodosLosLugares, obtenerProvincias,
+  // obtenerCategorias, obtenerLugaresPorProvincia se mantienen igual)
   @override
   Future<List<Lugar>> obtenerLugaresPopulares() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    // Devuelve una sub-lista de populares (para el carrusel)
     return _allLugaresDB.where((l) => ['l1', 'l2', 'l5'].contains(l.id)).toList();
   }
-
-  // --- RESTO DE MÉTODOS (Se mantienen igual) ---
   @override
   Future<List<Lugar>> obtenerTodosLosLugares() async {
     await Future.delayed(const Duration(milliseconds: 200));
     return _allLugaresDB;
   }
-
   @override
   Future<List<Provincia>> obtenerProvincias() async {
     await Future.delayed(const Duration(milliseconds: 300));
     return _provinciasDB;
   }
-
   @override
   Future<List<Categoria>> obtenerCategorias() async {
     await Future.delayed(const Duration(milliseconds: 100));
@@ -198,51 +224,64 @@ class LugaresRepositorioMock implements LugaresRepositorio {
           urlImagen: 'https://placehold.co/100/800080/FFFFFF?text=Icon'),
     ];
   }
-
   @override
   Future<List<Lugar>> obtenerLugaresPorProvincia(String provinciaId) async {
     await Future.delayed(const Duration(milliseconds: 600));
     return _allLugaresDB.where((l) => l.provinciaId == provinciaId).toList();
   }
 
-  @override
-  Future<List<Comentario>> obtenerComentarios(String lugarId) async {
-    await Future.delayed(const Duration(milliseconds: 700));
-    return [
-      Comentario(
-        id: 'c1',
-        texto: '¡Un lugar absolutamente increíble! La energía es única.',
-        rating: 5.0,
-        fecha: 'hace 2 días',
-        usuarioNombre: 'Alex Gálvez',
-        usuarioFotoUrl:
-        'https://placehold.co/100x100/333333/FFFFFF?text=AG',
-      ),
-      Comentario(
-        id: 'c2',
-        texto:
-        'Recomiendo ir muy temprano para evitar las multitudes. Llev... ',
-        rating: 4.0,
-        fecha: 'hace 1 semana',
-        usuarioNombre: 'Maria Fernanda',
-        usuarioFotoUrl:
-        'https://placehold.co/100x100/6A5ACD/FFFFFF?text=MF',
-      ),
-    ];
-  }
+  // --- ÓRDENES PARA DETALLE (ACOMPLADAS) ---
 
+  // --- ORDEN 5: "Enviar un nuevo comentario" (¡ACOMPLADO!) ---
   @override
   Future<void> enviarComentario(
-      String lugarId, String texto, double rating) async {
+      String lugarId,
+      String texto,
+      double rating,
+      String usuarioNombre,
+      String? urlFotoUsuario, // Opcional
+      String usuarioId
+      ) async {
+
     await Future.delayed(const Duration(milliseconds: 500));
     print('--- ¡ORDEN RECIBIDA POR EL MOCK! ---');
-    print('Comentario para $lugarId: $texto ($rating estrellas)');
+
+    // 1. "Cocinamos" la "Receta" del nuevo comentario
+    final nuevoComentario = Comentario(
+      id: 'c_${DateTime.now().millisecondsSinceEpoch}', // ID Falso
+      texto: texto,
+      rating: rating,
+      fecha: 'justo ahora',
+      lugarId: lugarId,
+      usuarioId: usuarioId,
+      usuarioNombre: usuarioNombre,
+      usuarioFotoUrl: urlFotoUsuario ?? 'https://placehold.co/100x100/808080/FFFFFF?text=${usuarioNombre.substring(0,1)}', // Placeholder
+    );
+
+    // 2. Verificamos si ya existe una lista para ese lugarId
+    if (!_comentariosFalsosDB.containsKey(lugarId)) {
+      _comentariosFalsosDB[lugarId] = []; // Si no, creamos la lista
+    }
+
+    // 3. ¡AÑADIMOS EL COMENTARIO A LA "BASE DE DATOS FALSA"!
+    _comentariosFalsosDB[lugarId]!.insert(0, nuevoComentario);
+
+    print('Comentario para $lugarId AÑADIDO a la BD Falsa.');
+    print('----------------------------------');
   }
 
+  // (ORDEN 6 se mantiene)
   @override
   Future<void> marcarFavorito(String lugarId) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    print('--- ¡ORDEN RECIBIDA POR EL MOCK! ---');
     print('Favorito toggle para lugar ID: $lugarId');
+  }
+
+  // --- ORDEN 7: "Traer los comentarios de un lugar" (¡ACOMPLADO!) ---
+  @override
+  Future<List<Comentario>> obtenerComentarios(String lugarId) async {
+    await Future.delayed(const Duration(milliseconds: 700));
+    // Ahora lee de la "Base de Datos Falsa" (RAM)
+    return _comentariosFalsosDB[lugarId] ?? []; // Devuelve la lista o una lista vacía
   }
 }

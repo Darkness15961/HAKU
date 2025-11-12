@@ -47,7 +47,10 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
     // 2. CAMBIO CLAVE: Usamos Go_Router para navegar por la ruta
     // que definimos en app_rutas.dart.
     if (mounted) {
-      context.pushReplacement('/navegacion');
+      // --- ¡CORREGIDO! ---
+      // La ruta no es '/navegacion', es '/inicio'
+      context.pushReplacement('/inicio');
+      // --- FIN DE LA CORRECCIÓN ---
     }
   }
 

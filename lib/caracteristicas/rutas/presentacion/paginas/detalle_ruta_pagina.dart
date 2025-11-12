@@ -1,9 +1,7 @@
 // --- PIEDRA 9 (RUTAS): EL "MENÚ" DE DETALLE DE RUTA (REGLA DE GUÍA ACOMPLADA) ---
 //
-// 1. (REGLA DE NEGOCIO ACOMPLADA): El botón inferior ahora comprueba si
-//    el usuario actual es el 'guiaId' de la ruta.
-// 2. (UX CORREGIDA): Si es el propietario, muestra "Gestionar Ruta".
-// 3. (LÓGICA): Mantiene la lógica del "Cerebro" (AuthVM) para todo lo demás.
+// 1. (BUG NAVEGACIÓN CORREGIDO): El botón "Gestionar mi Ruta" ahora
+//    usa la ruta completa '/rutas/crear-ruta'.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -368,8 +366,10 @@ class DetalleRutaPagina extends StatelessWidget {
       buttonColor = Colors.blueGrey; // Un color de "gestión"
       buttonIcon = Icons.edit_note;
       onPressed = () {
-        // TODO: Navegar a /editar-ruta (futuro)
-        context.push('/crear-ruta', extra: ruta); // Reutilizamos la página de crear
+        // --- ¡CORREGIDO! ---
+        // Esta ruta es hija de '/rutas'
+        context.push('/rutas/crear-ruta', extra: ruta); // Reutilizamos la página de crear
+        // --- FIN DE LA CORRECCIÓN ---
       };
     } else if (estaInscrito) {
       // Flujo 2: Ya está registrado
@@ -446,7 +446,7 @@ class DetalleRutaPagina extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                context.push('/login');
+                context.push('/login'); // <-- Esta ruta está BIEN
               },
               style: ElevatedButton.styleFrom(backgroundColor: colorPrimario),
               child: const Text('Iniciar Sesión',

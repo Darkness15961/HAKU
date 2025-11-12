@@ -1,8 +1,8 @@
 // --- PIEDRA 7 (MAPA): EL "MENÚ" DE MAPA (VERSIÓN FINAL CON TIPO DE MAPA) ---
 //
-// 1. (BUG TIPO DE MAPA CORREGIDO): El widget 'GoogleMap' AHORA SÍ
-//    lee el estado 'vmMapa.currentMapType' para cambiar el relieve.
-// 2. (UX FINAL): Todos los botones están ordenados y funcionales.
+// 1. (BUG NAVEGACIÓN CORREGIDO): Se corrigió el 'onTap' de las tarjetas
+//    del carrusel para que usen las rutas absolutas
+//    (ej. '/inicio/detalle-lugar').
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -335,7 +335,7 @@ class _MapaPaginaState extends State<MapaPagina> {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                context.push('/login');
+                context.push('/login'); // <-- Esta ruta está BIEN
               },
               style: ElevatedButton.styleFrom(backgroundColor: colorPrimario),
               child: const Text('Iniciar Sesión', style: TextStyle(color: Colors.white)),
@@ -418,7 +418,9 @@ class _MapaPaginaState extends State<MapaPagina> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () { if (mounted) context.push('/detalle-lugar', extra: lugar); },
+            // --- ¡AQUÍ ESTÁ LA CORRECCIÓN 1! ---
+            onTap: () { if (mounted) context.push('/inicio/detalle-lugar', extra: lugar); },
+            // --- FIN DE LA CORRECCIÓN ---
             child: Image.network(
               lugar.urlImagen,
               width: 100,
@@ -466,7 +468,9 @@ class _MapaPaginaState extends State<MapaPagina> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () { if (mounted) context.push('/detalle-ruta', extra: ruta); },
+            // --- ¡AQUÍ ESTÁ LA CORRECCIÓN 2! ---
+            onTap: () { if (mounted) context.push('/rutas/detalle-ruta', extra: ruta); },
+            // --- FIN DE LA CORRECCIÓN ---
             child: Image.network(
               ruta.urlImagenPrincipal,
               width: 100,

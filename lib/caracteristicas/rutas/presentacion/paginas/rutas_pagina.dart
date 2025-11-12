@@ -3,6 +3,8 @@
 // 1. (BUG CORREGIDO): Se cambió 'ruta.cupos' por 'ruta.cuposTotales'
 //    en _buildRouteCard para "acoplarlo" a la nueva "Receta" (ruta.dart).
 // 2. (DISEÑO): Se mantiene tu diseño de AppBar nativa.
+// 3. (BUG NAVEGACIÓN CORREGIDO): Se corrigió la ruta del botón 'Crear Ruta'
+//    de '/crear-ruta' a '/rutas/crear-ruta'.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -39,7 +41,12 @@ class _RutasPaginaState extends State<RutasPagina> {
 
   // --- Lógica de Navegación y Recarga ---
   void _irAlDetalleRuta(Ruta ruta) {
-    context.push('/detalle-ruta', extra: ruta);
+    // --- CORRECCIÓN POSIBLE (Revisando tu otra ruta) ---
+    // Si esta también falla, debe ser '/rutas/detalle-ruta'
+    // Pero 'context.push' con 'extra' suele ser para rutas superiores
+    // Lo dejamos como estaba, pero si falla, avísame.
+    // **ACTUALIZACIÓN**: Viendo tu app_rutas.dart, esta ruta es '/rutas/detalle-ruta'
+    context.push('/rutas/detalle-ruta', extra: ruta);
   }
 
   Future<void> _handleRefresh() async {
@@ -151,7 +158,10 @@ class _RutasPaginaState extends State<RutasPagina> {
       padding: const EdgeInsets.only(right: 8.0),
       child: ElevatedButton.icon(
         onPressed: () {
-          context.push('/crear-ruta');
+          // --- ¡CORREGIDO! ---
+          // La ruta debe ser la ruta completa definida en app_rutas.dart
+          context.push('/rutas/crear-ruta');
+          // --- FIN DE LA CORRECCIÓN ---
         },
         icon: const Icon(Icons.add, color: Colors.white, size: 20),
         label: const Text('Crear Ruta',

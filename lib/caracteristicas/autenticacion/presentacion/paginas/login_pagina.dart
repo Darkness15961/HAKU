@@ -61,13 +61,24 @@ class _LoginPaginaState extends State<LoginPagina> {
     // 4. Verificamos la respuesta del "Mesero"
     //    (El "await" esperó a que el "Mesero" terminara)
     //    Usamos "mounted" para asegurar que la pantalla sigue "viva"
+
+    // --- ¡CORREGIDO Y MEJORADO! ---
     if (mounted && exito) {
       // 5. ¡ÉXITO!
-      //    Usamos el "GPS" (GoRouter) para "reemplazar" esta pantalla
-      //    por la de navegación principal.
-      //    Usamos "pushReplacement" para que el usuario no pueda
-      //    "volver" a la pantalla de login.
-      context.pushReplacement('/navegacion');
+      //    Ahora que el VM autenticó, le preguntamos el ROL
+      //    para saber a dónde redirigir.
+
+      // Usamos "read" de nuevo porque estamos dentro de una función/evento
+      final vmAuth = context.read<AutenticacionVM>();
+
+      if (vmAuth.esAdmin) {
+        // Es Admin -> Lo llevamos al panel de admin
+        context.pushReplacement('/panel-admin');
+      } else {
+        // Es Turista o Guía -> Lo llevamos al inicio normal
+        context.pushReplacement('/inicio');
+      }
+
     } else if (mounted && !exito) {
       // 6. ¡ERROR!
       //    Si la app sigue "viva", leemos el error que
@@ -81,6 +92,7 @@ class _LoginPaginaState extends State<LoginPagina> {
         ),
       );
     }
+    // --- FIN DE LA CORRECCIÓN ---
   }
 
   // --- Construcción del "Menú" (UI) ---
@@ -219,5 +231,3 @@ class _LoginPaginaState extends State<LoginPagina> {
     );
   }
 }
-
-

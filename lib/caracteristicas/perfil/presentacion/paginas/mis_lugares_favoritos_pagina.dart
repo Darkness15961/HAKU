@@ -1,11 +1,7 @@
 // --- PIEDRA 8 (PERFIL): LA "NUEVA VENTANA" DE MIS FAVORITOS ---
 //
-// Esta es la página del Paso 2. Es una página simple
-// de "solo lectura" que muestra la lista de favoritos.
-//
-// --- ¡CORREGIDO! ---
-// Ahora comprueba si 'lugar.urlImagen' está vacía
-// y muestra un 'placeholder' (imagen por defecto) si lo está.
+// 1. (BUG NAVEGACIÓN CORREGIDO): Se corrigió la ruta 'onTap'
+//    para que apunte a la ruta completa '/inicio/detalle-lugar'.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -93,7 +89,10 @@ class MisLugaresFavoritosPagina extends StatelessWidget {
               subtitle: Text(lugar.categoria, style: TextStyle(color: Colors.grey[600])),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                context.push('/detalle-lugar', extra: lugar);
+                // --- ¡CORREGIDO! ---
+                // Esta ruta es hija de '/inicio'
+                context.push('/inicio/detalle-lugar', extra: lugar);
+                // --- FIN DE LA CORRECCIÓN ---
               },
             ),
           );

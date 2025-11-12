@@ -1,8 +1,8 @@
-// --- PIEDRA 4: EL "MESERO" (VERSIÓN FINAL Y COMPLETA) ---
+// --- PIEDRA 4: EL "MESERO" (VERSIÓN ACOMPLADA PARA COMENTARIOS) ---
 //
-// 1. Incluye la Lógica Maestra (lugaresTotales) para el Menú 4 y Mapa.
-// 2. ¡CORREGIDO! 'cargarLugaresPorProvincia' ahora resetea
-//    la variable de filtro CORRECTA (_categoriaSeleccionadaIdProvincia).
+// 1. (ACOMPLADO): El método 'enviarComentario' ahora "jala" los datos
+//    del 'AuthVM' (Cerebro) para enviarlos al Repositorio.
+// 2. (ESTABLE): Mantiene toda la lógica de 'lugaresTotales'.
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -25,7 +25,7 @@ import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart'
 class LugaresVM extends ChangeNotifier {
   // --- A. DEPENDENCIAS ---
   late final LugaresRepositorio _repositorio;
-  AutenticacionVM? _authVM;
+  AutenticacionVM? _authVM; // <-- Ya tiene la conexión al "Cerebro"
 
   // --- B. ESTADO DE LA UI (INICIO_PAGINA) ---
   bool _estaCargandoInicio = true;
@@ -60,7 +60,8 @@ class LugaresVM extends ChangeNotifier {
       final categoria =
       _categorias.firstWhere((c) => c.id == _categoriaSeleccionadaIdInicio);
       provinciasFiltradas = provinciasFiltradas.where((provincia) {
-        return provincia.categories.contains(categoria.nombre);
+        // (Lógica de filtro de provincia acoplada para minúsculas)
+        return provincia.categories.any((c) => c.toLowerCase() == categoria.nombre.toLowerCase());
       }).toList();
     }
     if (_terminoBusquedaInicio.isNotEmpty) {
@@ -87,12 +88,12 @@ class LugaresVM extends ChangeNotifier {
   List<Lugar> get lugaresFiltradosDeProvincia {
     List<Lugar> lugaresFiltrados = _lugaresDeProvincia;
 
-    // Este getter SÍ usa las variables correctas
     if (_categoriaSeleccionadaIdProvincia != '1') {
       final categoria =
       _categorias.firstWhere((c) => c.id == _categoriaSeleccionadaIdProvincia);
       lugaresFiltrados = lugaresFiltrados.where((lugar) {
-        return lugar.categoria == categoria.nombre;
+        // (Lógica de filtro de provincia acoplada para minúsculas)
+        return lugar.categoria.toLowerCase() == categoria.nombre.toLowerCase();
       }).toList();
     }
     if (_terminoBusquedaProvincia.isNotEmpty) {
@@ -203,24 +204,15 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- K. MÉTODOS (Órdenes para PROVINCIA_LUGARES_PAGINA) ---
-
-  // --- ¡MÉTODO CRÍTICO ACTUALIZADO! ---
   Future<void> cargarLugaresPorProvincia(String provinciaId) async {
     _estaCargandoLugaresDeProvincia = true;
-
-    // --- ¡AQUÍ ESTÁ LA CORRECCIÓN CLAVE! ---
-    // Reseteamos los filtros DE ESTA PÁGINA a su estado inicial.
     _terminoBusquedaProvincia = '';
-    _categoriaSeleccionadaIdProvincia = '1'; // <-- ¡Este era el error!
-    // --- FIN DE LA CORRECCIÓN ---
+    _categoriaSeleccionadaIdProvincia = '1';
+    notifyListeners();
 
-    notifyListeners(); // Notifica para que la UI (Dropdown) se resetee
-
-    // AHORA FILTRA DESDE LA LISTA MAESTRA (_lugaresTotales)
     _lugaresDeProvincia = _lugaresTotales
         .where((lugar) => lugar.provinciaId == provinciaId)
         .toList();
-
 
     _estaCargandoLugaresDeProvincia = false;
     notifyListeners();
@@ -247,11 +239,40 @@ class LugaresVM extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- ¡MÉTODO ACOMPLADO! (Paso 2) ---
   Future<void> enviarComentario(
       String lugarId, String texto, double rating) async {
-    await _repositorio.enviarComentario(lugarId, texto, rating);
+
+    // 1. Verificamos el "Cerebro" (AuthVM)
+    if (_authVM == null || !_authVM!.estaLogueado || _authVM!.usuarioActual == null) {
+      // (Esto es solo una seguridad, la UI no debería permitir
+      //  enviar el comentario si el usuario no está logueado)
+      print("Error: Usuario no autenticado. No se puede comentar.");
+      return;
+    }
+
+    // 2. Obtenemos los datos del usuario logueado desde el "Cerebro"
+    final usuario = _authVM!.usuarioActual!;
+    final String usuarioNombre = usuario.nombre;
+    final String? urlFotoUsuario = usuario.urlFotoPerfil; // Es 'String?' (opcional)
+    final String usuarioId = usuario.id;
+
+    // 3. Llamamos al "Enchufe" (Repositorio) con la "orden" ACOMPLADA
+    await _repositorio.enviarComentario(
+        lugarId,
+        texto,
+        rating,
+        usuarioNombre, // <-- Acoplado
+        urlFotoUsuario, // <-- Acoplado
+        usuarioId       // <-- Acoplado
+    );
+
+    // 4. Refrescamos la lista
+    // (En el Paso 3, haremos que el Mock guarde esto,
+    // así que 'cargarComentarios' mostrará el nuevo comentario)
     await cargarComentarios(lugarId);
   }
+  // --- FIN DE MÉTODO ACOMPLADO ---
 
   // --- ¡LÓGICA DE FAVORITOS CONECTADA! ---
 

@@ -1,8 +1,10 @@
 // --- PIEDRA 12 (ADMIN): EL "ENTORNO" (DASHBOARD PRINCIPAL) ---
 //
-// 1. (VISTA): Esta es la pantalla principal que ve el Admin.
-// 2. (CONECTADA): Escucha al 'AutenticacionVM' para obtener estadísticas.
-// 3. (NAVEGACIÓN): Contiene los botones para ir a las sub-secciones.
+// 1. (BUG NAVEGACIÓN CORREGIDO): El botón 'Cerrar Sesión' ahora
+//    usa 'await' y luego 'context.go('/perfil')' para redirigir
+//    a la página de perfil (como anónimo).
+// 2. (BUG UI CORREGIDO): Se añadió 'automaticallyImplyLeading: false'
+//    al AppBar para ocultar la flecha de "atrás".
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -25,12 +27,27 @@ class AdminDashboardPagina extends StatelessWidget {
         title: const Text('Panel de Administrador'),
         backgroundColor: colorPrimario,
         foregroundColor: Colors.white,
+
+        // --- ¡CORREGIDO! ---
+        // Esto deshabilita la flecha de "atrás" automática
+        automaticallyImplyLeading: false,
+        // --- FIN DE CORRECCIÓN ---
+
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar Sesión',
-            onPressed: () {
-              context.read<AutenticacionVM>().cerrarSesion();
+            onPressed: () async {
+              // 1. Esperamos a que la sesión se cierre
+              await context.read<AutenticacionVM>().cerrarSesion();
+
+              // 2. Comprobamos que el widget siga "vivo"
+              if (!context.mounted) return;
+
+              // --- ¡CORREGIDO! ---
+              // 3. Navegamos a la página de Perfil (ahora como anónimo)
+              context.go('/perfil');
+              // --- FIN DE LA CORRECCIÓN ---
             },
           )
         ],
@@ -79,7 +96,7 @@ class AdminDashboardPagina extends StatelessWidget {
               color: Colors.orange.shade700,
               onTap: () {
                 // ¡Navega a la página que renombramos!
-                context.push('/admin/gestion-guias');
+                context.push('/admin/gestion-guias'); // <-- Esta ruta está BIEN
               },
             ),
 

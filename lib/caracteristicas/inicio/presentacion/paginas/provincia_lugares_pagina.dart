@@ -3,6 +3,8 @@
 // 1. Lógica de filtrado y búsqueda en la UI (ListView) COMPLETAMENTE funcional.
 // 2. Diseño de filtros y tarjetas mejorado para ser estético y profesional.
 // 3. Implementa el "Guardia" de seguridad (_checkAndRedirect) en el botón de favorito.
+// 4. (BUG NAVEGACIÓN CORREGIDO): Se corrigió la ruta del 'onTap' de la tarjeta
+//    de '/detalle-lugar' a '/inicio/detalle-lugar'.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -222,7 +224,10 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                   // Imagen (Navega al Detalle)
                   InkWell(
                     onTap: () {
-                      context.push('/detalle-lugar', extra: lugar);
+                      // --- ¡CORREGIDO! ---
+                      // La ruta debe ser la ruta completa definida en app_rutas.dart
+                      context.push('/inicio/detalle-lugar', extra: lugar);
+                      // --- FIN DE LA CORRECCIÓN ---
                     },
                     child: Hero( // Hero para una transición suave (diseño profesional)
                       tag: 'lugar_imagen_${lugar.id}_provincia',

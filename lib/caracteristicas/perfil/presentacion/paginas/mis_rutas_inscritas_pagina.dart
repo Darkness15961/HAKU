@@ -1,11 +1,7 @@
 // --- PIEDRA 8 (PERFIL): LA "NUEVA VENTANA" DE MIS RUTAS ---
 //
-// Esta es la página del Paso 3. Es una página simple
-// de "solo lectura" que muestra la lista de rutas inscritas.
-//
-// --- ¡CORREGIDO! ---
-// Ahora comprueba si 'ruta.urlImagenPrincipal' está vacía
-// y muestra un 'placeholder' (imagen por defecto) si lo está.
+// 1. (BUG NAVEGACIÓN CORREGIDO): Se corrigió la ruta 'onTap'
+//    para que apunte a la ruta completa '/rutas/detalle-ruta'.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -96,7 +92,10 @@ class MisRutasInscritasPagina extends StatelessWidget {
               subtitle: Text('Guía: ${ruta.guiaNombre}', style: TextStyle(color: Colors.grey[600])),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                context.push('/detalle-ruta', extra: ruta);
+                // --- ¡CORREGIDO! ---
+                // Esta ruta es hija de '/rutas'
+                context.push('/rutas/detalle-ruta', extra: ruta);
+                // --- FIN DE LA CORRECCIÓN ---
               },
             ),
           );

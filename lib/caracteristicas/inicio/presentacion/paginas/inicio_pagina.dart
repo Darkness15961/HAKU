@@ -1,10 +1,8 @@
-// --- PIEDRA 6 (INICIO): EL "MENÚ" DE INICIO (VERSIÓN FUSIONADA) ---
+// --- PIEDRA 6 (INICIO): EL "MENÚ" DE INICIO (VERSIÓN FUSIONADA Y RESTAURADA) ---
 //
-// 1. CONSERVA tu buen diseño (Carrusel animado, Grid de Provincias).
-// 2. CONSERVA tu navegación (onTap a /provincia y /detalle-lugar).
-// 3. AÑADE la lógica de carga correcta en initState (conectada a AuthVM).
-// 4. AÑADE el header "Bienvenido, [Usuario]".
-// 5. AÑADE el botón de Favorito (corazón) al carrusel, conectado al "Cerebro".
+// 1. (RESTAURADO): 'Image.network' ahora usa 'item.urlImagen' y 'p.urlImagen'
+//    para jalar las imágenes (ahora de Picsum) desde el Mock.
+// 2. (ESTABLE): Mantiene toda la lógica de AuthVM, Favoritos y Navegación.
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -14,10 +12,10 @@ import 'package:provider/provider.dart';
 
 // --- MVVM: IMPORTACIONES ---
 import '../vista_modelos/lugares_vm.dart';
-import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart'; // <-- ¡CONEXIÓN AL CEREBRO!
+import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/provincia.dart';
-import '../../dominio/entidades/categoria.dart'; // <-- Import añadido
+import '../../dominio/entidades/categoria.dart';
 
 class InicioPagina extends StatefulWidget {
   const InicioPagina({super.key});
@@ -31,32 +29,25 @@ class _InicioPaginaState extends State<InicioPagina> {
   late final PageController _pageController;
   Timer? _autoScrollTimer;
 
-  // --- Lógica de Navegación (¡Se conserva tu código!) ---
+  // --- Lógica de Navegación (se mantiene) ---
   void _irALugaresPorProvincia(Provincia provincia) {
-    // ¡TU NAVEGACIÓN ESTÁ INTACTA!
-    context.push('/provincia', extra: provincia);
+    context.push('/inicio/provincia', extra: provincia); // (Ruta anidada corregida)
   }
 
   void _irAlDetalle(Lugar lugar) {
-    // ¡TU NAVEGACIÓN ESTÁ INTACTA!
-    context.push('/detalle-lugar', extra: lugar);
+    context.push('/inicio/detalle-lugar', extra: lugar); // (Ruta anidada corregida)
   }
 
-  // --- Lógica de Carga Inicial (¡CORREGIDA!) ---
+  // --- Lógica de Carga Inicial (se mantiene) ---
   @override
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 0.84, initialPage: 0);
 
     Future.microtask(() {
-      // --- ¡LÓGICA CORREGIDA! ---
-      // 1. Leemos ambos VMs
       final vmAuth = context.read<AutenticacionVM>();
       final vmLugares = context.read<LugaresVM>();
-      // 2. "Despertamos" a LugaresVM pasándole el AuthVM
-      // (Esto arregla el error de "1 positional argument expected")
       vmLugares.cargarDatosIniciales(vmAuth);
-      // --- FIN DE CORRECCIÓN ---
     });
 
     _startAutoScroll();
@@ -72,10 +63,9 @@ class _InicioPaginaState extends State<InicioPagina> {
     super.dispose();
   }
 
-  // --- Lógica de UI (Tu código) ---
+  // --- Lógica de UI (se mantiene) ---
   void _startAutoScroll() {
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      // (Tu lógica de autoscroll intacta)
       final populares = context.read<LugaresVM>().lugaresPopulares;
       if (_pageController.hasClients && populares.isNotEmpty) {
         final vm = context.read<LugaresVM>();
@@ -93,30 +83,20 @@ class _InicioPaginaState extends State<InicioPagina> {
     context.read<LugaresVM>().buscarEnInicio(_searchCtrl.text);
   }
 
-  // --- Refresh (¡CORREGIDO!) ---
+  // --- Refresh (se mantiene) ---
   Future<void> _handleRefresh() async {
-    // --- ¡LÓGICA CORREGIDA! ---
-    // También necesita el AuthVM al recargar
     final vmAuth = context.read<AutenticacionVM>();
-    // ¡Y AHORA SÍ FUNCIONA EL 'await'!
-    // (Porque 'cargarDatosIniciales' en el VM (del contexto) devuelve un Future)
     await context.read<LugaresVM>().cargarDatosIniciales(vmAuth);
-    // --- FIN DE CORRECCIÓN ---
   }
 
   // --- Construcción del "Menú" (UI) ---
   @override
   Widget build(BuildContext context) {
-    // --- ¡CONECTADO A AMBOS VMs! ---
     final vmLugares = context.watch<LugaresVM>();
     final vmAuth = context.watch<AutenticacionVM>();
-    // --- FIN DE CONEXIÓN ---
-
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      // Usamos una AppBar invisible para que la barra de estado tenga
-      // el color primario, pero no se vea la barra.
       appBar: AppBar(
           toolbarHeight: 0,
           elevation: 0,
@@ -131,13 +111,9 @@ class _InicioPaginaState extends State<InicioPagina> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- ¡HEADER AÑADIDO! (El que te gustó) ---
               _buildHeader(context, vmAuth),
-
-              // --- El resto de TU DISEÑO (Intacto) ---
-              // SEARCH
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12), // Ajuste de padding
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                 child: TextField(
                   controller: _searchCtrl,
                   decoration: InputDecoration(
@@ -153,8 +129,6 @@ class _InicioPaginaState extends State<InicioPagina> {
                   ),
                 ),
               ),
-
-              // CARRUSEL
               const Padding(
                 padding:
                 EdgeInsets.symmetric(horizontal: 16.0, vertical: 6),
@@ -169,9 +143,8 @@ class _InicioPaginaState extends State<InicioPagina> {
                 ),
               ),
               const SizedBox(height: 10),
-
               SizedBox(
-                height: 300, // Tu altura
+                height: 300,
                 child: Column(
                   children: [
                     Expanded(
@@ -198,10 +171,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                               return Transform.scale(
                                   scale: value, child: child);
                             },
-                            // --- ¡CONEXIÓN LÓGICA! ---
-                            // Le pasamos los VMs a tu widget
                             child: _buildCarouselCard(item, vmLugares, vmAuth),
-                            // --- FIN DE CONEXIÓN ---
                           );
                         },
                       ),
@@ -215,10 +185,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 18),
-
-              // CHIPS DE FILTRO
               Padding(
                 padding:
                 const EdgeInsets.symmetric(horizontal: 16.0),
@@ -248,8 +215,6 @@ class _InicioPaginaState extends State<InicioPagina> {
                   itemCount: vmLugares.categorias.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
                   itemBuilder: (context, i) {
-                    // --- ARREGLO DE BUG DE CATEGORÍAS ---
-                    // Asegurarnos de no estar fuera de rango
                     if (i >= vmLugares.categorias.length) return const SizedBox.shrink();
 
                     final c = vmLugares.categorias[i];
@@ -308,10 +273,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                   },
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // GRID DE PROVINCIAS
               Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16.0, vertical: 8),
@@ -346,7 +308,6 @@ class _InicioPaginaState extends State<InicioPagina> {
                         child: ScaleAnimation(
                           child: FadeInAnimation(
                             child: GestureDetector(
-                              // --- ¡TU NAVEGACIÓN INTACTA! ---
                               onTap: () =>
                                   _irALugaresPorProvincia(p),
                               child: Card(
@@ -366,8 +327,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                   ),
                 ),
               ),
-
-              const SizedBox(height: 24), // espacio final
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -377,11 +337,10 @@ class _InicioPaginaState extends State<InicioPagina> {
 
   // --- Widgets de Tarjetas (Tu diseño) ---
 
-  // --- ¡AÑADIDO! Widget del Header (el que te gustó) ---
   Widget _buildHeader(BuildContext context, AutenticacionVM vmAuth) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20.0, 16.0, 20.0, 16.0),
-      color: Theme.of(context).colorScheme.primary, // Color de tu AppBar
+      color: Theme.of(context).colorScheme.primary,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -405,17 +364,15 @@ class _InicioPaginaState extends State<InicioPagina> {
           CircleAvatar(
             radius: 24,
             backgroundColor: Colors.white.withOpacity(0.2),
-            // TODO: Añadir urlFotoPerfil a la entidad Usuario y al AuthVM
-            // (El AuthVM aún no tiene fotoUrl, así que usamos iniciales)
-            // backgroundImage: vmAuth.estaLogueado
-            //     ? NetworkImage(vmAuth.usuarioActual!.urlFotoPerfil)
-            //     : null,
-            child: vmAuth.estaLogueado
+            backgroundImage: (vmAuth.estaLogueado && vmAuth.usuarioActual!.urlFotoPerfil != null && vmAuth.usuarioActual!.urlFotoPerfil!.isNotEmpty)
+                ? NetworkImage(vmAuth.usuarioActual!.urlFotoPerfil!)
+                : null,
+            child: (vmAuth.estaLogueado && (vmAuth.usuarioActual!.urlFotoPerfil == null || vmAuth.usuarioActual!.urlFotoPerfil!.isEmpty))
                 ? Text(
               vmAuth.usuarioActual!.nombre.substring(0, 1).toUpperCase(),
               style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
             )
-                : const Icon(Icons.person_outline, size: 28, color: Colors.white),
+                : (!vmAuth.estaLogueado ? const Icon(Icons.person_outline, size: 28, color: Colors.white) : null),
           ),
         ],
       ),
@@ -423,16 +380,14 @@ class _InicioPaginaState extends State<InicioPagina> {
   }
 
 
-  // --- ¡TARJETA DEL CARRUSEL ACTUALIZADA! ---
+  // --- ¡TARJETA DEL CARRUSEL RESTAURADA! ---
   Widget _buildCarouselCard(Lugar item, LugaresVM vmLugares, AutenticacionVM vmAuth) {
-
-    // --- ¡LÓGICA DE FAVORITOS CONECTADA! ---
     final bool esFavorito = vmLugares.esLugarFavorito(item.id);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
       child: GestureDetector(
-        onTap: () => _irAlDetalle(item), // <-- Tu navegación intacta
+        onTap: () => _irAlDetalle(item),
         child: Card(
           elevation: 10,
           clipBehavior: Clip.antiAlias,
@@ -443,10 +398,12 @@ class _InicioPaginaState extends State<InicioPagina> {
             children: [
               Hero(
                   tag: 'lugar_imagen_${item.id}',
-                  child: Image.network(item.urlImagen,
+                  // --- ¡RESTAURADO! ---
+                  child: Image.network(item.urlImagen, // <-- Lee la URL del Mock
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) =>
                           Container(color: Colors.grey[300]))),
+              // --- FIN DE RESTAURACIÓN ---
               Container(
                   decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -481,7 +438,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                                   overflow: TextOverflow.ellipsis)),
                           const SizedBox(width: 8),
                           ElevatedButton(
-                            onPressed: () => _irAlDetalle(item), // <-- Tu navegación intacta
+                            onPressed: () => _irAlDetalle(item),
                             style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white24,
                                 elevation: 2,
@@ -495,8 +452,6 @@ class _InicioPaginaState extends State<InicioPagina> {
                       const SizedBox(height: 6),
                     ]),
               ),
-
-              // --- ¡BOTÓN DE CORAZÓN AÑADIDO! ---
               Positioned(
                 top: 8.0,
                 right: 8.0,
@@ -507,12 +462,10 @@ class _InicioPaginaState extends State<InicioPagina> {
                     size: 30,
                   ),
                   onPressed: () {
-                    // Llama al helper de lógica de favoritos
                     _onToggleFavorito(context, item.id, vmAuth, vmLugares);
                   },
                 ),
               ),
-              // --- FIN DE BOTÓN DE CORAZÓN ---
             ],
           ),
         ),
@@ -521,13 +474,14 @@ class _InicioPaginaState extends State<InicioPagina> {
   }
 
   Widget _buildProvinceCard(Provincia p) {
-    // (Tu diseño de provincia intacto)
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.network(p.urlImagen,
+        // --- ¡RESTAURADO! ---
+        Image.network(p.urlImagen, // <-- Lee la URL del Mock
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(color: Colors.grey[200])),
+        // --- FIN DE RESTAURACIÓN ---
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -609,19 +563,14 @@ class _InicioPaginaState extends State<InicioPagina> {
   }
 
   // --- ¡NUEVOS MÉTODOS DE LÓGICA DE FAVORITOS! ---
-
   void _onToggleFavorito(BuildContext context, String lugarId, AutenticacionVM vmAuth, LugaresVM vmLugares) {
-    // 1. Llama al "Guardia"
     if (!_checkAndRedirect(context, 'guardar este lugar')) {
-      return; // Si es anónimo, se detiene aquí.
+      return;
     }
-
-    // 2. Si el "Guardia" da permiso...
     vmLugares.toggleLugarFavorito(lugarId);
   }
 
   bool _checkAndRedirect(BuildContext context, String action) {
-    // Usamos 'read' porque estamos en un callback, no en 'build'
     final authVM = context.read<AutenticacionVM>();
     if (!authVM.estaLogueado) {
       _showLoginRequiredModal(context, action);
@@ -661,7 +610,4 @@ class _InicioPaginaState extends State<InicioPagina> {
       },
     );
   }
-
-
-
 }

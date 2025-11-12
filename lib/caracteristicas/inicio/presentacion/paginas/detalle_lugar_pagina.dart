@@ -1,25 +1,17 @@
-// --- PIEDRA 6.6: EL "MENÚ" DE DETALLE DE LUGAR (¡SEGURIDAD CONECTADA!) ---
+// --- PIEDRA 6.6: EL "MENÚ" DE DETALLE DE LUGAR (ACOMPLADO PARA NAVEGACIÓN) ---
 //
-// Esta es la versión FINAL y DEFINITIVA.
-// 1. Conectada al "Mesero de Comida" (LugaresVM).
-// 2. Conectada al "Mesero de Seguridad" (AutenticacionVM).
-// 3. Implementa el "Bloqueo Suave" (Modal) para anónimos.
-//
-// --- ¡CAMBIOS! ---
-// 1. Se cambió la llamada al método 'marcarFavorito' por 'toggleLugarFavorito'.
-// 2. El icono del corazón en la AppBar ahora es dinámico (lleno/vacío).
+// 1. (BUG PROVIDER CORREGIDO): Se cambió 'Provider.value' por
+//    'ChangeNotifierProvider.value' en '_mostrarDialogoComentario'
+//    para pasar correctamente el VM (un ChangeNotifier) al diálogo.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 // --- MVVM: IMPORTACIONES ---
-import '../vista_modelos/lugares_vm.dart'; // Mesero de Comida
+import '../vista_modelos/lugares_vm.dart';
 import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/comentario.dart';
-
-// --- ¡CONEXIÓN DE SEGURIDAD! ---
-// 1. Importamos el "Mesero de Seguridad"
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 
 class DetalleLugarPagina extends StatefulWidget {
@@ -30,79 +22,54 @@ class DetalleLugarPagina extends StatefulWidget {
 }
 
 class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
-  bool _isDescriptionExpanded = false; // Estado local para la "Cortina"
+  bool _isDescriptionExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    // Le da la "orden" al "Mesero de Comida" de cargar los comentarios
     Future.microtask(() {
-      // --- ¡ARREGLO DE ERROR! ---
-      // El VM de Lugares ahora necesita el AuthVM para "despertar".
-      // Lo más probable es que ya esté "despierto" por la InicioPagina,
-      // pero si el usuario llega aquí directo (ej. deep link),
-      // deberíamos asegurarnos de que se inicialice.
-      // Por ahora, solo cargamos comentarios.
-      // NOTA: Si esto da error, tendremos que pasar el AuthVM aquí también.
       final vmAuth = context.read<AutenticacionVM>();
-      context.read<LugaresVM>().cargarDatosIniciales(vmAuth); // Nos aseguramos
+      context.read<LugaresVM>().cargarDatosIniciales(vmAuth);
       context.read<LugaresVM>().cargarComentarios(widget.lugar.id);
     });
   }
 
-  // --- Lógica de Seguridad (Bloqueo Suave) ---
-
-  // --- ¡NUEVA FUNCIÓN DE SEGURIDAD! ---
-  // Esta función es el "Guardia" de la página.
-  // Revisa si el usuario está logueado ANTES de hacer una acción.
+  // --- Lógica de Seguridad (se mantiene) ---
   bool _checkAndRedirect(BuildContext context, String action) {
-    // 1. "Lee" (read) el estado del "Mesero de Seguridad"
     final authVM = context.read<AutenticacionVM>();
-
-    // 2. Revisa si NO está logueado
     if (!authVM.estaLogueado) {
-      // 3. Si es anónimo, muestra el "Modal de Invitación"
       _showLoginRequiredModal(context, action);
-      return false; // Devuelve "false" (ACCIÓN BLOQUEADA)
+      return false;
     }
-    // 4. Si está logueado, devuelve "true" (ACCIÓN PERMITIDA)
     return true;
   }
 
-  // --- Lógica de Acciones (Conectadas al "Mesero") ---
-
-  // ¡ACCIÓN ACTUALIZADA CON SEGURIDAD!
-  // --- ¡CORREGIDO! --- Renombramos la función
+  // --- Lógica de Acciones (se mantiene) ---
   void _onToggleFavorito(BuildContext context) {
-    // 1. Llama al "Guardia"
     if (!_checkAndRedirect(context, 'guardar este lugar')) {
-      return; // Si el "Guardia" devuelve "false", se detiene aquí.
+      return;
     }
-
-    // 2. Si el "Guardia" da permiso (devuelve "true")...
-    //    ...le damos la orden al "Mesero de Comida"
-    // --- ¡CORREGIDO! --- Llamamos al nuevo método
     context.read<LugaresVM>().toggleLugarFavorito(widget.lugar.id);
-
-    // Opcional: Mostramos un SnackBar (el VM se actualizará solo)
   }
 
-  // ¡ACCIÓN ACTUALIZADA CON SEGURIDAD!
   void _mostrarDialogoComentario(BuildContext context) {
-    // 1. Llama al "Guardia"
     if (!_checkAndRedirect(context, 'escribir una reseña')) {
-      return; // Si es anónimo, se detiene aquí.
+      return;
     }
-
-    // 2. Si el "Guardia" da permiso (está logueado)...
-    //    ...mostramos el diálogo
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        return _DialogoComentario(
-          lugarId: widget.lugar.id,
-          lugarNombre: widget.lugar.nombre,
+
+        // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+        // Usamos ChangeNotifierProvider.value porque LugaresVM es un ChangeNotifier
+        return ChangeNotifierProvider.value(
+          value: context.read<LugaresVM>(), // Pasa el VM existente
+          child: _DialogoComentario(
+            lugarId: widget.lugar.id,
+            lugarNombre: widget.lugar.nombre,
+          ),
         );
+        // --- FIN DE CORRECCIÓN ---
       },
     );
   }
@@ -110,11 +77,8 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
   // --- Construcción del "Menú" (UI) ---
   @override
   Widget build(BuildContext context) {
-    // "Escuchamos" al "Mesero de Comida"
     final vm = context.watch<LugaresVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
-
-    // --- ¡NUEVO! Leemos el estado de favorito ---
     final bool esFavorito = vm.esLugarFavorito(widget.lugar.id);
 
     return Scaffold(
@@ -128,7 +92,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
             backgroundColor: colorPrimario,
             actions: [
               IconButton(
-                // --- ¡CORREGIDO Y CONECTADO! ---
                 onPressed: () => _onToggleFavorito(context),
                 icon: Icon(
                   esFavorito ? Icons.favorite : Icons.favorite_border,
@@ -137,9 +100,7 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
                 tooltip: 'Guardar en Favoritos',
               ),
               IconButton(
-                onPressed: () {
-                  /* Lógica de Compartir */
-                },
+                onPressed: () { /* Lógica de Compartir */ },
                 icon: const Icon(Icons.share, color: Colors.white),
               ),
             ],
@@ -187,7 +148,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
           SliverList(
             delegate: SliverChildListDelegate(
               [
-                // Bloque 1: Info Clave (Corregido)
                 Padding(
                   padding:
                   const EdgeInsets.only(top: 16, bottom: 8, left: 16, right: 16),
@@ -206,26 +166,15 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
                     ],
                   ),
                 ),
-
-                // Bloque 2: Descripción (con "Cortina")
                 _buildDescriptionSection(widget.lugar.descripcion),
-
-                // Bloque 3: Puntos de Interés
                 _buildSubPlacesSection(widget.lugar.puntosInteres),
-
-                // Bloque 4: Mapa
                 _buildMapSection(),
-
-                // Bloque 5: Resumen de Opiniones
                 Padding(
                   padding: const EdgeInsets.only(top: 16, bottom: 8),
                   child: _buildReviewsSummary(
                       widget.lugar, vm.comentarios.length),
                 ),
-
                 const Divider(height: 30, thickness: 1),
-
-                // Bloque 6: Comentarios
                 Padding(
                   padding:
                   const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
@@ -234,8 +183,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
-
-                // Lista de Comentarios (con "Ver Todas")
                 vm.estaCargandoComentarios
                     ? const Center(
                   child: Padding(
@@ -252,18 +199,15 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
                 )
                     : Column(
                   children: [
-                    // 1. Mostrar 1 Destacado
                     _buildComentarioCard(vm.comentarios.first),
-
-                    // 2. Botón "Ver todas" (si hay más de 1)
                     if (vm.comentarios.length > 1)
                       Padding(
                         padding: const EdgeInsets.only(
                             top: 8.0, bottom: 16.0),
                         child: TextButton.icon(
                           onPressed: () {
-                            // ¡Esto ahora funciona!
-                            context.push('/comentarios');
+                            // Esta ruta (corregida) está BIEN
+                            context.push('/inicio/comentarios', extra: widget.lugar);
                           },
                           icon: const Icon(Icons.arrow_right_alt),
                           label: Text(
@@ -274,16 +218,13 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
                       )
                   ],
                 )),
-                const SizedBox(height: 100), // Espacio para el Botón Flotante
+                const SizedBox(height: 100),
               ],
             ),
           ),
         ],
       ),
-
-      // --- Botón Flotante (CON SEGURIDAD) ---
       floatingActionButton: FloatingActionButton.extended(
-        // ¡CONECTADO A LA SEGURIDAD!
         onPressed: () => _mostrarDialogoComentario(context),
         label: const Text('Añadir Reseña'),
         icon: const Icon(Icons.edit),
@@ -292,7 +233,7 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     );
   }
 
-  // --- WIDGET AUXILIAR: MODAL DE INVITACIÓN (Bloqueo Suave) ---
+  // --- WIDGET AUXILIAR: MODAL DE INVITACIÓN (se mantiene) ---
   void _showLoginRequiredModal(BuildContext context, String action) {
     final colorPrimario = Theme.of(context).colorScheme.primary;
     showDialog(
@@ -305,17 +246,15 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
           content:
           Text('Necesitas iniciar sesión o crear una cuenta para $action.'),
           actions: [
-            // Botón para que NO se sienta atrapado
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Seguir Explorando',
                   style: TextStyle(color: Colors.grey)),
             ),
-            // Botón de Conversión (a Login)
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                context.push('/login'); // Usamos el GPS para ir al Login
+                context.push('/login');
               },
               style: ElevatedButton.styleFrom(backgroundColor: colorPrimario),
               child: const Text('Iniciar Sesión',
@@ -327,28 +266,9 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     );
   }
 
-  // --- WIDGETS AUXILIARES (Expandidos) ---
+  // --- (Todos los demás widgets auxiliares se mantienen) ---
+  // (Omitidos por brevedad)
 
-  // 1. Grilla de Info Clave
-  Widget _buildKeyInfoGrid(Lugar lugar) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: GridView.count(
-        crossAxisCount: 3,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        children: [
-          _buildInfoChip(Icons.schedule, 'Horario', lugar.horario),
-          _buildInfoChip(Icons.local_atm, 'Costo', lugar.costoEntrada),
-          _buildInfoChip(Icons.landscape, 'Tipo', lugar.categoria),
-        ],
-      ),
-    );
-  }
-
-  // 2. Chip de Información
   Widget _buildInfoChip(IconData icon, String title, String value) {
     return Card(
       elevation: 2,
@@ -376,7 +296,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     );
   }
 
-  // 3. Sección de Descripción (La "Cortina")
   Widget _buildDescriptionSection(String fullDescription) {
     const int thresholdLength = 200;
     final bool needsExpansion = fullDescription.length > thresholdLength;
@@ -417,7 +336,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     );
   }
 
-  // 4. Puntos de Interés
   Widget _buildSubPlacesSection(List<String> subPlaces) {
     if (subPlaces.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -453,7 +371,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     );
   }
 
-  // 5. Sección de Mapa
   Widget _buildMapSection() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -496,7 +413,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     );
   }
 
-  // 6. Resumen de Opiniones
   Widget _buildReviewsSummary(Lugar lugar, int totalComentarios) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -560,7 +476,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     );
   }
 
-  // 7. Tarjeta de Comentario
   Widget _buildComentarioCard(Comentario comentario) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -621,7 +536,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     );
   }
 
-  // 8. Estrellas de Rating
   Widget _buildRatingStars(double rating, int reviews, {bool small = false}) {
     int fullStars = rating.floor();
     bool hasHalfStar = (rating - fullStars) >= 0.5;
@@ -653,7 +567,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     );
   }
 
-  // 9. Nuevo Widget para Rating en AppBar (con Likes)
   Widget _buildRatingStarsWithLikes(double rating, int reviews,
       {required int likes}) {
     double size = 14;
@@ -727,9 +640,8 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
     super.dispose();
   }
 
-  // Función de envío (conectada al "Mesero")
+  // --- ¡FUNCIÓN DE ENVÍO ACOMPLADA! ---
   Future<void> _enviarResena(BuildContext dialogContext) async {
-    // Validación simple
     if (_ratingSeleccionado == 0) {
       ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(
           content: Text('Por favor, selecciona una calificación de estrellas.'),
@@ -746,11 +658,14 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
     setState(() => _estaEnviando = true);
 
     // --- MVVM: ORDEN AL "MESERO" ---
-    await dialogContext.read<LugaresVM>().enviarComentario(
+    // (Usamos 'context.read' (del context principal)
+    // para llamar al VM 'LugaresVM' que está fuera del diálogo)
+    await context.read<LugaresVM>().enviarComentario(
       widget.lugarId,
       _resenaCtrl.text,
       _ratingSeleccionado,
     );
+    // (El 'lugares_vm.dart' ya está "acoplado")
 
     if (mounted) {
       setState(() => _estaEnviando = false);
@@ -765,6 +680,7 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
       );
     }
   }
+  // --- FIN DE FUNCIÓN ACOMPLADA ---
 
   @override
   Widget build(BuildContext context) {
@@ -812,8 +728,6 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
                         padding: EdgeInsets.symmetric(vertical: 8.0),
                         child: Text('Tu calificación general',
                             style: TextStyle(fontWeight: FontWeight.bold))),
-                    // --- ¡ARREGLO DE DISEÑO (Tu Petición)! ---
-                    // Estrellas ahora son doradas
                     _buildStarRatingSelector(),
                     const SizedBox(height: 16),
                     const Text('Título de tu reseña (opcional)',
@@ -911,8 +825,6 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
         return IconButton(
           icon: Icon(
             _ratingSeleccionado >= rating ? Icons.star : Icons.star_border,
-            // --- ¡ARREGLO DE DISEÑO (Tu Petición)! ---
-            // El color siempre es dorado, no plomo
             color: Colors.amber.shade600,
             size: 40,
           ),

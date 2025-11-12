@@ -1,8 +1,9 @@
 // --- PIEDRA 9 (AUTENTICACIÓN): EL "MENÚ" DE REGISTRO ---
 //
-// Esta es la pantalla de "Crear Cuenta".
-// Se conecta al "Mesero de Seguridad" (AutenticacionVM)
-// para darle la "orden" de registrar un nuevo usuario.
+// 1. (BUG NAVEGACIÓN CORREGIDO): Se cambió context.pushReplacement('/inicio')
+//    por context.go('/inicio') para evitar el "failed assertion" de
+//    navigator.dart al navegar entre stacks (root vs shell)
+//    después de un 'await'.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -53,6 +54,12 @@ class _RegistroPaginaState extends State<RegistroPagina> {
     // 1. Validamos el formulario
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    // --- ¡ARREGLO PARA EL BUG DEL SNACKBAR! ---
+    // Guardamos la referencia al ScaffoldMessenger ANTES del 'await'.
+    // Esto evita un error si el 'context' se vuelve inválido.
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    // --- FIN DE ARREGLO ---
+
     // 2. Obtenemos los textos de los campos
     final nombre = _nombreCtrl.text;
     final email = _emailCtrl.text;
@@ -69,23 +76,34 @@ class _RegistroPaginaState extends State<RegistroPagina> {
     );
 
     // 4. Verificamos la respuesta del "Mesero"
-    //    Usamos "mounted" para asegurar que la pantalla sigue "viva"
-    if (mounted && exito) {
+    // ¡Aseguramos que el widget sigue montado ANTES de usar el context!
+    if (!mounted) return;
+
+    if (exito) {
       // 5. ¡ÉXITO!
       //    Usamos el "GPS" (GoRouter) para "reemplazar" esta pantalla
       //    y la de Login, y llevar al usuario directo a la app.
-      context.pushReplacement('/navegacion');
-    } else if (mounted && !exito) {
+
+      // --- ¡CORREGIDO! ---
+      // Usamos 'go' para reiniciar el stack de navegación
+      // en lugar de 'pushReplacement'.
+      context.go('/inicio');
+      // --- FIN DE LA CORRECCIÓN ---
+
+    } else {
       // 6. ¡ERROR!
-      //    (El Mock rara vez falla, pero el Backend real sí podría)
       final errorMsg = context.read<AutenticacionVM>().error ??
           'Ocurrió un error desconocido.';
-      ScaffoldMessenger.of(context).showSnackBar(
+
+      // --- ¡CORREGIDO! ---
+      // Usamos la referencia 'safe' al scaffoldMessenger
+      scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(errorMsg),
           backgroundColor: Colors.red,
         ),
       );
+      // --- FIN DE CORRECCIÓN ---
     }
   }
 
@@ -201,6 +219,7 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                       onPressed: () {
                         setState(() => _obscurePassword = !_obscurePassword);
                       },
+
                     ),
                   ),
                   validator: (value) {
@@ -278,4 +297,3 @@ class _RegistroPaginaState extends State<RegistroPagina> {
     );
   }
 }
-

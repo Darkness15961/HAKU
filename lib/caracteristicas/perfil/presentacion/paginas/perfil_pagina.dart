@@ -1,10 +1,8 @@
 // --- PIEDRA 7 (PERFIL): EL "MENÚ" DE PERFIL (ACOMPLADO CON STRING? NULABLE) ---
 //
-// 1. (BUG CORREGIDO): El 'CircleAvatar' ahora comprueba si
-//    'usuario.urlFotoPerfil' es nulo ('String?') antes de usarlo
-//    en 'NetworkImage'.
-// 2. (UX MEJORADA): Si la foto es nula, muestra las iniciales.
-// 3. (ACOMPLADO): Usa los botones 'mis-favoritos' y 'mis-rutas'.
+// 1. (BUG NAVEGACIÓN CORREGIDO): Se corrigieron 4 rutas de 'context.push'
+//    para que usen la ruta absoluta (ej. '/perfil/mis-favoritos')
+//    en lugar de la ruta relativa (ej. '/mis-favoritos').
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -160,8 +158,8 @@ class PerfilPagina extends StatelessWidget {
             subtitulo: 'Ver los lugares que guardaste',
             color: Colors.red.shade700,
             onTap: () {
-              // ¡BOTÓN ACTIVADO!
-              context.push('/mis-favoritos');
+              // --- ¡CORREGIDO! ---
+              context.push('/perfil/mis-favoritos');
             },
           ),
           _buildOpcion(
@@ -171,8 +169,8 @@ class PerfilPagina extends StatelessWidget {
             subtitulo: 'Ver las rutas a las que te inscribiste',
             color: Colors.green.shade700,
             onTap: () {
-              // ¡BOTÓN ACTIVADO!
-              context.push('/mis-rutas');
+              // --- ¡CORREGIDO! ---
+              context.push('/perfil/mis-rutas');
             },
           ),
 
@@ -190,10 +188,10 @@ class PerfilPagina extends StatelessWidget {
               subtitulo: 'Gestionar las rutas que publicaste',
               color: Colors.blue.shade700,
               onTap: () {
+                // Esta navegación es diferente, cambia la PESTAÑA.
                 context.read<RutasVM>().cambiarPestana('Creadas por mí');
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Navegando a Mis Rutas Creadas... (Próximamente)'))
-                );
+                // Y LUEGO navega a la página de rutas.
+                context.go('/rutas');
               },
             ),
 
@@ -206,7 +204,8 @@ class PerfilPagina extends StatelessWidget {
               subtitulo: 'Envía tu solicitud para crear rutas',
               color: Colors.blue.shade700,
               onTap: () {
-                context.push('/solicitar-guia');
+                // --- ¡CORREGIDO! ---
+                context.push('/perfil/solicitar-guia');
               },
             ),
 
@@ -228,7 +227,8 @@ class PerfilPagina extends StatelessWidget {
               subtitulo: 'Toca para revisar y enviar de nuevo',
               color: Colors.red.shade700,
               onTap: () {
-                context.push('/solicitar-guia');
+                // --- ¡CORREGIDO! ---
+                context.push('/perfil/solicitar-guia');
               },
             ),
 
@@ -241,7 +241,7 @@ class PerfilPagina extends StatelessWidget {
               subtitulo: 'Gestionar solicitudes de guías',
               color: Colors.purple.shade700,
               onTap: () {
-                // ¡ACOMPLADO! Navega al panel de admin
+                // Esta ruta es raíz, por lo que ¡ESTÁ BIEN!
                 context.push('/panel-admin');
               },
             ),
@@ -288,7 +288,7 @@ class PerfilPagina extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: () => context.push('/login'),
+              onPressed: () => context.push('/login'), // Esta ruta es raíz, está BIEN.
               style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
                   backgroundColor: colorPrimario,
@@ -297,7 +297,7 @@ class PerfilPagina extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             OutlinedButton(
-              onPressed: () => context.push('/registro'),
+              onPressed: () => context.push('/registro'), // Esta ruta es raíz, está BIEN.
               style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
                   side: BorderSide(color: colorPrimario)),
