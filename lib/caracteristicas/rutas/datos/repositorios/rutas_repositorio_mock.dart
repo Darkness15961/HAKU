@@ -1,8 +1,8 @@
 // --- CARACTERISTICAS/RUTAS/DATOS/REPOSITORIOS/RUTAS_REPOSITORIO_MOCK.DART (¡Corregido!) ---
 //
-// 1. (BUG DE IMAGEN CORREGIDO): Se reemplazaron las URLs 'unsplash.com'
-//    por URLs fiables de 'picsum.photos' para evitar el bloqueo de red.
-// 2. (ESTABLE): Mantiene la lógica de IDs de lugares ('l3', 'l4', 'l6').
+// 1. (BUG LÓGICA CORREGIDO): 'inscribirseEnRuta' y 'salirDeRuta'
+//    ahora SÍ modifican el 'inscritosCount' en la base de datos
+//    falsa (_rutasFalsasDB), arreglando el bug de cupos.
 
 import '../../dominio/entidades/ruta.dart';
 import '../../dominio/repositorios/rutas_repositorio.dart';
@@ -20,7 +20,6 @@ final List<Ruta> _rutasFalsasDB = [
     precio: 80.00,
     dificultad: 'facil',
     cuposTotales: 30,
-    cuposDisponibles: 25,
     visible: true,
     dias: 1,
     guiaId: 'g1',
@@ -30,9 +29,10 @@ final List<Ruta> _rutasFalsasDB = [
     reviewsCount: 120,
     lugaresIncluidos: ['Plaza de Armas', 'Salineras de Maras'],
     lugaresIncluidosIds: ['l6', 'l3'], // IDs Reales
-    inscritosCount: 12,
+    inscritosCount: 12, // <-- ¡Tiene inscritos!
     esFavorita: false,
     estaInscrito: false,
+    cuposDisponibles: 18, // (Calculado: 30 - 12)
   ),
   Ruta(
     id: 'r2',
@@ -45,7 +45,6 @@ final List<Ruta> _rutasFalsasDB = [
     precio: 900.00,
     dificultad: 'dificil',
     cuposTotales: 40,
-    cuposDisponibles: 10,
     visible: true,
     dias: 5,
     guiaId: 'g2',
@@ -55,9 +54,10 @@ final List<Ruta> _rutasFalsasDB = [
     reviewsCount: 350,
     lugaresIncluidos: ['Salineras de Maras', 'Mercado de Chinchero'],
     lugaresIncluidosIds: ['l3', 'l4'], // IDs Reales
-    inscritosCount: 20,
+    inscritosCount: 20, // <-- ¡Tiene inscritos!
     esFavorita: false,
     estaInscrito: false,
+    cuposDisponibles: 20, // (Calculado: 40 - 20)
   ),
   Ruta(
     id: 'r3',
@@ -70,19 +70,19 @@ final List<Ruta> _rutasFalsasDB = [
     precio: 60.00,
     dificultad: 'medio',
     cuposTotales: 25,
-    cuposDisponibles: 0,
     visible: false,
     dias: 1,
-    guiaId: 'g_usuario_actual',
-    guiaNombre: 'Mi Propia Ruta (Guía)',
+    guiaId: 'g_usuario_actual_falso', // <-- ID Falso para pruebas
+    guiaNombre: 'Guía de Prueba Falso',
     guiaFotoUrl: 'https://placehold.co/100x100/AAAAAA/FFFFFF?text=YO',
     rating: 0.0,
     reviewsCount: 0,
     lugaresIncluidos: ['Montaña de 7 Colores'],
     lugaresIncluidosIds: ['l5'], // IDs Reales
-    inscritosCount: 0,
+    inscritosCount: 0, // <-- ¡No tiene inscritos!
     esFavorita: false,
     estaInscrito: false,
+    cuposDisponibles: 25, // (Calculado: 25 - 0)
   ),
 ];
 
@@ -95,8 +95,13 @@ class RutasRepositorioMock implements RutasRepositorio {
     await Future.delayed(const Duration(milliseconds: 900));
     switch (tipoFiltro) {
       case 'creadas_por_mi':
+      // --- NOTA ---
+      // Esta lógica de filtrado es temporal.
+      // Cuando conectes tu AuthVM al repositorio,
+      // deberás pasar el ID del guía real aquí.
+      // --- FIN NOTA ---
         return _rutasFalsasDB
-            .where((ruta) => ruta.guiaId == 'g_usuario_actual')
+            .where((ruta) => ruta.guiaId != 'g1' && ruta.guiaId != 'g2')
             .toList();
       case 'guardadas':
       case 'recomendadas':
@@ -123,13 +128,15 @@ class RutasRepositorioMock implements RutasRepositorio {
       precio: datosRuta['precio'],
       dificultad: datosRuta['dificultad'],
       cuposTotales: datosRuta['cupos'],
-      cuposDisponibles: datosRuta['cupos'],
       visible: datosRuta['visible'],
       dias: datosRuta['dias'],
 
-      guiaId: 'g_usuario_actual',
-      guiaNombre: 'Mi Propia Ruta (Guía)',
-      guiaFotoUrl: 'https://placehold.co/100x100/AAAAAA/FFFFFF?text=YO',
+      // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+      // Usamos los datos REALES del guía que vienen del formulario
+      guiaId: datosRuta['guiaId'],
+      guiaNombre: datosRuta['guiaNombre'],
+      guiaFotoUrl: datosRuta['guiaFotoUrl'],
+      // --- FIN DE CORRECCIÓN ---
 
       rating: 0.0,
       reviewsCount: 0,
@@ -140,17 +147,178 @@ class RutasRepositorioMock implements RutasRepositorio {
 
       esFavorita: false,
       estaInscrito: false,
+      cuposDisponibles: datosRuta['cupos'], // (Calculado)
     );
 
     _rutasFalsasDB.insert(0, nuevaRuta);
     print('----------------------------------');
   }
 
-  // --- MÉTODOS ELIMINADOS (La lógica se movió al "Cerebro" AuthVM) ---
+  // --- ¡MÉTODOS CORREGIDOS! ---
+  // Ahora SÍ actualizan la base de datos falsa
   @override
-  Future<void> inscribirseEnRuta(String rutaId) async {}
+  Future<void> inscribirseEnRuta(String rutaId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    print('MOCK: Inscribiendo usuario a $rutaId');
+    final int index = _rutasFalsasDB.indexWhere((r) => r.id == rutaId);
+    if (index != -1) {
+      final rutaVieja = _rutasFalsasDB[index];
+      // Creamos una copia actualizada (inmutabilidad)
+      _rutasFalsasDB[index] = Ruta(
+        id: rutaVieja.id,
+        nombre: rutaVieja.nombre,
+        descripcion: rutaVieja.descripcion,
+        urlImagenPrincipal: rutaVieja.urlImagenPrincipal,
+        precio: rutaVieja.precio,
+        dificultad: rutaVieja.dificultad,
+        cuposTotales: rutaVieja.cuposTotales,
+        visible: rutaVieja.visible,
+        dias: rutaVieja.dias,
+        guiaId: rutaVieja.guiaId,
+        guiaNombre: rutaVieja.guiaNombre,
+        guiaFotoUrl: rutaVieja.guiaFotoUrl,
+        rating: rutaVieja.rating,
+        reviewsCount: rutaVieja.reviewsCount,
+        lugaresIncluidos: rutaVieja.lugaresIncluidos,
+        lugaresIncluidosIds: rutaVieja.lugaresIncluidosIds,
+        esFavorita: rutaVieja.esFavorita,
+        estaInscrito: true, // ¡Actualizado!
+        inscritosCount: rutaVieja.inscritosCount + 1, // ¡Actualizado!
+        cuposDisponibles: rutaVieja.cuposDisponibles - 1, // ¡Actualizado!
+      );
+    }
+  }
   @override
-  Future<void> salirDeRuta(String rutaId) async {}
+  Future<void> salirDeRuta(String rutaId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    print('MOCK: Saliendo de usuario de $rutaId');
+    final int index = _rutasFalsasDB.indexWhere((r) => r.id == rutaId);
+    if (index != -1) {
+      final rutaVieja = _rutasFalsasDB[index];
+      // Creamos una copia actualizada (inmutabilidad)
+      _rutasFalsasDB[index] = Ruta(
+        id: rutaVieja.id,
+        nombre: rutaVieja.nombre,
+        descripcion: rutaVieja.descripcion,
+        urlImagenPrincipal: rutaVieja.urlImagenPrincipal,
+        precio: rutaVieja.precio,
+        dificultad: rutaVieja.dificultad,
+        cuposTotales: rutaVieja.cuposTotales,
+        visible: rutaVieja.visible,
+        dias: rutaVieja.dias,
+        guiaId: rutaVieja.guiaId,
+        guiaNombre: rutaVieja.guiaNombre,
+        guiaFotoUrl: rutaVieja.guiaFotoUrl,
+        rating: rutaVieja.rating,
+        reviewsCount: rutaVieja.reviewsCount,
+        lugaresIncluidos: rutaVieja.lugaresIncluidos,
+        lugaresIncluidosIds: rutaVieja.lugaresIncluidosIds,
+        esFavorita: rutaVieja.esFavorita,
+        estaInscrito: false, // ¡Actualizado!
+        inscritosCount: rutaVieja.inscritosCount - 1, // ¡Actualizado!
+        cuposDisponibles: rutaVieja.cuposDisponibles + 1, // ¡Actualizado!
+      );
+    }
+  }
   @override
-  Future<void> toggleFavoritoRuta(String rutaId) async {}
+  Future<void> toggleFavoritoRuta(String rutaId) async {} // Sigue en AuthVM
+
+  // --- ¡NUEVAS ÓRDENES IMPLEMENTADAS (MOCK)! ---
+
+  @override
+  Future<void> actualizarRuta(String rutaId, Map<String, dynamic> datosRuta) async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    print('--- ¡ORDEN ACTUALIZAR RECIBIDA POR EL MOCK! ---');
+    print(datosRuta);
+
+    // Encontrar el índice de la ruta vieja
+    final int index = _rutasFalsasDB.indexWhere((r) => r.id == rutaId);
+    if (index == -1) return; // No se encontró, no hacer nada
+
+    final Ruta rutaVieja = _rutasFalsasDB[index];
+
+    // "Cocinamos" la ruta actualizada
+    final rutaActualizada = Ruta(
+      id: rutaId, // Mantenemos el ID original
+      nombre: datosRuta['nombre'],
+      descripcion: datosRuta['descripcion'],
+      urlImagenPrincipal: 'https://picsum.photos/seed/${datosRuta['nombre']}/1000/600',
+      precio: datosRuta['precio'],
+      dificultad: datosRuta['dificultad'],
+      cuposTotales: datosRuta['cupos'],
+      visible: datosRuta['visible'],
+      dias: datosRuta['dias'],
+
+      // --- ¡CORREGIDO! ---
+      // Usamos los datos del guía que vienen del formulario
+      guiaId: datosRuta['guiaId'],
+      guiaNombre: datosRuta['guiaNombre'],
+      guiaFotoUrl: datosRuta['guiaFotoUrl'],
+      // --- FIN DE CORRECCIÓN ---
+
+      rating: rutaVieja.rating,
+      reviewsCount: rutaVieja.reviewsCount,
+      inscritosCount: rutaVieja.inscritosCount, // (La lógica real de cupos sería más compleja)
+
+      lugaresIncluidos: datosRuta['lugaresNombres'],
+      lugaresIncluidosIds: datosRuta['lugaresIds'],
+
+      esFavorita: rutaVieja.esFavorita,
+      estaInscrito: rutaVieja.estaInscrito,
+      cuposDisponibles: (datosRuta['cupos'] - rutaVieja.inscritosCount), // (Calculado)
+    );
+
+    // Reemplazamos la ruta en la "DB"
+    _rutasFalsasDB[index] = rutaActualizada;
+    print('----------------------------------');
+  }
+
+  @override
+  Future<void> cancelarRuta(String rutaId, String mensaje) async { // <-- ¡ACTUALIZADO!
+    await Future.delayed(const Duration(milliseconds: 500));
+    print('--- ¡ORDEN CANCELAR RECIBIDA POR EL MOCK! ---');
+    print('MENSAJE DE DISCULPA: $mensaje'); // <-- ¡Simulación!
+
+    final int index = _rutasFalsasDB.indexWhere((r) => r.id == rutaId);
+    if (index == -1) return;
+
+    final Ruta rutaVieja = _rutasFalsasDB[index];
+
+    // Creamos una copia con los campos actualizados (simulando inmutabilidad)
+    final rutaCancelada = Ruta(
+      id: rutaVieja.id,
+      nombre: rutaVieja.nombre,
+      descripcion: rutaVieja.descripcion,
+      urlImagenPrincipal: rutaVieja.urlImagenPrincipal,
+      precio: rutaVieja.precio,
+      dificultad: rutaVieja.dificultad,
+      cuposTotales: rutaVieja.cuposTotales,
+      cuposDisponibles: rutaVieja.cuposTotales, // Resetea cupos
+      visible: false,      // <-- Lógica de negocio: la oculta
+      dias: rutaVieja.dias,
+      guiaId: rutaVieja.guiaId,
+      guiaNombre: rutaVieja.guiaNombre,
+      guiaFotoUrl: rutaVieja.guiaFotoUrl,
+      rating: rutaVieja.rating,
+      reviewsCount: rutaVieja.reviewsCount,
+      inscritosCount: 0, // <-- Lógica de negocio: bota a los inscritos
+      lugaresIncluidos: rutaVieja.lugaresIncluidos,
+      lugaresIncluidosIds: rutaVieja.lugaresIncluidosIds,
+      esFavorita: rutaVieja.esFavorita,
+      estaInscrito: rutaVieja.estaInscrito, // El estado de inscripción del *guía* no cambia
+    );
+
+    _rutasFalsasDB[index] = rutaCancelada;
+    print('Ruta $rutaId cancelada. Inscritos a 0 y no visible.');
+    print('----------------------------------');
+  }
+
+  @override
+  Future<void> eliminarRuta(String rutaId) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    print('--- ¡ORDEN ELIMINAR RECIBIDA POR EL MOCK! ---');
+    _rutasFalsasDB.removeWhere((ruta) => ruta.id == rutaId);
+    print('Ruta $rutaId eliminada.');
+    print('----------------------------------');
+  }
 }

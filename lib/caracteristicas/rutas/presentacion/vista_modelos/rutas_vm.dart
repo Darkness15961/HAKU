@@ -1,9 +1,8 @@
 // --- PIEDRA 5 (RUTAS): EL "MESERO DE RUTAS" (CONECTADO AL CEREBRO Y PERFIL) ---
 //
-// 1. Sus métodos de acción (Inscribirse, Favorito) AHORA
-//    llaman al "Cerebro" (AuthVM).
-// 2. La pestaña "Guardadas" ahora filtra usando el "Cerebro".
-// 3. ¡ACOPLADO! Se añadió el getter 'misRutasInscritas' para el Menú 4 (Perfil).
+// 1. (BUG LÓGICA CORREGIDO): 'inscribirseEnRuta' y 'salirDeRuta'
+//    ahora SÍ llaman al repositorio para actualizar la base de datos
+//    (el Mock), lo que arregla el bug de 'inscritosCount'.
 
 import 'package:flutter/material.dart';
 import '../../dominio/repositorios/rutas_repositorio.dart';
@@ -162,16 +161,19 @@ class RutasVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- ¡MÉTODO ACTUALIZADO! ---
+  // --- ¡MÉTODO CORREGIDO! ---
   Future<void> inscribirseEnRuta(String rutaId) async {
-    // Ya no llama al repositorio. Llama al "Cerebro".
+    // 1. Llama al repositorio para actualizar la BD (Mock)
+    await _repositorio.inscribirseEnRuta(rutaId);
+    // 2. Llama al "Cerebro" para actualizar la UI
     await _authVM?.toggleRutaInscrita(rutaId);
-    // (AuthVM notificará, y la UI de detalle se redibujará)
   }
 
-  // --- ¡MÉTODO ACTUALIZADO! ---
+  // --- ¡MÉTODO CORREGIDO! ---
   Future<void> salirDeRuta(String rutaId) async {
-    // Llama al mismo método del "Cerebro".
+    // 1. Llama al repositorio para actualizar la BD (Mock)
+    await _repositorio.salirDeRuta(rutaId);
+    // 2. Llama al "Cerebro" para actualizar la UI
     await _authVM?.toggleRutaInscrita(rutaId);
   }
 
@@ -195,6 +197,65 @@ class RutasVM extends ChangeNotifier {
       _estaCargando = false;
       _error = e.toString();
       notifyListeners();
+      // ¡Relanzamos el error para que la UI lo atrape!
+      throw Exception(e.toString().replaceFirst("Exception: ", ""));
+    }
+  }
+
+  // --- ¡NUEVAS FUNCIONES CRUD AÑADIDAS! ---
+
+  /// Actualiza una ruta existente en la base de datos.
+  Future<void> actualizarRuta(String rutaId, Map<String, dynamic> datosRuta) async {
+    _estaCargando = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _repositorio.actualizarRuta(rutaId, datosRuta);
+      _estaCargando = false;
+      notifyListeners();
+      // Recargamos las rutas para ver los cambios
+      await cargarRutas();
+    } catch (e) {
+      _estaCargando = false;
+      _error = e.toString();
+      notifyListeners();
+      throw Exception(e.toString().replaceFirst("Exception: ", ""));
+    }
+  }
+
+  /// Cancela una ruta: notifica a usuarios y la oculta (lógica de negocio).
+  Future<void> cancelarRuta(String rutaId, String mensaje) async { // <-- ¡ACTUALIZADO!
+    _estaCargando = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _repositorio.cancelarRuta(rutaId, mensaje); // <-- ¡ACTUALIZADO!
+      _estaCargando = false;
+      notifyListeners();
+      await cargarRutas();
+    } catch (e) {
+      _estaCargando = false;
+      _error = e.toString();
+      notifyListeners();
+      throw Exception(e.toString().replaceFirst("Exception: ", ""));
+    }
+  }
+
+  /// Elimina una ruta permanentemente (solo si no tiene inscritos).
+  Future<void> eliminarRuta(String rutaId) async {
+    _estaCargando = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _repositorio.eliminarRuta(rutaId);
+      _estaCargando = false;
+      notifyListeners();
+      await cargarRutas();
+    } catch (e) {
+      _estaCargando = false;
+      _error = e.toString();
+      notifyListeners();
+      throw Exception(e.toString().replaceFirst("Exception: ", ""));
     }
   }
 

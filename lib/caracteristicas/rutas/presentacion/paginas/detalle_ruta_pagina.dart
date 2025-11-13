@@ -1,7 +1,10 @@
 // --- PIEDRA 9 (RUTAS): EL "MENÚ" DE DETALLE DE RUTA (REGLA DE GUÍA ACOMPLADA) ---
 //
-// 1. (BUG NAVEGACIÓN CORREGIDO): El botón "Gestionar mi Ruta" ahora
-//    usa la ruta completa '/rutas/crear-ruta'.
+// 1. (BUG PREVISUALIZACIÓN CORREGIDO): La página ahora detecta si 'ruta.id == "preview_id"'.
+// 2. (BUG PREVISUALIZACIÓN CORREGIDO): Si es preview, los botones 'Corazón' y 'Compartir'
+//    muestran un diálogo en lugar de ejecutarse.
+// 3. (BUG PREVISUALIZACIÓN CORREGIDO): Si es preview, el botón 'Gestionar mi Ruta'
+//    ahora dice 'VOLVER A EDITAR' y usa 'context.pop()' para regresar.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -59,23 +62,27 @@ class DetalleRutaPagina extends StatelessWidget {
     final vmAuth = context.watch<AutenticacionVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
+    // --- ¡NUEVA LÓGICA DE MODO! ---
+    final bool esModoPreview = ruta.id == 'preview_id';
+    // --- FIN DE LÓGICA ---
+
     // --- ¡LECTURA DE ESTADO DESDE EL CEREBRO! ---
-    final bool esFavorita = vmAuth.rutasFavoritasIds.contains(ruta.id);
-    final bool estaInscrito = vmAuth.rutasInscritasIds.contains(ruta.id);
+    // Si es preview, forzamos 'false' para que el corazón aparezca vacío
+    final bool esFavorita = esModoPreview ? false : vmAuth.rutasFavoritasIds.contains(ruta.id);
+    final bool estaInscrito = esModoPreview ? false : vmAuth.rutasInscritasIds.contains(ruta.id);
 
     // --- ¡REGLA DE NEGOCIO ACOMPLADA! ---
     final String? usuarioIdActual = vmAuth.usuarioActual?.id;
     // Es propietario si el ID del usuario logueado es el mismo que el ID del guía de la ruta
-    final bool esPropietario = (vmAuth.estaLogueado && usuarioIdActual == ruta.guiaId);
+    // O si estamos en modo preview (porque TÚ eres el propietario)
+    final bool esPropietario = esModoPreview || (vmAuth.estaLogueado && usuarioIdActual == ruta.guiaId);
     // --- FIN DE REGLA ---
 
-    // --- ¡LÓGICA ACOMPLADA! ---
-    int inscritosCount = ruta.inscritosCount;
-    if (estaInscrito && !ruta.estaInscrito) {
-      inscritosCount++;
-    } else if (!estaInscrito && ruta.estaInscrito) {
-      inscritosCount--;
-    }
+    // --- ¡LÓGICA CORREGIDA! ---
+    // Se elimina la lógica condicional (if/else if) que causaba el bug.
+    // Ahora 'inscritosCount' siempre respeta el valor de la ruta (2).
+    // Y 'cuposDisponibles' se calcula correctamente (10 - 2 = 8).
+    final int inscritosCount = ruta.inscritosCount;
     final int cuposDisponibles = ruta.cuposTotales - inscritosCount;
     // --- FIN DE LÓGICA ---
 
@@ -91,6 +98,13 @@ class DetalleRutaPagina extends StatelessWidget {
             actions: [
               IconButton(
                   onPressed: () {
+                    // --- ¡CORREGIDO! Bloquea si es preview ---
+                    if (esModoPreview) {
+                      _showPreviewModeWarning(context);
+                      return;
+                    }
+                    // --- FIN DE CORRECCIÓN ---
+
                     if (_checkAndRedirect(context, 'guardar esta ruta')) {
                       context.read<RutasVM>().toggleFavoritoRuta(ruta.id);
                     }
@@ -100,7 +114,16 @@ class DetalleRutaPagina extends StatelessWidget {
                     color: esFavorita ? Colors.red : Colors.white,
                   )),
               IconButton(
-                  onPressed: () { /* Lógica de Compartir */ },
+                  onPressed: () {
+                    // --- ¡CORREGIDO! Bloquea si es preview ---
+                    if (esModoPreview) {
+                      _showPreviewModeWarning(context);
+                      return;
+                    }
+                    // --- FIN DE CORRECCIÓN ---
+
+                    /* Lógica de Compartir */
+                  },
                   icon: const Icon(Icons.share, color: Colors.white)),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -150,7 +173,7 @@ class DetalleRutaPagina extends StatelessWidget {
                       style: const TextStyle(fontSize: 15, color: Colors.black87)),
                 ),
                 _buildSectionTitle('Itinerario y Lugares Incluidos'),
-                _buildRouteStopsList(ruta.lugaresIncluidosIds), // <-- Usamos IDs
+                _buildRouteStopsList(ruta.lugaresIncluidos), // <-- ¡Corregido a NOMBRES!
 
                 const SizedBox(height: 120), // Espacio para el botón inferior
               ],
@@ -163,7 +186,8 @@ class DetalleRutaPagina extends StatelessWidget {
       _buildRegisterButton(context, vmAuth, ruta,
           estaInscrito: estaInscrito,
           cuposDisponibles: cuposDisponibles,
-          esPropietario: esPropietario // <-- ¡Regla Acoplada!
+          esPropietario: esPropietario, // <-- ¡Regla Acoplada!
+          esModoPreview: esModoPreview // <-- ¡Nuevo parámetro!
       ),
     );
   }
@@ -271,7 +295,14 @@ class DetalleRutaPagina extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundImage: NetworkImage(ruta.guiaFotoUrl),
+          // --- ¡CORREGIDO PARA PREVIEW! ---
+          // Maneja el caso de que la foto del guía esté vacía
+          backgroundImage: (ruta.guiaFotoUrl.isNotEmpty)
+              ? NetworkImage(ruta.guiaFotoUrl)
+              : null,
+          child: (ruta.guiaFotoUrl.isEmpty)
+              ? Text(ruta.guiaNombre.substring(0, 1).toUpperCase())
+              : null,
         ),
         title: Text('Organizado por: ${ruta.guiaNombre}',
             style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -294,13 +325,10 @@ class DetalleRutaPagina extends StatelessWidget {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)));
   }
 
-  Widget _buildRouteStopsList(List<String> lugaresIncluidos) {
-    if (lugaresIncluidos.isEmpty) return const SizedBox.shrink();
+  Widget _buildRouteStopsList(List<String> lugaresNombres) { // <-- ¡Corregido a NOMBRES!
+    if (lugaresNombres.isEmpty) return const SizedBox.shrink();
 
-    // ¡ACOMPLADO! Leemos los Nombres (lugaresIncluidos)
-    // (La lógica de IDs es solo para el mapa, la UI muestra los nombres)
-    final lugaresNombres = lugaresIncluidos;
-
+    // La UI muestra los nombres
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
@@ -349,6 +377,7 @@ class DetalleRutaPagina extends StatelessWidget {
         required bool estaInscrito,
         required int cuposDisponibles,
         required bool esPropietario, // <-- ¡Regla Acoplada!
+        required bool esModoPreview, // <-- ¡Nuevo!
       }) {
 
     final bool isRouteFull = cuposDisponibles <= 0;
@@ -360,16 +389,24 @@ class DetalleRutaPagina extends StatelessWidget {
     IconData buttonIcon; // <-- ¡Icono dinámico!
 
     // --- ¡REGLA DE NEGOCIO IMPLEMENTADA! ---
-    if (esPropietario) {
-      // Flujo 1: Es el Guía Propietario
+    // --- ¡CORREGIDA CON LÓGICA DE PREVIEW! ---
+    if (esPropietario && esModoPreview) {
+      // Flujo 0: Es el Guía en Modo Preview
+      buttonText = 'VOLVER A EDITAR';
+      buttonColor = Colors.blueGrey;
+      buttonIcon = Icons.arrow_back;
+      onPressed = () {
+        context.pop(); // <-- ¡USA POP PARA REGRESAR!
+      };
+    }
+    else if (esPropietario && !esModoPreview) {
+      // Flujo 1: Es el Guía Propietario (Normal)
       buttonText = 'GESTIONAR MI RUTA';
       buttonColor = Colors.blueGrey; // Un color de "gestión"
       buttonIcon = Icons.edit_note;
       onPressed = () {
-        // --- ¡CORREGIDO! ---
         // Esta ruta es hija de '/rutas'
         context.push('/rutas/crear-ruta', extra: ruta); // Reutilizamos la página de crear
-        // --- FIN DE LA CORRECCIÓN ---
       };
     } else if (estaInscrito) {
       // Flujo 2: Ya está registrado
@@ -450,6 +487,33 @@ class DetalleRutaPagina extends StatelessWidget {
               },
               style: ElevatedButton.styleFrom(backgroundColor: colorPrimario),
               child: const Text('Iniciar Sesión',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- ¡NUEVO WIDGET AUXILIAR PARA PREVISUALIZACIÓN! ---
+  void _showPreviewModeWarning(BuildContext context) {
+    final colorPrimario = Theme.of(context).colorScheme.primary;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Modo Previsualización ⓘ'),
+          content:
+          const Text('Esta acción (como guardar en favoritos o compartir) no está disponible hasta que guardes la ruta.'),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: colorPrimario),
+              child: const Text('Entendido',
                   style: TextStyle(color: Colors.white)),
             ),
           ],

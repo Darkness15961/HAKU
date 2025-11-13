@@ -350,9 +350,19 @@ class _RutasPaginaState extends State<RutasPagina> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildInfoIcon(Icons.schedule,
-                          // Usa el nuevo campo 'cuposTotales'
-                          '${ruta.cuposTotales} Cupos', Colors.grey),
+                      // --- ¡CORREGIDO! ---
+                      // Calcula los cupos disponibles y los muestra en formato X / Y
+                      Builder(
+                          builder: (context) {
+                            final int cuposDisponibles = ruta.cuposTotales - ruta.inscritosCount;
+                            return _buildInfoIcon(
+                                Icons.schedule,
+                                '$cuposDisponibles / ${ruta.cuposTotales} Cupos',
+                                Colors.grey
+                            );
+                          }
+                      ),
+                      // --- FIN DE LA CORRECCIÓN ---
                       _buildInfoIcon(Icons.place,
                           '${ruta.lugaresIncluidos.length} Lugares', Colors.grey),
                       Chip(
