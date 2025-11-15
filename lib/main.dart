@@ -19,7 +19,15 @@ import 'caracteristicas/inicio/presentacion/vista_modelos/lugares_vm.dart';
 import 'caracteristicas/autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import 'caracteristicas/rutas/presentacion/vista_modelos/rutas_vm.dart';
 import 'caracteristicas/mapa/presentacion/vista_modelos/mapa_vm.dart';
-// (Ya no necesitamos la importación 'as mapa_vm')
+
+// --- ¡AÑADIDO! ---
+// --- IMPORTACIONES PARA LA CADENA DE NOTIFICACIONES (MOCK) ---
+import 'caracteristicas/notificaciones/dominio/repositorios/notificacion_repositorio.dart';
+import 'caracteristicas/notificaciones/datos/repositorios/notificacion_repositorio_mock.dart';
+import 'caracteristicas/notificaciones/dominio/casos_uso/obtener_notificaciones.dart';
+import 'caracteristicas/notificaciones/dominio/casos_uso/marcar_notificacion_leida.dart';
+import 'caracteristicas/notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
+// --- FIN DE LO AÑADIDO ---
 
 
 void main() {
@@ -51,6 +59,35 @@ void main() {
               ..actualizarDependencias(lugaresVM, authVM, rutasVM);
           },
         ),
+
+        // --- ¡AÑADIDO! ---
+        // --- CONTRATO 5: "Mesero de Notificaciones" (Cadena Mock) ---
+
+        // a. Conectamos el MOCK para que actúe como el Repositorio
+        Provider<NotificacionRepositorio>(
+          create: (_) => NotificacionRepositorioMock(),
+        ),
+
+        // b. Los Casos de Uso (que usan el Repositorio abstracto)
+        Provider<ObtenerNotificaciones>(
+          create: (context) => ObtenerNotificaciones(
+            context.read<NotificacionRepositorio>(),
+          ),
+        ),
+        Provider<MarcarNotificacionLeida>(
+          create: (context) => MarcarNotificacionLeida(
+            context.read<NotificacionRepositorio>(),
+          ),
+        ),
+
+        // d. El ViewModel (que usa los Casos de Uso)
+        ChangeNotifierProvider<NotificacionesVM>(
+          create: (context) => NotificacionesVM(
+            obtenerNotificaciones: context.read<ObtenerNotificaciones>(),
+            marcarNotificacionLeida: context.read<MarcarNotificacionLeida>(),
+          ),
+        ),
+        // --- FIN DE LO AÑADIDO ---
 
       ],
       child: const MyApp(),

@@ -6,8 +6,8 @@
 //    mensaje) solo aparece si hay inscritos.
 // 3. (LÓGICA DE NEGOCIO CORREGIDA): El botón 'Eliminar Ruta' solo aparece
 //    si NO hay turistas inscritos.
-// 4. (LÓGICA DE NEGOCIO CORREGIDA): El diálogo de 'Cancelar Ruta' ahora
-//    obliga al guía a escribir un mensaje de disculpa.
+// 4. (¡NUEVO!): El diálogo 'Cancelar Ruta' ahora simula el envío de una
+//    notificación al mock y refresca el NotificacionesVM.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +21,14 @@ import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart'
 import '../../../inicio/dominio/entidades/lugar.dart';
 // ¡Importamos la Receta para el 'extra' en app_rutas.dart!
 import '../../dominio/entidades/ruta.dart';
+
+// --- ¡AÑADIDO! ---
+// Importamos los archivos necesarios para la simulación
+import '../../../notificaciones/dominio/repositorios/notificacion_repositorio.dart';
+import '../../../notificaciones/datos/repositorios/notificacion_repositorio_mock.dart';
+import '../../../notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
+// --- FIN DE LO AÑADIDO ---
+
 
 // Helper: Clase simple para representar un Lugar en la Ruta
 // --- ¡SIMPLIFICADO! Ya no tiene 'durationMinutes' ---
@@ -776,7 +784,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         else
           Text(
               _visibility == 'Pública'
-                  ? 'Las rutas públicas requieren aprobación del administrador.'
+                  ? 'Las rutas públicas estan listas para recibir a los turistas.'
                   : 'Solo tú puedes ver esta ruta.',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
       ],
@@ -896,7 +904,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
             label: 'Cancelar esta Ruta',
             details: 'Esto notificará y expulsará a ${ruta.inscritosCount} turista(s) inscrito(s). Esta acción es reversible si vuelves a publicar la ruta.',
             onPressed: () {
-              _mostrarDialogoCancelarRuta(context, ruta.inscritosCount);
+              _mostrarDialogoCancelarRuta(context, ruta); // <-- ¡Modificado!
             },
           )
         else
@@ -938,10 +946,19 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
 
   // --- ¡NUEVOS DIÁLOGOS DE CONFIRMACIÓN! ---
 
-  void _mostrarDialogoCancelarRuta(BuildContext context, int inscritosCount) {
-    // Guardamos el VM y el Navigator ANTES del 'await'
+  // --- ¡AQUÍ ESTÁ LA MODIFICACIÓN FINAL! ---
+  void _mostrarDialogoCancelarRuta(BuildContext context, Ruta ruta) { // <-- ¡Modificado!
+    // Guardamos los VMs y el Navigator ANTES del 'await'
     final vmRutas = context.read<RutasVM>();
     final navigator = GoRouter.of(context);
+
+    // --- ¡AÑADIDO! ---
+    // Leemos el Repositorio Mock y el VM de Notificaciones
+    // Hacemos un 'cast' (as) para acceder al método del mock
+    final repoNotificaciones = context.read<NotificacionRepositorio>() as NotificacionRepositorioMock;
+    final vmNotificaciones = context.read<NotificacionesVM>();
+    // --- FIN DE LO AÑADIDO ---
+
 
     // Controladores para el nuevo formulario de disculpa
     final TextEditingController mensajeCtrl = TextEditingController();
@@ -962,7 +979,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Estás a punto de cancelar esta ruta y expulsar a $inscritosCount turista(s) inscrito(s).'),
+                    Text('Estás a punto de cancelar esta ruta y expulsar a ${ruta.inscritosCount} turista(s) inscrito(s).'), // <-- ¡Modificado!
                     const SizedBox(height: 16),
                     Text(
                       'Por favor, escribe un mensaje de disculpa o el motivo de la cancelación. Este mensaje se enviará a todos los inscritos.',
@@ -1004,10 +1021,22 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                   onPressed: (mensajeCtrl.text.trim().isEmpty) ? null : () async {
                     if (dialogFormKey.currentState!.validate()) {
 
-                      // ¡Llamamos a la nueva función del VM con el mensaje!
+                      // 1. Llama a la función del VM de Rutas (como ya lo tenías)
                       await vmRutas.cancelarRuta(widget.ruta!.id, mensajeCtrl.text);
 
+                      // --- ¡AQUÍ ESTÁ LA SIMULACIÓN! ---
+                      // 2. Llama al método del Repositorio Mock directamente
+                      await repoNotificaciones.simularEnvioDeNotificacion(
+                        titulo: 'Ruta Cancelada: ${widget.ruta!.nombre}',
+                        cuerpo: mensajeCtrl.text,
+                      );
+                      // --- FIN DE SIMULACIÓN ---
+
+
                       if (!context.mounted) return;
+
+                      // 3. Refresca el VM de Notificaciones para actualizar la 🔔
+                      vmNotificaciones.cargarNotificaciones();
 
                       Navigator.of(dialogContext).pop(); // Cierra el diálogo
 

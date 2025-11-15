@@ -1,10 +1,10 @@
 // --- CARACTERISTICAS/RUTAS/PRESENTACION/PAGINAS/RUTAS_PAGINA.DART ---
 //
-// 1. (BUG CORREGIDO): Se cambió 'ruta.cupos' por 'ruta.cuposTotales'
-//    en _buildRouteCard para "acoplarlo" a la nueva "Receta" (ruta.dart).
-// 2. (DISEÑO): Se mantiene tu diseño de AppBar nativa.
-// 3. (BUG NAVEGACIÓN CORREGIDO): Se corrigió la ruta del botón 'Crear Ruta'
-//    de '/crear-ruta' a '/rutas/crear-ruta'.
+// (...)
+// 5. (¡NUEVA CORRECCIÓN!): Se cambió 'isScrollable' a 'false' en el TabBar
+//    para que las pestañas ocupen todo el ancho.
+// 6. (¡DISEÑO ELEGANTE!): Se rediseñó _buildRouteCard para mover
+//    el chip de dificultad a la imagen y limpiar la sección de info.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +15,11 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../vista_modelos/rutas_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../dominio/entidades/ruta.dart';
+
+// --- ¡AÑADIDO! ---
+// 1. Importamos el VM de Notificaciones
+import '../../../notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
+// --- FIN DE LO AÑADIDO ---
 
 class RutasPagina extends StatefulWidget {
   const RutasPagina({super.key});
@@ -41,11 +46,6 @@ class _RutasPaginaState extends State<RutasPagina> {
 
   // --- Lógica de Navegación y Recarga ---
   void _irAlDetalleRuta(Ruta ruta) {
-    // --- CORRECCIÓN POSIBLE (Revisando tu otra ruta) ---
-    // Si esta también falla, debe ser '/rutas/detalle-ruta'
-    // Pero 'context.push' con 'extra' suele ser para rutas superiores
-    // Lo dejamos como estaba, pero si falla, avísame.
-    // **ACTUALIZACIÓN**: Viendo tu app_rutas.dart, esta ruta es '/rutas/detalle-ruta'
     context.push('/rutas/detalle-ruta', extra: ruta);
   }
 
@@ -57,7 +57,7 @@ class _RutasPaginaState extends State<RutasPagina> {
   @override
   Widget build(BuildContext context) {
     final vmRutas = context.watch<RutasVM>();
-    final vmAuth = context.watch<AutenticacionVM>();
+    final vmAuth = context.watch<AutenticacionVM>(); // <-- vmAuth ya está aquí
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
     // Lógica para determinar qué pestañas mostrar dinámicamente
@@ -79,7 +79,6 @@ class _RutasPaginaState extends State<RutasPagina> {
 
     // Si la pestaña actual ya no es visible (ej. cierra sesión como guía)
     if (!pestanasVisibles.contains(vmRutas.pestanaActual)) {
-      // Usamos microtask para evitar error de 'setState' durante el 'build'
       WidgetsBinding.instance.addPostFrameCallback((_) {
         vmRutas.cambiarPestana('Recomendadas');
       });
@@ -100,11 +99,40 @@ class _RutasPaginaState extends State<RutasPagina> {
           elevation: 0,
           title: const Text('Rutas y Tours',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+
+          // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
           actions: [
+            // a. Campana de Notificaciones (SÓLO si está logueado)
+            if (vmAuth.estaLogueado) // <-- REGLA DE LOGIN
+              Consumer<NotificacionesVM>(
+                builder: (context, vmNotificaciones, child) {
+                  final int unreadCount = vmNotificaciones.unreadCount;
+
+                  return IconButton(
+                    icon: Badge(
+                      isLabelVisible: unreadCount > 0,
+                      label: Text(unreadCount.toString()),
+                      child: const Icon(Icons.notifications_outlined),
+                    ),
+                    onPressed: () {
+                      context.push('/notificaciones');
+                    },
+                  );
+                },
+              ),
+
+            // b. Botón de Ajustes (Tornillo ⚙️)
+            // (Se ha quitado según tus instrucciones)
+
+            // c. Tu botón original de "Crear Ruta"
             _buildCrearRutaButton(context, vmAuth, colorPrimario)
           ],
+          // --- FIN DE LA CORRECCIÓN ---
+
           bottom: TabBar(
-            isScrollable: true,
+            // --- ¡AQUÍ ESTÁ LA CORRECCIÓN DE ALINEACIÓN! ---
+            isScrollable: false, // <-- Cambiado a 'false'
+            // --- FIN DE LA CORRECCIÓN DE ALINEACIÓN ---
             indicatorColor: Colors.white,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
@@ -127,8 +155,6 @@ class _RutasPaginaState extends State<RutasPagina> {
               child: RefreshIndicator(
                 onRefresh: _handleRefresh,
                 child: TabBarView(
-                  // Evitamos que el usuario deslice entre pestañas,
-                  // forzando el control por el 'onTap' del TabBar
                   physics: const NeverScrollableScrollPhysics(),
                   children: pestanasVisibles.map((pestana) =>
                       _buildContenidoPestana(vmRutas, context)
@@ -155,13 +181,10 @@ class _RutasPaginaState extends State<RutasPagina> {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
+      padding: const EdgeInsets.only(right: 8.0), // <-- Padding original restaurado
       child: ElevatedButton.icon(
         onPressed: () {
-          // --- ¡CORREGIDO! ---
-          // La ruta debe ser la ruta completa definida en app_rutas.dart
           context.push('/rutas/crear-ruta');
-          // --- FIN DE LA CORRECCIÓN ---
         },
         icon: const Icon(Icons.add, color: Colors.white, size: 20),
         label: const Text('Crear Ruta',
@@ -176,6 +199,7 @@ class _RutasPaginaState extends State<RutasPagina> {
   }
 
   Widget _buildDifficultyChips(BuildContext context, RutasVM vmRutas) {
+    // (Tu código intacto aquí...)
     final difficulties = ['Todos', 'Facil', 'Medio', 'Dificil'];
 
     return Container(
@@ -217,8 +241,8 @@ class _RutasPaginaState extends State<RutasPagina> {
     );
   }
 
-  // --- WIDGET DE CONTENIDO (que usa el filtro de chips) ---
   Widget _buildContenidoPestana(RutasVM vmRutas, BuildContext context) {
+    // (Tu código intacto aquí...)
     final rutas = vmRutas.rutasFiltradas;
 
     if (vmRutas.estaCargando && rutas.isEmpty) {
@@ -258,7 +282,7 @@ class _RutasPaginaState extends State<RutasPagina> {
     );
   }
 
-  // --- WIDGETS RESTANTES (Tarjetas) ---
+  // --- ¡WIDGET REDISEÑADO PARA SER MÁS ELEGANTE! ---
   Widget _buildRouteCard(BuildContext context, Ruta ruta) {
     Color difficultyColor = ruta.dificultad == 'facil'
         ? Colors.green
@@ -313,6 +337,22 @@ class _RutasPaginaState extends State<RutasPagina> {
                     ),
                   ),
                 ),
+
+                // --- ¡AÑADIDO! Chip de Dificultad movido aquí ---
+                Positioned(
+                  bottom: 10,
+                  left: 10,
+                  child: Chip(
+                    label: Text(
+                      ruta.dificultad.toUpperCase(),
+                      style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    backgroundColor: difficultyColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
+                    visualDensity: VisualDensity.compact, // Lo hace más pequeño
+                  ),
+                ),
+                // --- FIN DE LO AÑADIDO ---
               ],
             ),
             Padding(
@@ -344,41 +384,34 @@ class _RutasPaginaState extends State<RutasPagina> {
                       ]),
                     ],
                   ),
-                  const Divider(height: 24),
 
-                  // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+                  // --- ¡ELIMINADO! Se quitó el Divider ---
+                  // const Divider(height: 24),
+                  // --- FIN DE LA ELIMINACIÓN ---
+
+                  // --- ¡AÑADIDO! Un SizedBox para reemplazar el Divider ---
+                  const SizedBox(height: 16),
+
+                  // --- ¡MODIFICADO! Fila de info más limpia ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // --- ¡CORREGIDO! ---
-                      // Calcula los cupos disponibles y los muestra en formato X / Y
                       Builder(
                           builder: (context) {
                             final int cuposDisponibles = ruta.cuposTotales - ruta.inscritosCount;
                             return _buildInfoIcon(
                                 Icons.schedule,
-                                '$cuposDisponibles / ${ruta.cuposTotales} Cupos',
+                                '$cuposDisponibles / ${ruta.cuposTotales} Cupos', // <-- Corrección de cupos
                                 Colors.grey
                             );
                           }
                       ),
-                      // --- FIN DE LA CORRECCIÓN ---
                       _buildInfoIcon(Icons.place,
                           '${ruta.lugaresIncluidos.length} Lugares', Colors.grey),
-                      Chip(
-                        label: Text(
-                          ruta.dificultad.toUpperCase(),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        backgroundColor: difficultyColor.withOpacity(0.1),
-                        labelStyle: TextStyle(
-                            color: difficultyColor,
-                            fontWeight: FontWeight.bold),
-                        padding: EdgeInsets.zero,
-                      ),
+                      // El Chip de Dificultad fue movido a la imagen
                     ],
                   ),
-                  // --- FIN DE LA CORRECCIÓN ---
+                  // --- FIN DE LA MODIFICACIÓN ---
 
                 ],
               ),
@@ -388,6 +421,7 @@ class _RutasPaginaState extends State<RutasPagina> {
       ),
     );
   }
+  // --- FIN DEL REDISEÑO ---
 
   Widget _buildInfoIcon(IconData icon, String label, Color color) {
     return Row(

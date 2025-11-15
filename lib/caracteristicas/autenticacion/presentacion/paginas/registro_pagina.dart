@@ -4,6 +4,8 @@
 //    por context.go('/inicio') para evitar el "failed assertion" de
 //    navigator.dart al navegar entre stacks (root vs shell)
 //    después de un 'await'.
+// 2. (DISEÑO CORREGIDO): Se restauró el color del AppBar para
+//    que el título y la flecha de retroceso sean visibles.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -118,8 +120,14 @@ class _RegistroPaginaState extends State<RegistroPagina> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crear Cuenta'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+        // Se quita la transparencia para que el AppBar sea visible
+        // backgroundColor: Colors.transparent, // <-- Eliminado
+        // elevation: 0, // <-- Eliminado
+
+        // Se añade 'surfaceTintColor' para un diseño limpio en Material 3
+        surfaceTintColor: Colors.transparent,
+        // --- FIN DE LA CORRECCIÓN ---
       ),
       body: Center(
         child: SingleChildScrollView(

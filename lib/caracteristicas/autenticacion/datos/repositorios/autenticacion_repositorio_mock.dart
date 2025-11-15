@@ -1,16 +1,15 @@
 // --- PIEDRA 3 (AUTENTICACIÓN): LA "COCINA FALSA" (ACOMPLADA CON ADMIN Y BUG CORREGIDO) ---
 //
-// 1. (BUG CORREGIDO): 'registrarUsuario' AHORA SÍ guarda al nuevo
-//    usuario en la '_usuariosFalsosDB' (esto arregla el bug de login).
+// (...)
 // 2. (REGLA ACOMPLADA): 'registrarUsuario' AHORA comprueba si el email
 //    ya existe en '_usuariosFalsosDB'.
-// 3. (ESTABLE): Mantiene la lógica de Admin.
+// 3. (¡NUEVO!): Implementados los métodos 'obtenerTodosLosUsuarios' y 'eliminarUsuario'.
 
 import '../../dominio/entidades/usuario.dart';
 import '../../dominio/repositorios/autenticacion_repositorio.dart';
 
 // --- "Base de Datos Falsa" de Usuarios (¡ACOMPLADA!) ---
-// (Usamos la "Receta" actualizada de 'usuario.dart')
+// (Tu base de datos falsa se mantiene intacta)
 
 final Usuario _usuarioFalsoTurista = Usuario(
   id: '1',
@@ -94,15 +93,11 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
   Future<Usuario> iniciarSesion(String email, String password) async {
     await Future.delayed(const Duration(seconds: 1));
 
-    // --- ¡LÓGICA DE LOGIN MÁGICO (ACTUALIZADA)! ---
-    // Ahora busca en TODA la base de datos falsa (incluyendo nuevos registros)
     final usuarioEncontrado = _usuariosFalsosDB.values.firstWhere(
           (usuario) => usuario.email == email,
-      // Si no lo encuentra, lanza el error
       orElse: () => throw Exception('Usuario o contraseña incorrectos.'),
     );
 
-    // Si existe, lo logueamos
     _usuarioActual = usuarioEncontrado;
     return _usuarioActual!;
   }
@@ -117,14 +112,11 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
       ) async {
     await Future.delayed(const Duration(seconds: 1));
 
-    // --- ¡REGLA DE EMAIL DUPLICADO ACOMPLADA! ---
     final yaExiste = _usuariosFalsosDB.values.any((usuario) => usuario.email == email);
     if (yaExiste) {
       throw Exception('Ya existe un usuario con ese correo.');
     }
-    // --- FIN DE LA REGLA ---
 
-    // (Simulamos un ID nuevo)
     final nuevoId = 'user_${DateTime.now().millisecondsSinceEpoch}';
 
     final nuevoUsuario = Usuario(
@@ -132,17 +124,14 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
       nombre: nombre,
       email: email,
       rol: 'turista',
-      urlFotoPerfil: null, // Es nulo al registrarse
+      urlFotoPerfil: null,
       dni: dni,
       token: 'TOKEN_FALSO_$nuevoId',
       solicitudEstado: null,
       solicitudExperiencia: null,
     );
 
-    // --- ¡AQUÍ ESTÁ LA CORRECCIÓN DEL BUG! ---
-    // AHORA SÍ lo guardamos en la "base de datos"
     _usuariosFalsosDB[nuevoId] = nuevoUsuario;
-    // --- FIN DE LA CORRECCIÓN ---
 
     _usuarioActual = nuevoUsuario;
     return nuevoUsuario;
@@ -189,7 +178,7 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
     }
   }
 
-  // --- ÓRDENES DEL ADMIN (se mantienen) ---
+  // --- ÓRDENES DEL ADMIN (Gestión de Guías) ---
 
   @override
   Future<List<Usuario>> obtenerSolicitudesPendientes() async {
@@ -245,5 +234,27 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
       throw Exception('Usuario no encontrado');
     }
   }
+
+  // --- ¡AÑADIDO! ÓRDENES PARA GESTIÓN DE CUENTAS ---
+
+  @override
+  Future<List<Usuario>> obtenerTodosLosUsuarios() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    // Simplemente devuelve todos los usuarios de la base de datos falsa
+    return _usuariosFalsosDB.values.toList();
+  }
+
+  @override
+  Future<void> eliminarUsuario(String usuarioId) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    // Simula la eliminación del usuario de la base de datos
+    if (_usuariosFalsosDB.containsKey(usuarioId)) {
+      _usuariosFalsosDB.remove(usuarioId);
+      print('Mock: Usuario $usuarioId ELIMINADO');
+    } else {
+      throw Exception('Usuario no encontrado para eliminar');
+    }
+  }
+// --- FIN DE LO AÑADIDO ---
 
 }

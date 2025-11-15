@@ -1,8 +1,9 @@
-// --- PIEDRA 4: EL "MESERO" (VERSIÓN ACOMPLADA PARA COMENTARIOS) ---
+// --- PIEDRA 4: EL "MESERO" (VERSIÓN ACOMPLADA PARA COMENTARIOS Y GESTIÓN) ---
 //
-// 1. (ACOMPLADO): El método 'enviarComentario' ahora "jala" los datos
-//    del 'AuthVM' (Cerebro) para enviarlos al Repositorio.
-// 2. (ESTABLE): Mantiene toda la lógica de 'lugaresTotales'.
+// (...)
+// 2. (¡NUEVO!): Añadida la lógica de Admin para 'crearLugar',
+//    'actualizarLugar' y 'eliminarLugar' (Simulado).
+// 3. (¡NUEVO!): Añadida la lógica de Admin para gestionar Provincias.
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -25,7 +26,7 @@ import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart'
 class LugaresVM extends ChangeNotifier {
   // --- A. DEPENDENCIAS ---
   late final LugaresRepositorio _repositorio;
-  AutenticacionVM? _authVM; // <-- Ya tiene la conexión al "Cerebro"
+  AutenticacionVM? _authVM;
 
   // --- B. ESTADO DE LA UI (INICIO_PAGINA) ---
   bool _estaCargandoInicio = true;
@@ -38,6 +39,10 @@ class LugaresVM extends ChangeNotifier {
   int _carouselIndex = 0;
   bool _cargaInicialRealizada = false;
 
+  // --- ¡AÑADIDO! ESTADO DE GESTIÓN ---
+  bool _estaCargandoGestion = false;
+  String? _errorGestion;
+
   // --- C. GETTERS (INICIO_PAGINA Y PERFIL) ---
   bool get estaCargandoInicio => _estaCargandoInicio;
   List<Lugar> get lugaresPopulares => _lugaresPopulares;
@@ -46,6 +51,10 @@ class LugaresVM extends ChangeNotifier {
   int get carouselIndex => _carouselIndex;
   bool get cargaInicialRealizada => _cargaInicialRealizada;
   List<Lugar> get lugaresTotales => _lugaresTotales;
+
+  // --- ¡AÑADIDO! GETTERS DE GESTIÓN ---
+  bool get estaCargandoGestion => _estaCargandoGestion;
+  String? get errorGestion => _errorGestion;
 
   List<Lugar> get misLugaresFavoritos {
     if (_authVM == null || !_authVM!.estaLogueado) return [];
@@ -60,7 +69,6 @@ class LugaresVM extends ChangeNotifier {
       final categoria =
       _categorias.firstWhere((c) => c.id == _categoriaSeleccionadaIdInicio);
       provinciasFiltradas = provinciasFiltradas.where((provincia) {
-        // (Lógica de filtro de provincia acoplada para minúsculas)
         return provincia.categories.any((c) => c.toLowerCase() == categoria.nombre.toLowerCase());
       }).toList();
     }
@@ -92,7 +100,6 @@ class LugaresVM extends ChangeNotifier {
       final categoria =
       _categorias.firstWhere((c) => c.id == _categoriaSeleccionadaIdProvincia);
       lugaresFiltrados = lugaresFiltrados.where((lugar) {
-        // (Lógica de filtro de provincia acoplada para minúsculas)
         return lugar.categoria.toLowerCase() == categoria.nombre.toLowerCase();
       }).toList();
     }
@@ -121,9 +128,8 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- I. MÉTODOS DE INICIALIZACIÓN (¡CORREGIDOS CON FUTURE!) ---
-
+  // (Tu código intacto aquí...)
   Future<void> cargarDatosIniciales(AutenticacionVM authVM) async {
-
     if (_authVM == null) {
       _authVM = authVM;
       _authVM?.addListener(_onAuthChanged);
@@ -150,7 +156,6 @@ class LugaresVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- ¡MÉTODO CRÍTICO ACTUALIZADO! ---
   Future<void> _cargarCatalogos() async {
     _estaCargandoInicio = true;
 
@@ -188,6 +193,7 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- J. MÉTODOS (Órdenes para INICIO_PAGINA) ---
+  // (Tu código intacto aquí...)
   void buscarEnInicio(String termino) {
     _terminoBusquedaInicio = termino;
     notifyListeners();
@@ -204,6 +210,7 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- K. MÉTODOS (Órdenes para PROVINCIA_LUGARES_PAGINA) ---
+  // (Tu código intacto aquí...)
   Future<void> cargarLugaresPorProvincia(String provinciaId) async {
     _estaCargandoLugaresDeProvincia = true;
     _terminoBusquedaProvincia = '';
@@ -229,53 +236,38 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- L. MÉTODOS (Órdenes para DETALLE_LUGAR_PAGINA) ---
+  // (Tu código intacto aquí...)
   Future<void> cargarComentarios(String lugarId) async {
     _estaCargandoComentarios = true;
     notifyListeners();
-
     _comentarios = await _repositorio.obtenerComentarios(lugarId);
-
     _estaCargandoComentarios = false;
     notifyListeners();
   }
 
-  // --- ¡MÉTODO ACOMPLADO! (Paso 2) ---
   Future<void> enviarComentario(
       String lugarId, String texto, double rating) async {
-
-    // 1. Verificamos el "Cerebro" (AuthVM)
     if (_authVM == null || !_authVM!.estaLogueado || _authVM!.usuarioActual == null) {
-      // (Esto es solo una seguridad, la UI no debería permitir
-      //  enviar el comentario si el usuario no está logueado)
       print("Error: Usuario no autenticado. No se puede comentar.");
       return;
     }
-
-    // 2. Obtenemos los datos del usuario logueado desde el "Cerebro"
     final usuario = _authVM!.usuarioActual!;
     final String usuarioNombre = usuario.nombre;
-    final String? urlFotoUsuario = usuario.urlFotoPerfil; // Es 'String?' (opcional)
+    final String? urlFotoUsuario = usuario.urlFotoPerfil;
     final String usuarioId = usuario.id;
 
-    // 3. Llamamos al "Enchufe" (Repositorio) con la "orden" ACOMPLADA
     await _repositorio.enviarComentario(
         lugarId,
         texto,
         rating,
-        usuarioNombre, // <-- Acoplado
-        urlFotoUsuario, // <-- Acoplado
-        usuarioId       // <-- Acoplado
+        usuarioNombre,
+        urlFotoUsuario,
+        usuarioId
     );
-
-    // 4. Refrescamos la lista
-    // (En el Paso 3, haremos que el Mock guarde esto,
-    // así que 'cargarComentarios' mostrará el nuevo comentario)
     await cargarComentarios(lugarId);
   }
-  // --- FIN DE MÉTODO ACOMPLADO ---
 
-  // --- ¡LÓGICA DE FAVORITOS CONECTADA! ---
-
+  // --- M. LÓGICA DE FAVORITOS (Intacta) ---
   bool esLugarFavorito(String lugarId) {
     return _authVM?.lugaresFavoritosIds.contains(lugarId) ?? false;
   }
@@ -283,4 +275,138 @@ class LugaresVM extends ChangeNotifier {
   Future<void> toggleLugarFavorito(String lugarId) async {
     await _authVM?.toggleLugarFavorito(lugarId);
   }
+
+
+  // --- N. MÉTODOS (Órdenes para GESTIÓN DE LUGARES) ---
+  Future<void> cargarTodosLosLugares() async {
+    _estaCargandoGestion = true;
+    notifyListeners();
+    try {
+      _lugaresTotales = await _repositorio.obtenerTodosLosLugares();
+    } catch (e) {
+      _errorGestion = e.toString();
+    }
+    _estaCargandoGestion = false;
+    notifyListeners();
+  }
+
+  Future<void> crearLugar(Map<String, dynamic> datosLugar) async {
+    _estaCargandoGestion = true;
+    _errorGestion = null;
+    notifyListeners();
+    try {
+      final String provinciaId = datosLugar['provinciaId'];
+      final String categoriaId = datosLugar['categoriaId'];
+      final String provinciaNombre = _provincias.firstWhere((p) => p.id == provinciaId).nombre;
+      final String categoriaNombre = _categorias.firstWhere((c) => c.id == categoriaId).nombre;
+      datosLugar['provinciaNombre'] = provinciaNombre;
+      datosLugar['categoriaNombre'] = categoriaNombre;
+      await _repositorio.crearLugar(datosLugar);
+      await cargarTodosLosLugares();
+    } catch (e) {
+      _errorGestion = e.toString();
+    } finally {
+      _estaCargandoGestion = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> actualizarLugar(String lugarId, Map<String, dynamic> datosLugar) async {
+    _estaCargandoGestion = true;
+    _errorGestion = null;
+    notifyListeners();
+    try {
+      final String provinciaId = datosLugar['provinciaId'];
+      final String categoriaId = datosLugar['categoriaId'];
+      final String provinciaNombre = _provincias.firstWhere((p) => p.id == provinciaId).nombre;
+      final String categoriaNombre = _categorias.firstWhere((c) => c.id == categoriaId).nombre;
+      datosLugar['provinciaNombre'] = provinciaNombre;
+      datosLugar['categoriaNombre'] = categoriaNombre;
+      await _repositorio.actualizarLugar(lugarId, datosLugar);
+      await cargarTodosLosLugares();
+    } catch (e) {
+      _errorGestion = e.toString();
+    } finally {
+      _estaCargandoGestion = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> eliminarLugar(String lugarId) async {
+    _estaCargandoGestion = true;
+    _errorGestion = null;
+    notifyListeners();
+    try {
+      await _repositorio.eliminarLugar(lugarId);
+      _lugaresTotales.removeWhere((l) => l.id == lugarId);
+    } catch (e) {
+      _errorGestion = e.toString();
+    }
+    _estaCargandoGestion = false;
+    notifyListeners();
+  }
+
+
+  // --- ¡AÑADIDO! O. MÉTODOS (Órdenes para GESTIÓN DE PROVINCIAS) ---
+
+  // Usado para recargar la lista de 'provinciasFiltradas' en la página de gestión
+  Future<void> cargarTodasLasProvincias() async {
+    _estaCargandoGestion = true;
+    notifyListeners();
+    try {
+      // _provincias ya se carga al inicio, pero forzamos recarga
+      _provincias = await _repositorio.obtenerProvincias();
+    } catch (e) {
+      _errorGestion = e.toString();
+    }
+    _estaCargandoGestion = false;
+    notifyListeners();
+  }
+
+  Future<void> crearProvincia(Map<String, dynamic> datosProvincia) async {
+    _estaCargandoGestion = true;
+    _errorGestion = null;
+    notifyListeners();
+    try {
+      await _repositorio.crearProvincia(datosProvincia);
+      // Recargamos la lista local
+      await cargarTodasLasProvincias();
+    } catch (e) {
+      _errorGestion = e.toString();
+    } finally {
+      _estaCargandoGestion = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> actualizarProvincia(String provinciaId, Map<String, dynamic> datosProvincia) async {
+    _estaCargandoGestion = true;
+    _errorGestion = null;
+    notifyListeners();
+    try {
+      await _repositorio.actualizarProvincia(provinciaId, datosProvincia);
+      await cargarTodasLasProvincias();
+    } catch (e) {
+      _errorGestion = e.toString();
+    } finally {
+      _estaCargandoGestion = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> eliminarProvincia(String provinciaId) async {
+    _estaCargandoGestion = true;
+    _errorGestion = null;
+    notifyListeners();
+    try {
+      await _repositorio.eliminarProvincia(provinciaId);
+      // Actualizamos la lista localmente
+      _provincias.removeWhere((p) => p.id == provinciaId);
+    } catch (e) {
+      _errorGestion = e.toString();
+    }
+    _estaCargandoGestion = false;
+    notifyListeners();
+  }
+// --- FIN DE LO AÑADIDO ---
 }

@@ -2,6 +2,7 @@
 //
 // 1. (ACOMPLADO): Se añadieron las 3 "órdenes" para el Admin:
 //    obtenerSolicitudesPendientes, aprobarGuia, rechazarGuia.
+// 2. (¡NUEVO!): Añadidas las órdenes 9 y 10 para Gestionar Cuentas.
 
 // 1. Importamos la "Receta" (Entidad)
 import '../entidades/usuario.dart';
@@ -30,7 +31,7 @@ abstract class AutenticacionRepositorio {
   // ORDEN 5: "Enviar la solicitud para ser guía"
   Future<void> solicitarSerGuia(String experiencia, String rutaCertificado);
 
-  // --- ¡NUEVAS ÓRDENES PARA EL ADMIN! (ACOMPLADO) ---
+  // --- ¡NUEVAS ÓRDENES PARA EL ADMIN! (Gestión de Guías) ---
 
   // ORDEN 6: "Traer la lista de usuarios que están 'guia_pendiente'"
   Future<List<Usuario>> obtenerSolicitudesPendientes();
@@ -41,5 +42,13 @@ abstract class AutenticacionRepositorio {
   // ORDEN 8: "Rechazar a un guía" (cambiar rol a 'turista' o 'guia_rechazado')
   Future<void> rechazarGuia(String usuarioId);
 
-// --- FIN DE NUEVAS ÓRDENES ---
+  // --- ¡AÑADIDO! ÓRDENES PARA GESTIÓN DE CUENTAS ---
+
+  // ORDEN 9: "Traer la lista de TODOS los usuarios"
+  Future<List<Usuario>> obtenerTodosLosUsuarios();
+
+  // ORDEN 10: "Eliminar un usuario de la base de datos"
+  Future<void> eliminarUsuario(String usuarioId);
+
+// --- FIN DE LO AÑADIDO ---
 }

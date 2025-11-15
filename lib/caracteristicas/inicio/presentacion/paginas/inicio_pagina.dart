@@ -3,6 +3,7 @@
 // 1. (RESTAURADO): 'Image.network' ahora usa 'item.urlImagen' y 'p.urlImagen'
 //    para jalar las imágenes (ahora de Picsum) desde el Mock.
 // 2. (ESTABLE): Mantiene toda la lógica de AuthVM, Favoritos y Navegación.
+// 3. (¡CORREGIDO!): El Header ahora solo muestra la Campana (si está logueado).
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -16,6 +17,11 @@ import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart'
 import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/provincia.dart';
 import '../../dominio/entidades/categoria.dart';
+
+// --- ¡AÑADIDO! ---
+// Importamos el VM de Notificaciones para la campana
+import '../../../notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
+// --- FIN DE LO AÑADIDO ---
 
 class InicioPagina extends StatefulWidget {
   const InicioPagina({super.key});
@@ -93,7 +99,7 @@ class _InicioPaginaState extends State<InicioPagina> {
   @override
   Widget build(BuildContext context) {
     final vmLugares = context.watch<LugaresVM>();
-    final vmAuth = context.watch<AutenticacionVM>();
+    final vmAuth = context.watch<AutenticacionVM>(); // <-- vmAuth ya está aquí
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
@@ -111,7 +117,7 @@ class _InicioPaginaState extends State<InicioPagina> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(context, vmAuth),
+              _buildHeader(context, vmAuth), // <-- Le pasamos el vmAuth
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                 child: TextField(
@@ -210,6 +216,7 @@ class _InicioPaginaState extends State<InicioPagina> {
               SizedBox(
                 height: 48,
                 child: ListView.separated(
+                  // (Tu código de Categorías intacto...)
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   scrollDirection: Axis.horizontal,
                   itemCount: vmLugares.categorias.length,
@@ -286,6 +293,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                             'No hay provincias que coincidan con tus filtros.')))
                     : AnimationLimiter(
                   child: GridView.builder(
+                    // (Tu código de Provincias intacto...)
                     physics:
                     const NeverScrollableScrollPhysics(),
                     shrinkWrap: true,
@@ -337,18 +345,20 @@ class _InicioPaginaState extends State<InicioPagina> {
 
   // --- Widgets de Tarjetas (Tu diseño) ---
 
+  // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
   Widget _buildHeader(BuildContext context, AutenticacionVM vmAuth) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20.0, 16.0, 20.0, 16.0),
+      padding: const EdgeInsets.fromLTRB(20.0, 16.0, 8.0, 16.0),
       color: Theme.of(context).colorScheme.primary,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Columna de Bienvenida (intacta)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Bienvenido,',
+                'Bienvenido:',
                 style: TextStyle(fontSize: 16, color: Colors.white70),
               ),
               Text(
@@ -361,27 +371,59 @@ class _InicioPaginaState extends State<InicioPagina> {
               ),
             ],
           ),
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: Colors.white.withOpacity(0.2),
-            backgroundImage: (vmAuth.estaLogueado && vmAuth.usuarioActual!.urlFotoPerfil != null && vmAuth.usuarioActual!.urlFotoPerfil!.isNotEmpty)
-                ? NetworkImage(vmAuth.usuarioActual!.urlFotoPerfil!)
-                : null,
-            child: (vmAuth.estaLogueado && (vmAuth.usuarioActual!.urlFotoPerfil == null || vmAuth.usuarioActual!.urlFotoPerfil!.isEmpty))
-                ? Text(
-              vmAuth.usuarioActual!.nombre.substring(0, 1).toUpperCase(),
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-            )
-                : (!vmAuth.estaLogueado ? const Icon(Icons.person_outline, size: 28, color: Colors.white) : null),
+
+          // Fila para los iconos de la derecha
+          Row(
+            children: [
+              // 1. Campana de Notificaciones (SÓLO si está logueado)
+              if (vmAuth.estaLogueado) // <-- REGLA DE LOGIN
+                Consumer<NotificacionesVM>(
+                  builder: (context, vmNotificaciones, child) {
+                    final int unreadCount = vmNotificaciones.unreadCount;
+
+                    return IconButton(
+                      icon: Badge(
+                        isLabelVisible: unreadCount > 0,
+                        label: Text(unreadCount.toString()),
+                        child: const Icon(Icons.notifications_outlined, color: Colors.white),
+                      ),
+                      onPressed: () {
+                        context.push('/notificaciones');
+                      },
+                    );
+                  },
+                ),
+
+              // 2. Botón de Ajustes (Tornillo ⚙️)
+              // (Eliminado según tus instrucciones)
+
+              // 3. Avatar del Perfil (Tu código original)
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.white.withOpacity(0.2),
+                backgroundImage: (vmAuth.estaLogueado && vmAuth.usuarioActual!.urlFotoPerfil != null && vmAuth.usuarioActual!.urlFotoPerfil!.isNotEmpty)
+                    ? NetworkImage(vmAuth.usuarioActual!.urlFotoPerfil!)
+                    : null,
+                child: (vmAuth.estaLogueado && (vmAuth.usuarioActual!.urlFotoPerfil == null || vmAuth.usuarioActual!.urlFotoPerfil!.isEmpty))
+                    ? Text(
+                  vmAuth.usuarioActual!.nombre.substring(0, 1).toUpperCase(),
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                )
+                    : (!vmAuth.estaLogueado ? const Icon(Icons.person_outline, size: 28, color: Colors.white) : null),
+              ),
+              const SizedBox(width: 4),
+            ],
           ),
         ],
       ),
     );
   }
+  // --- FIN DE LA CORRECCIÓN ---
 
 
   // --- ¡TARJETA DEL CARRUSEL RESTAURADA! ---
   Widget _buildCarouselCard(Lugar item, LugaresVM vmLugares, AutenticacionVM vmAuth) {
+    // (Tu código intacto aquí...)
     final bool esFavorito = vmLugares.esLugarFavorito(item.id);
 
     return Padding(
@@ -398,12 +440,10 @@ class _InicioPaginaState extends State<InicioPagina> {
             children: [
               Hero(
                   tag: 'lugar_imagen_${item.id}',
-                  // --- ¡RESTAURADO! ---
-                  child: Image.network(item.urlImagen, // <-- Lee la URL del Mock
+                  child: Image.network(item.urlImagen,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) =>
                           Container(color: Colors.grey[300]))),
-              // --- FIN DE RESTAURACIÓN ---
               Container(
                   decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -474,14 +514,13 @@ class _InicioPaginaState extends State<InicioPagina> {
   }
 
   Widget _buildProvinceCard(Provincia p) {
+    // (Tu código intacto aquí...)
     return Stack(
       fit: StackFit.expand,
       children: [
-        // --- ¡RESTAURADO! ---
-        Image.network(p.urlImagen, // <-- Lee la URL del Mock
+        Image.network(p.urlImagen,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(color: Colors.grey[200])),
-        // --- FIN DE RESTAURACIÓN ---
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -542,7 +581,7 @@ class _InicioPaginaState extends State<InicioPagina> {
     required int currentIndex,
     required BuildContext context,
   }) {
-    // (Tu widget de indicadores intacto)
+    // (Tu código intacto aquí...)
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) {
@@ -571,6 +610,7 @@ class _InicioPaginaState extends State<InicioPagina> {
   }
 
   bool _checkAndRedirect(BuildContext context, String action) {
+    // (Tu código intacto aquí...)
     final authVM = context.read<AutenticacionVM>();
     if (!authVM.estaLogueado) {
       _showLoginRequiredModal(context, action);
@@ -580,6 +620,7 @@ class _InicioPaginaState extends State<InicioPagina> {
   }
 
   void _showLoginRequiredModal(BuildContext context, String action) {
+    // (Tu código intacto aquí...)
     final colorPrimario = Theme.of(context).colorScheme.primary;
     showDialog(
       context: context,

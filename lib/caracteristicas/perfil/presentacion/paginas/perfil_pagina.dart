@@ -1,17 +1,22 @@
 // --- PIEDRA 7 (PERFIL): EL "MENÚ" DE PERFIL (ACOMPLADO CON STRING? NULABLE) ---
 //
-// 1. (BUG NAVEGACIÓN CORREGIDO): Se corrigieron 4 rutas de 'context.push'
-//    para que usen la ruta absoluta (ej. '/perfil/mis-favoritos')
-//    en lugar de la ruta relativa (ej. '/mis-favoritos').
+// 1. (BUG NAVEGACIÓN CORREGIDO): Se corrigieron 4 rutas de 'context.push'.
+// 2. (¡DISEÑO RESTAURADO!): Se restauró el AppBar de tamaño normal.
+// 3. (¡AÑADIDO!): Se añadieron la campana 🔔 y el tornillo ⚙️ al AppBar
+//    (solo si el usuario está logueado).
+// 4. (¡AÑADIDO!): Se añadió la animación 'viaje.json' a la pantalla de
+//    "Bienvenido Visitante" (No logueado).
+// 5. (¡CORREGIDO!): Se corrigieron los typos de 'shade700'.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:lottie/lottie.dart'; // <-- Importación de Lottie
 
-// --- MVVM: IMPORTACIONES ---
-import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
-// ¡Necesitamos RutasVM solo para el botón de "Mis Rutas Creadas"!
-import '../../../rutas/presentacion/vista_modelos/rutas_vm.dart';
+// --- MVVM: IMPORTACIONES (Rutas absolutas) ---
+import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
+import 'package:xplore_cusco/caracteristicas/rutas/presentacion/vista_modelos/rutas_vm.dart';
+import 'package:xplore_cusco/caracteristicas/notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
 
 
 class PerfilPagina extends StatelessWidget {
@@ -25,27 +30,63 @@ class PerfilPagina extends StatelessWidget {
   // --- Construcción del "Menú" (UI) ---
   @override
   Widget build(BuildContext context) {
-    // "Escuchamos" (watch) SOLAMENTE al "Cerebro" y a RutasVM (para el botón de Guía)
     final vmAuth = context.watch<AutenticacionVM>();
-    final vmRutas = context.watch<RutasVM>(); // Para el botón de "Creadas por mí"
-
+    final vmRutas = context.watch<RutasVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
-    // Si el "Mesero" está "cargando"
-    // Ahora solo dependemos de AuthVM, la carga es más rápida.
+    // --- ¡ANIMACIÓN LOTTIE EN ESTADO DE CARGA! ---
     if (vmAuth.estaCargando) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        body: Center(
+          child: Lottie.asset(
+            'assets/animaciones/viaje.json',
+            width: 150,
+            height: 150,
+            fit: BoxFit.contain,
+            repeat: true,
+          ),
+        ),
       );
     }
+    // --- FIN DE ANIMACIÓN LOTTIE ---
 
-    // --- Lógica Principal: ¿ESTÁ LOGUEADO? ---
     return Scaffold(
+      // --- ¡APPBAR RESTAURADO A TU DISEÑO ORIGINAL! ---
       appBar: AppBar(
         title: const Text('Mi Perfil'),
-        backgroundColor: colorPrimario,
+        backgroundColor: colorPrimario, // Tu color azul
         elevation: 0,
         foregroundColor: Colors.white,
+
+        // --- ¡AÑADIDO! Iconos 🔔 y ⚙️ ---
+        actions: [
+          if (vmAuth.estaLogueado) ...[
+            Consumer<NotificacionesVM>(
+              builder: (context, vmNotificaciones, child) {
+                final int unreadCount = vmNotificaciones.unreadCount;
+                return IconButton(
+                  icon: Badge(
+                    isLabelVisible: unreadCount > 0,
+                    label: Text(unreadCount.toString()),
+                    child: const Icon(Icons.notifications_outlined),
+                  ),
+                  onPressed: () {
+                    context.push('/notificaciones');
+                  },
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Navegando a Ajustes (Próximamente)')),
+                );
+              },
+            ),
+          ],
+        ],
+        // --- FIN DE LO AÑADIDO ---
       ),
       body: vmAuth.estaLogueado
           ? _buildPerfilLogueado(context, vmAuth, vmRutas, colorPrimario) // Vista 1: Logueado
@@ -59,15 +100,12 @@ class PerfilPagina extends StatelessWidget {
   Widget _buildPerfilLogueado(
       BuildContext context,
       AutenticacionVM vmAuth,
-      RutasVM vmRutas, // <-- Añadido
-      Color colorPrimario
+      RutasVM vmRutas,
+      Color colorPrimario // <-- Tu variable original
       ) {
     final usuario = vmAuth.usuarioActual!;
     final textTheme = Theme.of(context).textTheme;
 
-    // (La lógica de filtrado ya no se hace aquí, se hará en las nuevas páginas)
-
-    // Lógica para mostrar el rol de forma amigable
     String rolDisplay;
     Color rolColor;
     switch (usuario.rol) {
@@ -101,7 +139,7 @@ class PerfilPagina extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: colorPrimario,
+              color: colorPrimario, // <-- Tu cabecera azul
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(30),
                 bottomRight: Radius.circular(30),
@@ -109,26 +147,19 @@ class PerfilPagina extends StatelessWidget {
             ),
             child: Column(
               children: [
-
-                // --- ¡AQUÍ ESTÁ LA CORRECCIÓN DEL BUG! ---
                 CircleAvatar(
                   radius: 40,
                   backgroundColor: Colors.white,
-                  // 1. Comprueba si la URL NO es nula Y NO está vacía
                   backgroundImage: (usuario.urlFotoPerfil != null && usuario.urlFotoPerfil!.isNotEmpty)
-                      ? NetworkImage(usuario.urlFotoPerfil!) // Si es válida, úsala
-                      : null, // Si es nula, no pongas imagen de fondo
-
-                  // 2. Si la URL ES nula O está vacía, muestra las iniciales
+                      ? NetworkImage(usuario.urlFotoPerfil!)
+                      : null,
                   child: (usuario.urlFotoPerfil == null || usuario.urlFotoPerfil!.isEmpty)
                       ? Text(
                     usuario.nombre.substring(0, 1).toUpperCase(),
                     style: TextStyle(color: colorPrimario, fontSize: 32, fontWeight: FontWeight.bold),
                   )
-                      : null, // Si hay imagen de fondo, no muestres nada encima
+                      : null,
                 ),
-                // --- FIN DE LA CORRECCIÓN ---
-
                 const SizedBox(height: 12),
                 Text(
                   usuario.nombre,
@@ -153,23 +184,21 @@ class PerfilPagina extends StatelessWidget {
           _buildTituloSeccion('Mi Actividad'),
           _buildOpcion(
             context: context,
-            icon: Icons.favorite, // Icono lleno
+            icon: Icons.favorite,
             titulo: 'Mis Lugares Favoritos',
             subtitulo: 'Ver los lugares que guardaste',
             color: Colors.red.shade700,
             onTap: () {
-              // --- ¡CORREGIDO! ---
               context.push('/perfil/mis-favoritos');
             },
           ),
           _buildOpcion(
             context: context,
-            icon: Icons.check_circle, // Icono lleno
+            icon: Icons.check_circle,
             titulo: 'Mis Rutas Registradas',
             subtitulo: 'Ver las rutas a las que te inscribiste',
-            color: Colors.green.shade700,
+            color: Colors.green.shade700, // <-- Corregido
             onTap: () {
-              // --- ¡CORREGIDO! ---
               context.push('/perfil/mis-rutas');
             },
           ),
@@ -188,9 +217,7 @@ class PerfilPagina extends StatelessWidget {
               subtitulo: 'Gestionar las rutas que publicaste',
               color: Colors.blue.shade700,
               onTap: () {
-                // Esta navegación es diferente, cambia la PESTAÑA.
                 context.read<RutasVM>().cambiarPestana('Creadas por mí');
-                // Y LUEGO navega a la página de rutas.
                 context.go('/rutas');
               },
             ),
@@ -204,7 +231,6 @@ class PerfilPagina extends StatelessWidget {
               subtitulo: 'Envía tu solicitud para crear rutas',
               color: Colors.blue.shade700,
               onTap: () {
-                // --- ¡CORREGIDO! ---
                 context.push('/perfil/solicitar-guia');
               },
             ),
@@ -227,7 +253,6 @@ class PerfilPagina extends StatelessWidget {
               subtitulo: 'Toca para revisar y enviar de nuevo',
               color: Colors.red.shade700,
               onTap: () {
-                // --- ¡CORREGIDO! ---
                 context.push('/perfil/solicitar-guia');
               },
             ),
@@ -239,9 +264,8 @@ class PerfilPagina extends StatelessWidget {
               icon: Icons.admin_panel_settings,
               titulo: 'Panel de Administrador',
               subtitulo: 'Gestionar solicitudes de guías',
-              color: Colors.purple.shade700,
+              color: Colors.purple.shade700, // <-- Corregido
               onTap: () {
-                // Esta ruta es raíz, por lo que ¡ESTÁ BIEN!
                 context.push('/panel-admin');
               },
             ),
@@ -273,10 +297,19 @@ class PerfilPagina extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(Icons.person_off_outlined, size: 80, color: Colors.grey[400]),
+
+            // --- ¡AQUÍ ESTÁ LA ANIMACIÓN PARA "VISITANTE"! ---
+            Lottie.asset(
+              'assets/animaciones/viaje.json',
+              width: 120,
+              height: 120,
+              fit: BoxFit.contain,
+            ),
+            // --- FIN DE LA ANIMACIÓN ---
+
             const SizedBox(height: 24),
             const Text(
-              'Bienvenido Anónimo',
+              'Bienvenido Visitante',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -288,7 +321,7 @@ class PerfilPagina extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: () => context.push('/login'), // Esta ruta es raíz, está BIEN.
+              onPressed: () => context.push('/login'),
               style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
                   backgroundColor: colorPrimario,
@@ -297,7 +330,7 @@ class PerfilPagina extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             OutlinedButton(
-              onPressed: () => context.push('/registro'), // Esta ruta es raíz, está BIEN.
+              onPressed: () => context.push('/registro'),
               style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
                   side: BorderSide(color: colorPrimario)),

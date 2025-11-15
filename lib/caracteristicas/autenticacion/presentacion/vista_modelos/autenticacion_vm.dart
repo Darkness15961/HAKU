@@ -1,8 +1,9 @@
 // --- PIEDRA 5 (AUTENTICACIÓN): EL "CEREBRO" (ACOMPLADO CON ADMIN) ---
 //
-// 1. (ACOMPLADO): Ahora maneja el rol 'admin' al iniciar sesión.
-// 2. (ACOMPLADO): Carga la lista de 'usuariosPendientes' si eres admin.
+// (...)
 // 3. (ACOMPLADO): Tiene los métodos 'aprobarGuia' y 'rechazarGuia'.
+// 4. (¡NUEVO!): Añadida la lógica para 'Gestionar Cuentas'
+//    (cargarUsuariosTotales y eliminarUsuario).
 
 import 'package:flutter/material.dart';
 import '../../dominio/repositorios/autenticacion_repositorio.dart';
@@ -26,14 +27,17 @@ class AutenticacionVM extends ChangeNotifier {
   // --- ¡NUEVO ESTADO DE ADMIN! ---
   List<Usuario> _usuariosPendientes = [];
   bool _estaCargandoAdmin = false;
-  // --- FIN NUEVO ESTADO ---
+
+  // --- ¡AÑADIDO PARA GESTIÓN DE CUENTAS! ---
+  List<Usuario> _usuariosTotales = [];
+  // --- FIN DE LO AÑADIDO ---
 
   // --- C. GETTERS ---
   bool get estaCargando => _estaCargando;
   Usuario? get usuarioActual => _usuarioActual;
   String? get error => _error;
   bool get estaLogueado => _usuarioActual != null;
-  bool get esAdmin => _usuarioActual?.rol == 'admin'; // <-- ¡NUEVO GETTER!
+  bool get esAdmin => _usuarioActual?.rol == 'admin';
 
   // --- ¡GETTERS DEL CEREBRO! ---
   List<String> get lugaresFavoritosIds => _lugaresFavoritosIds;
@@ -43,7 +47,10 @@ class AutenticacionVM extends ChangeNotifier {
   // --- ¡NUEVOS GETTERS DE ADMIN! ---
   List<Usuario> get usuariosPendientes => _usuariosPendientes;
   bool get estaCargandoAdmin => _estaCargandoAdmin;
-  // --- FIN NUEVOS GETTERS ---
+
+  // --- ¡AÑADIDO PARA GESTIÓN DE CUENTAS! ---
+  List<Usuario> get usuariosTotales => _usuariosTotales;
+  // --- FIN DE LO AÑADIDO ---
 
   // --- D. CONSTRUCTOR ---
   AutenticacionVM() {
@@ -69,6 +76,8 @@ class AutenticacionVM extends ChangeNotifier {
       if (esAdmin) {
         // Si el usuario es Admin, cargamos las solicitudes
         await cargarSolicitudesPendientes();
+        // (No cargamos todas las cuentas aquí,
+        // lo haremos en la página específica)
       }
 
     } else {
@@ -123,10 +132,15 @@ class AutenticacionVM extends ChangeNotifier {
     _lugaresFavoritosIds = [];
     _rutasInscritasIds = [];
     _rutasFavoritasIds = [];
-    _usuariosPendientes = []; // <-- ¡ACOMPLADO!
+    _usuariosPendientes = [];
+    _usuariosTotales = []; // <-- ¡ACOMPLADO!
   }
 
   // --- MÉTODOS DE ACCIÓN DEL CEREBRO (Turista/Guía) ---
+  // (Tus métodos toggleLugarFavorito, toggleRutaInscrita,
+  //  toggleRutaFavorita, registrarUsuario, solicitarSerGuia
+  //  quedan 100% intactos)
+
   Future<void> toggleLugarFavorito(String lugarId) async {
     if (_lugaresFavoritosIds.contains(lugarId)) {
       _lugaresFavoritosIds.remove(lugarId);
@@ -154,7 +168,6 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // (El resto de métodos - registrarUsuario, solicitarSerGuia - quedan igual)
   Future<bool> registrarUsuario(
       String nombre, String email, String password, String dni) async {
     _estaCargando = true;
@@ -182,7 +195,6 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
     try {
       await _repositorio.solicitarSerGuia(experiencia, rutaCertificado);
-      // Actualizamos el estado para que el rol cambie a 'guia_pendiente'
       await verificarEstadoSesion();
       _estaCargando = false;
       notifyListeners();
@@ -195,11 +207,11 @@ class AutenticacionVM extends ChangeNotifier {
     }
   }
 
-  // --- ¡NUEVOS MÉTODOS DE ACCIÓN DEL ADMIN! (ACOMPLADO) ---
+  // --- ¡MÉTODOS DE ACCIÓN DEL ADMIN! (Gestión de Guías) ---
 
   // ORDEN 6 (Admin): Cargar la lista
   Future<void> cargarSolicitudesPendientes() async {
-    if (esAdmin == false) return; // Seguridad
+    if (esAdmin == false) return;
     _estaCargandoAdmin = true;
     notifyListeners();
     try {
@@ -213,12 +225,11 @@ class AutenticacionVM extends ChangeNotifier {
 
   // ORDEN 7 (Admin): Aprobar
   Future<void> aprobarGuia(String usuarioId) async {
-    if (esAdmin == false) return; // Seguridad
+    if (esAdmin == false) return;
     _estaCargandoAdmin = true;
     notifyListeners();
     try {
       await _repositorio.aprobarGuia(usuarioId);
-      // Refrescamos la lista
       await cargarSolicitudesPendientes();
     } catch (e) {
       _error = e.toString();
@@ -229,12 +240,11 @@ class AutenticacionVM extends ChangeNotifier {
 
   // ORDEN 8 (Admin): Rechazar
   Future<void> rechazarGuia(String usuarioId) async {
-    if (esAdmin == false) return; // Seguridad
+    if (esAdmin == false) return;
     _estaCargandoAdmin = true;
     notifyListeners();
     try {
       await _repositorio.rechazarGuia(usuarioId);
-      // Refrescamos la lista
       await cargarSolicitudesPendientes();
     } catch (e) {
       _error = e.toString();
@@ -242,6 +252,49 @@ class AutenticacionVM extends ChangeNotifier {
     _estaCargandoAdmin = false;
     notifyListeners();
   }
-// --- FIN DE NUEVOS MÉTODOS ---
+
+  // --- ¡AÑADIDO! MÉTODOS DE ACCIÓN DEL ADMIN (Gestión de Cuentas) ---
+
+  // ORDEN 9 (Admin): Cargar todas las cuentas
+  Future<void> cargarUsuariosTotales() async {
+    if (esAdmin == false) return; // Seguridad
+    _estaCargandoAdmin = true;
+    notifyListeners();
+    try {
+      // Usaremos un nuevo método del repositorio (que aún no existe)
+      _usuariosTotales = await _repositorio.obtenerTodosLosUsuarios();
+    } catch (e) {
+      _error = e.toString();
+    }
+    _estaCargandoAdmin = false;
+    notifyListeners();
+  }
+
+  // ORDEN 10 (Admin): Eliminar una cuenta
+  Future<void> eliminarUsuario(String usuarioId) async {
+    if (esAdmin == false) return; // Seguridad
+    if (usuarioId == _usuarioActual?.id) { // Doble seguridad
+      _error = "No puedes eliminarte a ti mismo.";
+      notifyListeners();
+      return;
+    }
+
+    _estaCargandoAdmin = true;
+    notifyListeners();
+    try {
+      // Usaremos un nuevo método del repositorio (que aún no existe)
+      await _repositorio.eliminarUsuario(usuarioId);
+
+      // Refrescamos la lista después de eliminar
+      // (Lo hacemos manualmente para ahorrar una llamada a la BD)
+      _usuariosTotales.removeWhere((u) => u.id == usuarioId);
+
+    } catch (e) {
+      _error = e.toString();
+    }
+    _estaCargandoAdmin = false;
+    notifyListeners();
+  }
+// --- FIN DE LO AÑADIDO ---
 
 }

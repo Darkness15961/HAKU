@@ -1,10 +1,10 @@
 // --- PIEDRA 6.5: PÁGINA DE LUGARES POR PROVINCIA (FINAL Y ESTÉTICO) ---
 //
-// 1. Lógica de filtrado y búsqueda en la UI (ListView) COMPLETAMENTE funcional.
-// 2. Diseño de filtros y tarjetas mejorado para ser estético y profesional.
-// 3. Implementa el "Guardia" de seguridad (_checkAndRedirect) en el botón de favorito.
-// 4. (BUG NAVEGACIÓN CORREGIDO): Se corrigió la ruta del 'onTap' de la tarjeta
-//    de '/detalle-lugar' a '/inicio/detalle-lugar'.
+// (...)
+// 5. (¡DISEÑO ELEGANTE!): Se rediseñó _buildLugaresList para mover
+//    el chip de categoría a la imagen.
+// 6. (¡DISEÑO ELEGANTE 2.0!): Se cambió el chip de categoría por un
+//    contenedor con gradiente para un look más profesional.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -79,7 +79,7 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
 
   // --- Construcción del "Menú" (UI) ---
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext contex) {
     // Escuchamos a los dos ViewModels
     final vmLugares = context.watch<LugaresVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
@@ -127,9 +127,9 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
   // --- WIDGETS AUXILIARES (Diseño Profesional) ---
 
   Widget _buildSearchAndFilterRow(BuildContext context, LugaresVM vmLugares) {
+    // (Tu código intacto aquí...)
     final List<Categoria> categorias = [
       Categoria(id: '1', nombre: 'Todos', urlImagen: ''),
-      // Solo mostramos categorías que son relevantes para esta provincia
       ...vmLugares.categorias.where((c) => c.id != '1').toList()
     ];
 
@@ -140,11 +140,9 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
         children: [
-          // Campo de Búsqueda (Estético)
           Expanded(
             child: TextField(
               controller: _searchCtrl,
-              // Diseño mejorado con sombra sutil
               decoration: InputDecoration(
                 hintText: 'Buscar lugar...',
                 prefixIcon: const Icon(Icons.search, size: 20),
@@ -159,8 +157,6 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
             ),
           ),
           const SizedBox(width: 10),
-
-          // Dropdown de Filtro por Categoría (Estético y compacto)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
@@ -188,8 +184,6 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                 }).toList(),
                 onChanged: (String? newValue) {
                   if (newValue != null) {
-                    // --- ¡CONEXIÓN DE FILTRO FUNCIONAL! ---
-                    // Esto llama al VM, que notifica a la Vista para que se redibuje con el nuevo filtro.
                     vmLugares.seleccionarCategoriaEnProvincia(newValue);
                   }
                 },
@@ -201,7 +195,7 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
     );
   }
 
-  // Lista de Lugares (Diseño de Tarjeta Mejorado)
+  // --- ¡WIDGET REDISEÑADO PARA SER MÁS ELEGANTE! ---
   Widget _buildLugaresList(BuildContext context, LugaresVM vmLugares, List<Lugar> lugares) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -209,10 +203,11 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
       itemBuilder: (context, index) {
         final lugar = lugares[index];
         final bool esFavorito = vmLugares.esLugarFavorito(lugar.id);
+        // final colorPrimario = Theme.of(context).colorScheme.primary; // Ya no lo usamos aquí
 
         return Card(
           margin: const EdgeInsets.only(bottom: 16.0),
-          elevation: 6, // Sombra más pronunciada
+          elevation: 6,
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Column(
@@ -224,12 +219,9 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                   // Imagen (Navega al Detalle)
                   InkWell(
                     onTap: () {
-                      // --- ¡CORREGIDO! ---
-                      // La ruta debe ser la ruta completa definida en app_rutas.dart
                       context.push('/inicio/detalle-lugar', extra: lugar);
-                      // --- FIN DE LA CORRECCIÓN ---
                     },
-                    child: Hero( // Hero para una transición suave (diseño profesional)
+                    child: Hero(
                       tag: 'lugar_imagen_${lugar.id}_provincia',
                       child: Image.network(
                         lugar.urlImagen,
@@ -265,6 +257,38 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                       ),
                     ),
                   ),
+
+                  // --- ¡CORRECCIÓN DE DISEÑO! (No más "azul feo") ---
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    // Usamos un gradiente negro para asegurar legibilidad
+                    child: Container(
+                      height: 60, // Altura del gradiente
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.7),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+                      alignment: Alignment.bottomLeft,
+                      child: Text(
+                        lugar.categoria,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // --- FIN DE LA CORRECCIÓN DE DISEÑO ---
                 ],
               ),
 
@@ -274,29 +298,28 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(lugar.nombre,
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.bold)),
+                    // Título y Rating
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            lugar.nombre,
+                            style: const TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        _buildRating(lugar.rating),
+                      ],
+                    ),
+
                     const SizedBox(height: 8),
                     Text(lugar.descripcion,
                         style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildRating(lugar.rating),
-                        Chip( // Usamos Chip para la categoría para mejor estética
-                          label: Text(lugar.categoria, style: const TextStyle(fontSize: 14)),
-                          backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                          labelStyle: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -306,6 +329,7 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
       },
     );
   }
+  // --- FIN DEL REDISEÑO ---
 
   Widget _buildRating(double rating) {
     return Row(
@@ -313,13 +337,14 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
       children: [
         Icon(Icons.star, color: Colors.amber, size: 18),
         const SizedBox(width: 4),
-        Text(rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       ],
     );
   }
 
   // --- WIDGET AUXILIAR: MODAL DE INVITACIÓN (Bloqueo Suave) ---
   void _showLoginRequiredModal(BuildContext context, String action) {
+    // (Tu código intacto aquí...)
     final colorPrimario = Theme.of(context).colorScheme.primary;
     showDialog(
       context: context,

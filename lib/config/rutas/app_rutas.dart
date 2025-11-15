@@ -1,10 +1,9 @@
 // --- MAPA DE RUTAS (GPS) DE LA APP (COMPLETO Y CORREGIDO) ---
 //
-// 1. (BUG CORREGIDO): Se eliminó la función 'redirect' completa.
-// 2. (ESTABLE): Mantiene la arquitectura 'ShellRoute'.
-// 3. (CORREGIDO): Se restaura '/panel-admin' como una ruta superior (sin cáscara)
-//    para permitir la redirección directa después del login.
-// 4. (CORREGIDO): Se rellenaron TODAS las rutas que tenían '(...)'
+// (...)
+// 7. (¡CORREGIDO!): Añadida la importación y la ruta para el
+//    nuevo sub-menú 'gestion-contenido'.
+// 8. (¡AÑADIDO AHORA!): Añadidas las rutas para 'gestion-provincias' y 'crear-provincia'.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'package:xplore_cusco/caracteristicas/mapa/presentacion/vista_modelos/mapa_vm.dart' as mapa_vm;
 
 // --- Importaciones de "Edificios" (Pantallas) ---
+// (Tus imports existentes...)
 import 'package:xplore_cusco/caracteristicas/splash/presentacion/paginas/splash_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/navegacion/presentacion/paginas/navegacion_principal.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/presentacion/paginas/inicio_pagina.dart';
@@ -31,6 +31,18 @@ import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/solicitar_guia_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_dashboard_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_gestion_guias_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_gestion_cuentas_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/notificaciones/presentacion/paginas/notificaciones_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_gestion_lugares_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_crear_lugar_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_gestion_contenido_pagina.dart';
+
+// --- ¡AÑADIDO! ---
+// Importamos las nuevas páginas de Gestión de Provincias
+import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_gestion_provincias_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_crear_provincia_pagina.dart';
+// --- FIN DE LO AÑADIDO ---
+
 
 // --- Importaciones de "Recetas" (Entidades) ---
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';
@@ -70,7 +82,6 @@ class AppRutas {
       ),
 
       // --- ¡RUTA DE ADMIN RESTAURADA AQUÍ! ---
-      // Esta es la ruta para el login directo del Admin
       GoRoute(
         path: '/panel-admin',
         builder: (BuildContext context, GoRouterState state) {
@@ -83,6 +94,56 @@ class AppRutas {
           return const AdminGestionGuiasPagina();
         },
       ),
+      GoRoute(
+        path: '/admin/gestion-cuentas',
+        builder: (BuildContext context, GoRouterState state) {
+          return const AdminGestionCuentasPagina();
+        },
+      ),
+      GoRoute(
+        path: '/admin/gestion-contenido',
+        builder: (BuildContext context, GoRouterState state) {
+          return const AdminGestionContenidoPagina();
+        },
+      ),
+      GoRoute(
+        path: '/admin/gestion-lugares',
+        builder: (BuildContext context, GoRouterState state) {
+          return const AdminGestionLugaresPagina();
+        },
+      ),
+      GoRoute(
+        path: '/admin/crear-lugar',
+        builder: (BuildContext context, GoRouterState state) {
+          final lugar = state.extra as Lugar?;
+          return AdminCrearLugarPagina(lugar: lugar);
+        },
+      ),
+
+      // --- ¡AÑADIDO! ---
+      // Rutas para la nueva Gestión de Provincias
+      GoRoute(
+        path: '/admin/gestion-provincias',
+        builder: (BuildContext context, GoRouterState state) {
+          return const AdminGestionProvinciasPagina();
+        },
+      ),
+      GoRoute(
+        path: '/admin/crear-provincia',
+        builder: (BuildContext context, GoRouterState state) {
+          final provincia = state.extra as Provincia?;
+          return AdminCrearProvinciaPagina(provincia: provincia);
+        },
+      ),
+      // --- FIN DE LO AÑADIDO ---
+
+      GoRoute(
+        path: '/notificaciones',
+        builder: (BuildContext context, GoRouterState state) {
+          return const NotificacionesPagina();
+        },
+      ),
+
 
       // --- LÓGICA DE "CÁSCARA" (ShellRoute) ---
       ShellRoute(
@@ -94,30 +155,30 @@ class AppRutas {
         // --- Pestañas Principales ---
         routes: <RouteBase>[
 
+          // (Tus pestañas 1, 2, 3, 4 van aquí intactas...)
           // --- Pestaña 1: INICIO ---
           GoRoute(
               path: '/inicio',
               builder: (BuildContext context, GoRouterState state) {
                 return const InicioPagina();
               },
-              // --- Rutas Hijas de Inicio ---
               routes: <RouteBase>[
                 GoRoute(
-                  path: 'provincia', // (Se convierte en '/inicio/provincia')
+                  path: 'provincia',
                   builder: (BuildContext context, GoRouterState state) {
                     final provincia = state.extra as Provincia;
                     return ProvinciaLugaresPagina(provincia: provincia);
                   },
                 ),
                 GoRoute(
-                  path: 'detalle-lugar', // ('/inicio/detalle-lugar')
+                  path: 'detalle-lugar',
                   builder: (BuildContext context, GoRouterState state) {
                     final lugar = state.extra as Lugar;
                     return DetalleLugarPagina(lugar: lugar);
                   },
                 ),
                 GoRoute(
-                  path: 'comentarios', // ('/inicio/comentarios')
+                  path: 'comentarios',
                   builder: (BuildContext context, GoRouterState state) {
                     final lugar = state.extra as Lugar;
                     return ComentariosPagina(lugar: lugar);
@@ -133,17 +194,15 @@ class AppRutas {
                 return const RutasPagina();
               },
               routes: <RouteBase>[
-                // --- ¡CORREGIDO! ---
                 GoRoute(
-                  path: 'detalle-ruta', // ('/rutas/detalle-ruta')
+                  path: 'detalle-ruta',
                   builder: (BuildContext context, GoRouterState state) {
                     final ruta = state.extra as Ruta;
                     return DetalleRutaPagina(ruta: ruta);
                   },
                 ),
-                // --- ¡CORREGIDO! ---
                 GoRoute(
-                  path: 'crear-ruta', // ('/rutas/crear-ruta')
+                  path: 'crear-ruta',
                   builder: (BuildContext context, GoRouterState state) {
                     final ruta = state.extra as Ruta?;
                     return CrearRutaPagina(ruta: ruta);
@@ -167,23 +226,20 @@ class AppRutas {
                 return const PerfilPagina();
               },
               routes: <RouteBase>[
-                // --- ¡CORREGIDO! ---
                 GoRoute(
-                  path: 'solicitar-guia', // ('/perfil/solicitar-guia')
+                  path: 'solicitar-guia',
                   builder: (BuildContext context, GoRouterState state) {
                     return const SolicitarGuiaPagina();
                   },
                 ),
-                // --- ¡CORREGIDO! ---
                 GoRoute(
-                  path: 'mis-favoritos', // ('/perfil/mis-favoritos')
+                  path: 'mis-favoritos',
                   builder: (BuildContext context, GoRouterState state) {
                     return const MisLugaresFavoritosPagina();
                   },
                 ),
-                // --- ¡CORREGIDO! ---
                 GoRoute(
-                  path: 'mis-rutas', // ('/perfil/mis-rutas')
+                  path: 'mis-rutas',
                   builder: (BuildContext context, GoRouterState state) {
                     return const MisRutasInscritasPagina();
                   },

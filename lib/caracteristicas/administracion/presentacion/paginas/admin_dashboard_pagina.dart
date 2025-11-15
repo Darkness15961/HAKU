@@ -1,10 +1,8 @@
 // --- PIEDRA 12 (ADMIN): EL "ENTORNO" (DASHBOARD PRINCIPAL) ---
 //
-// 1. (BUG NAVEGACIÓN CORREGIDO): El botón 'Cerrar Sesión' ahora
-//    usa 'await' y luego 'context.go('/perfil')' para redirigir
-//    a la página de perfil (como anónimo).
-// 2. (BUG UI CORREGIDO): Se añadió 'automaticallyImplyLeading: false'
-//    al AppBar para ocultar la flecha de "atrás".
+// (...)
+// 4. (¡HABILITADO!): El botón 'Gestionar Lugares' ahora navega.
+// 5. (¡CORREGIDO!): 'Gestionar Lugares' ahora apunta al nuevo sub-menú.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -19,7 +17,6 @@ class AdminDashboardPagina extends StatelessWidget {
     final vmAuth = context.watch<AutenticacionVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
-    // Obtenemos las estadísticas del "Cerebro"
     final int guiasPendientes = vmAuth.usuariosPendientes.length;
 
     return Scaffold(
@@ -28,26 +25,16 @@ class AdminDashboardPagina extends StatelessWidget {
         backgroundColor: colorPrimario,
         foregroundColor: Colors.white,
 
-        // --- ¡CORREGIDO! ---
-        // Esto deshabilita la flecha de "atrás" automática
         automaticallyImplyLeading: false,
-        // --- FIN DE CORRECCIÓN ---
 
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar Sesión',
             onPressed: () async {
-              // 1. Esperamos a que la sesión se cierre
               await context.read<AutenticacionVM>().cerrarSesion();
-
-              // 2. Comprobamos que el widget siga "vivo"
               if (!context.mounted) return;
-
-              // --- ¡CORREGIDO! ---
-              // 3. Navegamos a la página de Perfil (ahora como anónimo)
               context.go('/perfil');
-              // --- FIN DE LA CORRECCIÓN ---
             },
           )
         ],
@@ -71,7 +58,6 @@ class AdminDashboardPagina extends StatelessWidget {
                   valor: guiasPendientes.toString(),
                   icono: Icons.pending_actions,
                   color: Colors.orange.shade700,
-                  // Al tocar, refresca la lista
                   onTap: () => context.read<AutenticacionVM>().cargarSolicitudesPendientes(),
                 ),
                 // (Aquí puedes añadir más tarjetas de estadísticas en el futuro)
@@ -95,37 +81,36 @@ class AdminDashboardPagina extends StatelessWidget {
               icono: Icons.assignment_ind,
               color: Colors.orange.shade700,
               onTap: () {
-                // ¡Navega a la página que renombramos!
-                context.push('/admin/gestion-guias'); // <-- Esta ruta está BIEN
+                context.push('/admin/gestion-guias');
               },
             ),
 
-            // 2. Botón de Gestionar Lugares (Placeholder)
+            // --- ¡MODIFICADO! ---
+            // 2. Botón de Gestionar Contenido (Lugares, Provincias, etc.)
             _buildGestionOpcion(
               context,
-              titulo: 'Gestionar Lugares',
-              subtitulo: 'Crear, editar o eliminar lugares turísticos.',
+              titulo: 'Gestionar Contenido', // <-- Título cambiado
+              subtitulo: 'Gestionar lugares, provincias y categorías.', // <-- Subtítulo cambiado
               icono: Icons.place,
               color: Colors.blue.shade700,
               onTap: () {
-                // (A futuro)
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Módulo de Lugares (Próximamente)'))
-                );
+                // --- ¡CORREGIDO! ---
+                // Apunta al nuevo sub-menú
+                context.push('/admin/gestion-contenido');
+                // --- FIN DE CORRECCIÓN ---
               },
             ),
+            // --- FIN DE LA MODIFICACIÓN ---
 
-            // 3. Botón de Gestionar Cuentas (Placeholder)
+            // 3. Botón de Gestionar Cuentas
             _buildGestionOpcion(
               context,
               titulo: 'Gestionar Cuentas',
-              subtitulo: 'Ver y editar todos los usuarios (Turistas/Guías).',
+              subtitulo: 'Ver y eliminar todos los usuarios.',
               icono: Icons.people,
-              color: Colors.grey.shade700,
+              color: Colors.indigo.shade600,
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Módulo de Cuentas (Próximamente)'))
-                );
+                context.push('/admin/gestion-cuentas');
               },
             ),
           ],

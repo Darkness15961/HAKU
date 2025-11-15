@@ -24,6 +24,7 @@ dependencies:
   lottie: ^3.1.0
   flutter_staggered_animations: ^1.0.0
 
+
   # GEOLOCALIZACIÓN Y MAPAS
   # google_maps_flutter: ^2.5.0  <-- SE ELIMINÓ ESTA (DUPLICADA)
   geolocator: ^11.0.0
@@ -40,6 +41,7 @@ flutter:
     - assets/logo.webp
     - assets/xplora_cusco_logo.png
     - assets/log.png
+    - assets/animaciones/viaje.json
 
 # Configuración del splash nativo (ajústala si quieres)
 flutter_native_splash:

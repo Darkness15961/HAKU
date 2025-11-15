@@ -4,6 +4,9 @@
 // Es un "Menú" (diseño) que se conecta al
 // "Mesero de Seguridad" (AutenticacionVM) para
 // darle la "orden" de iniciar sesión.
+//
+// 1. (DISEÑO CORREGIDO): Se restauró el color del AppBar para
+//    que el título y la flecha de retroceso sean visibles.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -107,10 +110,14 @@ class _LoginPaginaState extends State<LoginPagina> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Iniciar Sesión'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        // El "leading" es el botón de "Atrás"
-        // (GoRouter lo pone automáticamente)
+        // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+        // Se quita la transparencia para que el AppBar sea visible
+        // backgroundColor: Colors.transparent, // <-- Eliminado
+        // elevation: 0, // <-- Eliminado
+
+        // Se añade 'surfaceTintColor' para un diseño limpio en Material 3
+        surfaceTintColor: Colors.transparent,
+        // --- FIN DE LA CORRECCIÓN ---
       ),
       body: Center(
         child: SingleChildScrollView(
