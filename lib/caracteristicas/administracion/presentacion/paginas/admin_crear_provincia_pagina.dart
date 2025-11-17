@@ -1,12 +1,14 @@
 // --- CARACTERISTICAS/ADMINISTRACION/PRESENTACION/PAGINAS/ADMIN_CREAR_PROVINCIA_PAGINA.DART ---
 //
 // Esta es la nueva página de formulario para Crear o Editar una Provincia.
-// 1. (¡CORREGIDO!): Se movió el 'helperText' dentro del 'InputDecoration'.
+// 1. (¡DISEÑO MEJORADO!): Se reemplazó el TextFormField de categorías
+//    por una lista de Checkboxes multiselect.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';
+import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/categoria.dart'; // Import Categoria
 import 'package:xplore_cusco/caracteristicas/inicio/presentacion/vista_modelos/lugares_vm.dart';
 
 class AdminCrearProvinciaPagina extends StatefulWidget {
@@ -23,7 +25,11 @@ class _AdminCrearProvinciaPaginaState extends State<AdminCrearProvinciaPagina> {
 
   final TextEditingController _nombreCtrl = TextEditingController();
   final TextEditingController _urlImagenCtrl = TextEditingController();
-  final TextEditingController _categoriasCtrl = TextEditingController();
+  // --- ¡ELIMINADO! Ya no usamos un controlador de texto para categorías ---
+  // final TextEditingController _categoriasCtrl = TextEditingController();
+
+  // --- ¡AÑADIDO! Lista para guardar las categorías seleccionadas ---
+  List<Categoria> _selectedCategories = [];
 
   bool _esModoEdicion = false;
 
@@ -37,8 +43,15 @@ class _AdminCrearProvinciaPaginaState extends State<AdminCrearProvinciaPagina> {
 
       _nombreCtrl.text = provincia.nombre;
       _urlImagenCtrl.text = provincia.urlImagen;
-      // Convertimos la lista de categorías en un string separado por comas
-      _categoriasCtrl.text = provincia.categories.join(', ');
+
+      // --- ¡MODIFICADO! ---
+      // Leemos el VM para pre-seleccionar las categorías
+      final vmLugares = context.read<LugaresVM>();
+      _selectedCategories = vmLugares.categorias.where((categoria) {
+        // Comparamos si el nombre de la categoría está en la lista de la provincia
+        return provincia.categories.any((catNombre) => catNombre.toLowerCase() == categoria.nombre.toLowerCase());
+      }).toList();
+      // --- FIN DE MODIFICACIÓN ---
     }
   }
 
@@ -46,21 +59,32 @@ class _AdminCrearProvinciaPaginaState extends State<AdminCrearProvinciaPagina> {
   void dispose() {
     _nombreCtrl.dispose();
     _urlImagenCtrl.dispose();
-    _categoriasCtrl.dispose();
+    // _categoriasCtrl.dispose(); // <-- ELIMINADO
     super.dispose();
   }
 
   Future<void> _submitForm() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    // --- ¡MODIFICADO! ---
+    // Validamos que al menos una categoría esté seleccionada
+    if (_selectedCategories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes seleccionar al menos una categoría.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    // --- FIN DE MODIFICACIÓN ---
+
     final vmLugares = context.read<LugaresVM>();
 
-    // Convertimos el string de categorías en una lista
-    final List<String> categoriesList = _categoriasCtrl.text
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+    // --- ¡MODIFICADO! ---
+    // Convertimos nuestra lista de objetos Categoria a una lista de Strings
+    final List<String> categoriesList = _selectedCategories.map((c) => c.nombre).toList();
+    // --- FIN DE MODIFICACIÓN ---
 
     final Map<String, dynamic> datosProvincia = {
       'nombre': _nombreCtrl.text,
@@ -135,18 +159,12 @@ class _AdminCrearProvinciaPaginaState extends State<AdminCrearProvinciaPagina> {
                     decoration: _buildInputDecoration('URL de Imagen (Opcional)'),
                     keyboardType: TextInputType.url,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 24),
 
-                  TextFormField(
-                    controller: _categoriasCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Categorías (separadas por coma)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      helperText: 'Ej: Arqueología, Naturaleza, Aventura',
-                    ),
-                  ),
+                  // --- ¡WIDGET REEMPLAZADO! ---
+                  _buildSectionTitle('Categorías Asignadas'),
+                  _buildCategorySelector(vmLugares), // <-- Nuevo widget de checkboxes
+                  // --- FIN DEL REEMPLAZO ---
 
                   const SizedBox(height: 32),
 
@@ -195,4 +213,47 @@ class _AdminCrearProvinciaPaginaState extends State<AdminCrearProvinciaPagina> {
       ),
     );
   }
+
+  // --- ¡NUEVO WIDGET AUXILIAR! ---
+  /// Construye la lista de checkboxes para las categorías
+  Widget _buildCategorySelector(LugaresVM vmLugares) {
+    // Obtenemos todas las categorías excepto "Todas" (ID '1')
+    final allCategories = vmLugares.categorias.where((c) => c.id != '1').toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade400),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      // Limitamos la altura para que la lista sea scrollable si hay muchas
+      constraints: const BoxConstraints(
+        maxHeight: 250, // Puedes ajustar esta altura
+      ),
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: allCategories.length,
+        itemBuilder: (context, index) {
+          final categoria = allCategories[index];
+
+          // Comprobamos si esta categoría ya está en nuestra lista de estado local
+          final bool isSelected = _selectedCategories.any((c) => c.id == categoria.id);
+
+          return CheckboxListTile(
+            title: Text(categoria.nombre),
+            value: isSelected,
+            onChanged: (bool? selected) {
+              setState(() {
+                if (selected == true) {
+                  _selectedCategories.add(categoria);
+                } else {
+                  _selectedCategories.removeWhere((c) => c.id == categoria.id);
+                }
+              });
+            },
+          );
+        },
+      ),
+    );
+  }
+// --- FIN DEL NUEVO WIDGET ---
 }

@@ -1,9 +1,5 @@
-// --- PIEDRA 3 (INICIO): LA "COCina FALSA" (ACOMPLADA Y GESTIONABLE) ---
-//
-// (...)
-// 5. (¡NUEVO!): Implementados los métodos 'crearLugar', 'actualizarLugar'
-//    y 'eliminarLugar'.
-// 6. (¡NUEVO!): Implementados los métodos para gestionar Provincias.
+// --- lib/caracteristicas/inicio/datos/repositorios/lugares_repositorio_mock.dart ---
+// (Esta es la "Cocina Falsa" que simula la base de datos)
 
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/lugar.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';
@@ -15,19 +11,19 @@ import 'package:xplore_cusco/caracteristicas/inicio/dominio/repositorios/lugares
 // --- Base de Datos Falsa MAESTRA de Lugares (Map) ---
 final Map<String, Lugar> _allLugaresDB = {
   // (Tu DB de Lugares intacta...)
-  'l1': Lugar( id: 'l1', nombre: 'Machu Picchu', descripcion: 'Antigua ciudadela inca...', urlImagen: 'https://picsum.photos/seed/mp/1000/600', rating: 4.9, categoria: 'Arqueología', reviewsCount: 1500, horario: '6:00 - 17:00', costoEntrada: 'S/ 152.00', puntosInteres: ['Intihuatana', 'Templo del Sol', 'Huayna Picchu'], latitud: -13.1631, longitud: -72.5450, provinciaId: 'p2'),
-  'l2': Lugar( id: 'l2', nombre: 'Sacsayhuamán', descripcion: 'Impresionante fortaleza...', urlImagen: 'https://picsum.photos/seed/sxy/1000/600', rating: 4.7, categoria: 'Arqueología', reviewsCount: 800, horario: '7:00 - 18:00', costoEntrada: 'S/ 70.00', puntosInteres: ['Torreones', 'Rodadero'], latitud: -13.5076, longitud: -71.9839, provinciaId: 'p1'),
-  'l3': Lugar( id: 'l3', nombre: 'Salineras de Maras', descripcion: 'Pozos de sal preincas...', urlImagen: 'https://picsum.photos/seed/maras/1000/600', rating: 4.6, categoria: 'Naturaleza', reviewsCount: 400, horario: '9:00 - 17:00', costoEntrada: 'S/ 10.00', puntosInteres: ['Mirador', 'Pozos'], latitud: -13.3039, longitud: -72.1557, provinciaId: 'p2'),
-  'l4': Lugar( id: 'l4', nombre: 'Mercado de Chinchero', descripcion: 'Famoso mercado de artesanías...', urlImagen: 'https://picsum.photos/seed/chinchero/1000/600', rating: 4.5, categoria: 'Cultural', reviewsCount: 250, horario: 'Domingos', costoEntrada: 'Gratuito', puntosInteres: ['Textiles', 'Plaza'], latitud: -13.4357, longitud: -72.0460, provinciaId: 'p2'),
-  'l5': Lugar( id: 'l5', nombre: 'Montaña de Siete Colores', descripcion: 'La majestuosa montaña Vinicunca.', urlImagen: 'https://picsum.photos/seed/vinicunca/1000/600', rating: 4.8, categoria: 'Naturaleza', reviewsCount: 1000, horario: '5:00 - 15:00', costoEntrada: 'S/ 20.00', puntosInteres: ['Mirador'], latitud: -13.8722, longitud: -71.2985, provinciaId: 'p4'),
-  'l6': Lugar( id: 'l6', nombre: 'Plaza de Armas', descripcion: 'Centro neurálgico de Cusco...', urlImagen: 'https://picsum.photos/seed/plaza/1000/600', rating: 4.8, categoria: 'Cultural', reviewsCount: 1200, horario: 'Todo el día', costoEntrada: 'Gratuito', puntosInteres: ['Catedral', 'Piletas'], latitud: -13.5167, longitud: -71.9785, provinciaId: 'p1'),
+  'l1': Lugar( id: 'l1', nombre: 'Machu Picchu', descripcion: 'Antigua ciudadela inca...', urlImagen: 'https://images.unsplash.com/photo-1587595431973-160d0d94add1?ixlib=rb-4.0.3&w=1200', rating: 4.9, categoria: 'Arqueología', reviewsCount: 1500, horario: '6:00 - 17:00', costoEntrada: 'S/ 152.00', puntosInteres: ['Intihuatana', 'Templo del Sol', 'Huayna Picchu'], latitud: -13.1631, longitud: -72.5450, provinciaId: 'p2'),
+  'l2': Lugar( id: 'l2', nombre: 'Sacsayhuamán', descripcion: 'Impresionante fortaleza...', urlImagen: 'https://i.ibb.co/1JjZNdCZ/Sacsayhuaman-1024x770-jpg.webp', rating: 4.7, categoria: 'Arqueología', reviewsCount: 800, horario: '7:00 - 18:00', costoEntrada: 'S/ 70.00', puntosInteres: ['Torreones', 'Rodadero'], latitud: -13.5076, longitud: -71.9839, provinciaId: 'p1'),
+  'l3': Lugar( id: 'l3', nombre: 'Salineras de Maras', descripcion: 'Pozos de sal preincas...', urlImagen: 'https://i.ibb.co/1t0CKbJZ/SALINERAS-DE-MARAS.jpg', rating: 4.6, categoria: 'Naturaleza', reviewsCount: 400, horario: '9:00 - 17:00', costoEntrada: 'S/ 10.00', puntosInteres: ['Mirador', 'Pozos'], latitud: -13.3039, longitud: -72.1557, provinciaId: 'p2'),
+  'l4': Lugar( id: 'l4', nombre: 'Mercado de Chinchero', descripcion: 'Famoso mercado de artesanías...', urlImagen: 'https://i.ibb.co/v4YFMGP0/17-standard.jpg', rating: 4.5, categoria: 'Cultural', reviewsCount: 250, horario: 'Domingos', costoEntrada: 'Gratuito', puntosInteres: ['Textiles', 'Plaza'], latitud: -13.4357, longitud: -72.0460, provinciaId: 'p2'),
+  'l5': Lugar( id: 'l5', nombre: 'Montaña de Siete Colores', descripcion: 'La majestuosa montaña Vinicunca.', urlImagen: 'https://i.ibb.co/3YrYJfhr/monta-a.jpg', rating: 4.8, categoria: 'Naturaleza', reviewsCount: 1000, horario: '5:00 - 15:00', costoEntrada: 'S/ 20.00', puntosInteres: ['Mirador'], latitud: -13.8722, longitud: -71.2985, provinciaId: 'p4'),
+  'l6': Lugar( id: 'l6', nombre: 'Plaza de Armas', descripcion: 'Centro neurálgico de Cusco...', urlImagen: 'https://i.ibb.co/9HgfbrBJ/plaza-armas-cusco.jpg', rating: 4.8, categoria: 'Cultural', reviewsCount: 1200, horario: 'Todo el día', costoEntrada: 'Gratuito', puntosInteres: ['Catedral', 'Piletas'], latitud: -13.5167, longitud: -71.9785, provinciaId: 'p1'),
 };
 
 // --- Base de Datos Falsa de Provincias (Mutable) ---
 final List<Provincia> _provinciasDB = [
-  Provincia( id: 'p1', nombre: 'Cusco', urlImagen: 'https://picsum.photos/seed/cusco_plaza/800/600', categories: ['Arqueología', 'Cultural'], placesCount: 2),
-  Provincia( id: 'p2', nombre: 'Urubamba', urlImagen: 'https://picsum.photos/seed/urubamba_valle/800/600', categories: ['Naturaleza', 'Aventura', 'Cultural'], placesCount: 3),
-  Provincia( id: 'p4', nombre: 'Quispicanchi', urlImagen: 'https://picsum.photos/seed/quispicanchi_montana/800/600', placesCount: 1, categories: ['Naturaleza']),
+  Provincia( id: 'p1', nombre: 'Cusco', urlImagen: 'https://i.ibb.co/sdyxLDJh/tg-cusco-top-mobile.webp', categories: ['Arqueología', 'Cultural'], placesCount: 2),
+  Provincia( id: 'p2', nombre: 'Urubamba', urlImagen: 'https://i.ibb.co/3yssCRM0/what-to-do-in-urubamba-10-tourist-places-that-you-must-visit-223.jpg', categories: ['Naturaleza', 'Aventura', 'Cultural'], placesCount: 3),
+  Provincia( id: 'p4', nombre: 'Quispicanchi', urlImagen: 'https://i.ibb.co/twjKm1g2/i-andahuaylillas.jpg', placesCount: 1, categories: ['Naturaleza']),
 ];
 
 // --- Base de Datos Falsa de Comentarios (Intacta) ---
@@ -102,9 +98,11 @@ class LugaresRepositorioMock implements LugaresRepositorio {
   }
 
 
-  // (Métodos de Gestión de Lugares intactos...)
+  // --- (Métodos de Gestión de Lugares) ---
+
+  // ¡CAMBIO AQUÍ! (Devuelve Future<Lugar> y añade "return nuevoLugar")
   @override
-  Future<void> crearLugar(Map<String, dynamic> datosLugar) async {
+  Future<Lugar> crearLugar(Map<String, dynamic> datosLugar) async {
     await Future.delayed(const Duration(milliseconds: 500));
     final nuevoId = 'lugar_${DateTime.now().millisecondsSinceEpoch}';
     final nuevoLugar = Lugar(
@@ -123,10 +121,12 @@ class LugaresRepositorioMock implements LugaresRepositorio {
       provinciaId: datosLugar['provinciaId'],
     );
     _allLugaresDB[nuevoId] = nuevoLugar;
+    return nuevoLugar; // <-- ¡AÑADIDO!
   }
 
+  // ¡CAMBIO AQUÍ! (Devuelve Future<Lugar> y añade "return lugarActualizado")
   @override
-  Future<void> actualizarLugar(String lugarId, Map<String, dynamic> datosLugar) async {
+  Future<Lugar> actualizarLugar(String lugarId, Map<String, dynamic> datosLugar) async {
     await Future.delayed(const Duration(milliseconds: 500));
     if (!_allLugaresDB.containsKey(lugarId)) {
       throw Exception('Lugar no encontrado para actualizar');
@@ -148,6 +148,7 @@ class LugaresRepositorioMock implements LugaresRepositorio {
       provinciaId: datosLugar['provinciaId'] ?? lugarViejo.provinciaId,
     );
     _allLugaresDB[lugarId] = lugarActualizado;
+    return lugarActualizado; // <-- ¡AÑADIDO!
   }
 
   @override
@@ -160,7 +161,7 @@ class LugaresRepositorioMock implements LugaresRepositorio {
     }
   }
 
-  // --- ¡AÑADIDO! ÓRDENES PARA GESTIÓN DE PROVINCIAS ---
+  // --- (Gestión de Provincias intacto) ---
 
   @override
   Future<void> crearProvincia(Map<String, dynamic> datosProvincia) async {
@@ -215,5 +216,4 @@ class LugaresRepositorioMock implements LugaresRepositorio {
     _provinciasDB.removeWhere((p) => p.id == provinciaId);
     print('Mock: Provincia $provinciaId ELIMINADA');
   }
-// --- FIN DE LO AÑADIDO ---
 }

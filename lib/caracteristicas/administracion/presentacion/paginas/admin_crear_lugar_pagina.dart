@@ -1,8 +1,5 @@
-// --- CARACTERISTICAS/ADMINISTRACION/PRESENTACION/PAGINAS/ADMIN_CREAR_LUGAR_PAGINA.DART ---
-//
-// Esta es la nueva página de formulario para Crear o Editar un Lugar.
-// 1. (¡CORREGIDO!) Se cambió 'vmLugares.provincias' por
-//    'vmLugares.provinciasFiltradas' para arreglar el error del getter.
+// --- lib/caracteristicas/administracion/presentacion/paginas/admin_crear_lugar_pagina.dart ---
+// (Versión con el 'List<String>' corregido)
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -24,7 +21,7 @@ class AdminCrearLugarPagina extends StatefulWidget {
 class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controladores para los campos
+  // (Controladores y estado local intactos...)
   final TextEditingController _nombreCtrl = TextEditingController();
   final TextEditingController _descripcionCtrl = TextEditingController();
   final TextEditingController _urlImagenCtrl = TextEditingController();
@@ -32,23 +29,17 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
   final TextEditingController _costoEntradaCtrl = TextEditingController();
   final TextEditingController _latitudCtrl = TextEditingController();
   final TextEditingController _longitudCtrl = TextEditingController();
-
-  // Variables para los Dropdowns
   String? _selectedProvinciaId;
   String? _selectedCategoriaId;
-
   bool _esModoEdicion = false;
 
   @override
   void initState() {
+    // (Tu initState intacto...)
     super.initState();
-
-    // Comprobamos si estamos en modo Edición
     if (widget.lugar != null) {
       _esModoEdicion = true;
       final lugar = widget.lugar!;
-
-      // Llenamos los campos con los datos del lugar
       _nombreCtrl.text = lugar.nombre;
       _descripcionCtrl.text = lugar.descripcion;
       _urlImagenCtrl.text = lugar.urlImagen;
@@ -57,11 +48,10 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
       _latitudCtrl.text = lugar.latitud.toString();
       _longitudCtrl.text = lugar.longitud.toString();
       _selectedProvinciaId = lugar.provinciaId;
-
       final vmLugares = context.read<LugaresVM>();
       final categoria = vmLugares.categorias.firstWhere(
             (c) => c.nombre.toLowerCase() == lugar.categoria.toLowerCase(),
-        orElse: () => vmLugares.categorias.first, // Fallback
+        orElse: () => vmLugares.categorias.first,
       );
       _selectedCategoriaId = categoria.id;
     }
@@ -69,6 +59,7 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
 
   @override
   void dispose() {
+    // (Tu dispose intacto...)
     _nombreCtrl.dispose();
     _descripcionCtrl.dispose();
     _urlImagenCtrl.dispose();
@@ -95,16 +86,16 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
       'longitud': double.tryParse(_longitudCtrl.text) ?? 0.0,
       'provinciaId': _selectedProvinciaId,
       'categoriaId': _selectedCategoriaId,
-      'puntosInteres': [],
+
+      // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+      // Le decimos a Dart que esta es una lista de Strings.
+      'puntosInteres': <String>[],
+      // Antes decía: 'puntosInteres': [], (lo que creaba un List<dynamic>)
     };
 
     if (datosLugar['urlImagen'].isEmpty) {
       datosLugar['urlImagen'] = 'https://picsum.photos/seed/${_nombreCtrl.text.replaceAll(' ', '')}/1000/600';
     }
-
-    // Mostramos el spinner
-    // (Simulamos la carga llamando al método que activa el booleano)
-    vmLugares.cargarTodosLosLugares();
 
     try {
       if (_esModoEdicion) {
@@ -127,7 +118,7 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Error: ${e.toString()}'), // Ahora mostrará el error real
             backgroundColor: Colors.red,
           ),
         );
@@ -137,6 +128,7 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
 
   @override
   Widget build(BuildContext context) {
+    // (El resto de tu código 'build' está intacto y no necesita cambios)
     final vmLugares = context.watch<LugaresVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
@@ -188,9 +180,7 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
                         child: DropdownButtonFormField<String>(
                           value: _selectedProvinciaId,
                           decoration: _buildInputDecoration('Provincia'),
-                          // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
                           items: vmLugares.provinciasFiltradas.map((Provincia p) {
-                            // --- FIN DE LA CORRECCIÓN ---
                             return DropdownMenuItem<String>(
                               value: p.id,
                               child: Text(p.nombre),

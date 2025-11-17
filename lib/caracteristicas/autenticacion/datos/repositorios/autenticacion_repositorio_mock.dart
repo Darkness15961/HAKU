@@ -1,16 +1,10 @@
-// --- PIEDRA 3 (AUTENTICACIÓN): LA "COCINA FALSA" (ACOMPLADA CON ADMIN Y BUG CORREGIDO) ---
-//
-// (...)
-// 2. (REGLA ACOMPLADA): 'registrarUsuario' AHORA comprueba si el email
-//    ya existe en '_usuariosFalsosDB'.
-// 3. (¡NUEVO!): Implementados los métodos 'obtenerTodosLosUsuarios' y 'eliminarUsuario'.
+// --- lib/caracteristicas/autenticacion/datos/repositorios/autenticacion_repositorio_mock.dart ---
+// (Versión que AHORA SÍ guarda la URL del certificado)
 
 import '../../dominio/entidades/usuario.dart';
 import '../../dominio/repositorios/autenticacion_repositorio.dart';
 
-// --- "Base de Datos Falsa" de Usuarios (¡ACOMPLADA!) ---
-// (Tu base de datos falsa se mantiene intacta)
-
+// --- (Toda tu base de datos falsa de usuarios se mantiene 100% intacta) ---
 final Usuario _usuarioFalsoTurista = Usuario(
   id: '1',
   nombre: 'Alex Gálvez (Turista)',
@@ -18,9 +12,10 @@ final Usuario _usuarioFalsoTurista = Usuario(
   rol: 'turista',
   urlFotoPerfil: 'https://placehold.co/100x100/333333/FFFFFF?text=AG',
   dni: '12345678',
-  token: 'T123456',
+  token: '123456',
   solicitudEstado: null,
   solicitudExperiencia: null,
+  solicitudCertificadoUrl: null, // <-- ¡Añadido por el nuevo campo!
 );
 
 final Usuario _usuarioFalsoGuia = Usuario(
@@ -30,9 +25,10 @@ final Usuario _usuarioFalsoGuia = Usuario(
   rol: 'guia_aprobado',
   urlFotoPerfil: 'https://placehold.co/100x100/6A5ACD/FFFFFF?text=MF',
   dni: '87654321',
-  token: 'G123456',
+  token: '123456',
   solicitudEstado: 'aprobado',
   solicitudExperiencia: 'Guía certificada con 5 años de experiencia en trekking.',
+  solicitudCertificadoUrl: 'https://www.drive.google.com/fake-link/maria-fernanda', // <-- ¡Añadido!
 );
 
 final Usuario _usuarioFalsoAdmin = Usuario(
@@ -42,9 +38,10 @@ final Usuario _usuarioFalsoAdmin = Usuario(
   rol: 'admin',
   urlFotoPerfil: 'https://placehold.co/100x100/8B0000/FFFFFF?text=ADM',
   dni: '00000001',
-  token: 'A123456',
+  token: '123456',
   solicitudEstado: null,
   solicitudExperiencia: null,
+  solicitudCertificadoUrl: null, // <-- ¡Añadido!
 );
 
 final Usuario _usuarioPendiente1 = Usuario(
@@ -57,6 +54,7 @@ final Usuario _usuarioPendiente1 = Usuario(
   token: 'P123',
   solicitudEstado: 'pendiente',
   solicitudExperiencia: 'Experiencia de 2 años como guía de montaña.',
+  solicitudCertificadoUrl: 'https://www.dropbox.com/fake-link/carlos-doc', // <-- ¡Añadido!
 );
 
 final Usuario _usuarioPendiente2 = Usuario(
@@ -66,12 +64,12 @@ final Usuario _usuarioPendiente2 = Usuario(
   rol: 'guia_pendiente',
   urlFotoPerfil: 'https://placehold.co/100x100/D81B60/FFFFFF?text=JP',
   dni: '33334444',
-  token: 'P456',
+  token: '123456',
   solicitudEstado: 'pendiente',
   solicitudExperiencia: 'Guía cultural, especializada en historia Inca.',
+  solicitudCertificadoUrl: 'https://www.drive.google.com/fake-link/juana-peru', // <-- ¡Añadido!
 );
 
-// Lista mutable que simula la "tabla" de usuarios
 final Map<String, Usuario> _usuariosFalsosDB = {
   '1': _usuarioFalsoTurista,
   '2': _usuarioFalsoGuia,
@@ -82,27 +80,32 @@ final Map<String, Usuario> _usuariosFalsosDB = {
 // --- FIN DE BASE DE DATOS FALSA ---
 
 
-// Variable para "recordar" al usuario logueado
 Usuario? _usuarioActual;
 
-// 3. Creamos la "Cocina Falsa"
 class AutenticacionRepositorioMock implements AutenticacionRepositorio {
 
-  // --- ORDEN 1: "Intentar iniciar sesión" (¡CORREGIDO!) ---
+  // --- (Tu función 'iniciarSesion' corregida se mantiene intacta) ---
   @override
   Future<Usuario> iniciarSesion(String email, String password) async {
     await Future.delayed(const Duration(seconds: 1));
 
+    // 1. Buscamos al usuario por email
     final usuarioEncontrado = _usuariosFalsosDB.values.firstWhere(
           (usuario) => usuario.email == email,
       orElse: () => throw Exception('Usuario o contraseña incorrectos.'),
     );
 
+    // 2. Validamos la contraseña
+    if (password != '123456') {
+      throw Exception('Usuario o contraseña incorrectos.');
+    }
+
+    // 3. Si ambos son correctos, iniciamos sesión
     _usuarioActual = usuarioEncontrado;
     return _usuarioActual!;
   }
 
-  // --- ORDEN 2: "Intentar registrar un nuevo usuario" (¡CORREGIDO!) ---
+  // --- (El resto de tus funciones: registrar, cerrarSesion, verificarEstadoSesion... se mantienen intactas) ---
   @override
   Future<Usuario> registrarUsuario(
       String nombre,
@@ -129,6 +132,7 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
       token: 'TOKEN_FALSO_$nuevoId',
       solicitudEstado: null,
       solicitudExperiencia: null,
+      solicitudCertificadoUrl: null, // <-- ¡Añadido!
     );
 
     _usuariosFalsosDB[nuevoId] = nuevoUsuario;
@@ -137,7 +141,6 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
     return nuevoUsuario;
   }
 
-  // --- ORDEN 3: "Cerrar la sesión actual" (se mantiene) ---
   @override
   Future<void> cerrarSesion() async {
     await Future.delayed(const Duration(milliseconds: 300));
@@ -145,17 +148,16 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
     print('--- ¡SESIÓN CERRADA EN EL MOCK! ---');
   }
 
-  // --- ORDEN 4: "Verificar si ya hay una sesión guardada" (se mantiene) ---
   @override
   Future<Usuario?> verificarEstadoSesion() async {
     await Future.delayed(const Duration(milliseconds: 500));
     return _usuarioActual;
   }
 
-  // --- ORDEN 5: "Enviar la solicitud para ser guía" (se mantiene) ---
+  // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
   @override
   Future<void> solicitarSerGuia(
-      String experiencia, String rutaCertificado) async {
+      String experiencia, String rutaCertificado) async { // <-- 'rutaCertificado' se recibe
     await Future.delayed(const Duration(milliseconds: 1000));
 
     if (_usuarioActual != null && _usuarioActual!.rol == 'turista') {
@@ -168,7 +170,8 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
         dni: _usuarioActual!.dni,
         token: _usuarioActual!.token,
         solicitudEstado: 'pendiente',
-        solicitudExperiencia: experiencia,
+        solicitudExperiencia: experiencia, // <-- Se guarda la experiencia
+        solicitudCertificadoUrl: rutaCertificado, // <-- ¡AHORA SÍ SE GUARDA LA URL!
       );
       _usuarioActual = usuarioActualizado;
       _usuariosFalsosDB[_usuarioActual!.id] = usuarioActualizado;
@@ -178,8 +181,7 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
     }
   }
 
-  // --- ÓRDENES DEL ADMIN (Gestión de Guías) ---
-
+  // --- (Todas las demás funciones de Admin... se mantienen intactas) ---
   @override
   Future<List<Usuario>> obtenerSolicitudesPendientes() async {
     await Future.delayed(const Duration(milliseconds: 800));
@@ -188,7 +190,7 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
         .toList();
     return pendientes;
   }
-
+  // ... (aprobarGuia, rechazarGuia, obtenerTodosLosUsuarios, eliminarUsuario) ...
   @override
   Future<void> aprobarGuia(String usuarioId) async {
     await Future.delayed(const Duration(milliseconds: 500));
@@ -204,6 +206,7 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
         token: usuarioPendiente.token,
         solicitudEstado: 'aprobado',
         solicitudExperiencia: usuarioPendiente.solicitudExperiencia,
+        solicitudCertificadoUrl: usuarioPendiente.solicitudCertificadoUrl, // <-- Se mantiene
       );
       _usuariosFalsosDB[usuarioId] = usuarioAprobado;
       print('Mock: Guía $usuarioId APROBADO');
@@ -227,6 +230,7 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
         token: usuarioPendiente.token,
         solicitudEstado: 'rechazado',
         solicitudExperiencia: usuarioPendiente.solicitudExperiencia,
+        solicitudCertificadoUrl: usuarioPendiente.solicitudCertificadoUrl, // <-- Se mantiene
       );
       _usuariosFalsosDB[usuarioId] = usuarioRechazado;
       print('Mock: Guía $usuarioId RECHAZADO');
@@ -235,19 +239,15 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
     }
   }
 
-  // --- ¡AÑADIDO! ÓRDENES PARA GESTIÓN DE CUENTAS ---
-
   @override
   Future<List<Usuario>> obtenerTodosLosUsuarios() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    // Simplemente devuelve todos los usuarios de la base de datos falsa
     return _usuariosFalsosDB.values.toList();
   }
 
   @override
   Future<void> eliminarUsuario(String usuarioId) async {
     await Future.delayed(const Duration(milliseconds: 300));
-    // Simula la eliminación del usuario de la base de datos
     if (_usuariosFalsosDB.containsKey(usuarioId)) {
       _usuariosFalsosDB.remove(usuarioId);
       print('Mock: Usuario $usuarioId ELIMINADO');
@@ -255,6 +255,4 @@ class AutenticacionRepositorioMock implements AutenticacionRepositorio {
       throw Exception('Usuario no encontrado para eliminar');
     }
   }
-// --- FIN DE LO AÑADIDO ---
-
 }

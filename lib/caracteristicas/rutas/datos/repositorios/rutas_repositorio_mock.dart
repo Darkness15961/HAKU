@@ -15,7 +15,7 @@ final List<Ruta> _rutasFalsasDB = [
     descripcion: 'Disfruta de la experiencia completa del Valle Sagrado...',
     // --- ¡IMAGEN FIABLE! ---
     urlImagenPrincipal:
-    'https://picsum.photos/seed/valle_sagrado/1000/600',
+    'https://i.ibb.co/4RLDrkFY/Tren-de-Hidroel-ctrica-a-Machu-Picchu-1024x640.jpg',
     // --------------------
     precio: 80.00,
     dificultad: 'facil',
@@ -40,7 +40,7 @@ final List<Ruta> _rutasFalsasDB = [
     descripcion: 'Un tour cultural por las salineras, el laboratorio inca y el pueblo textil.',
     // --- ¡IMAGEN FIABLE! ---
     urlImagenPrincipal:
-    'https://picsum.photos/seed/maras_moray/1000/600',
+    'https://i.ibb.co/bR7tzPkd/ruta-del-sol-cusco-puno.jpg',
     // --------------------
     precio: 900.00,
     dificultad: 'dificil',
@@ -65,7 +65,7 @@ final List<Ruta> _rutasFalsasDB = [
     descripcion: 'Un tour de día completo a Vinicunca...',
     // --- ¡IMAGEN FIABLE! ---
     urlImagenPrincipal:
-    'https://picsum.photos/seed/vinicunca_ruta/1000/600',
+    'https://i.ibb.co/rfd7Hz9p/machupicchubycar.jpg',
     // --------------------
     precio: 60.00,
     dificultad: 'medio',

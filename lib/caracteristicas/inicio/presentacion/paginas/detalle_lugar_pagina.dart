@@ -1,8 +1,8 @@
 // --- PIEDRA 6.6: EL "MENÚ" DE DETALLE DE LUGAR (ACOMPLADO PARA NAVEGACIÓN) ---
 //
-// 1. (BUG PROVIDER CORREGIDO): Se cambió 'Provider.value' por
-//    'ChangeNotifierProvider.value' en '_mostrarDialogoComentario'
-//    para pasar correctamente el VM (un ChangeNotifier) al diálogo.
+// (...)
+// 2. (¡FUNCIONAL!): El botón "Abrir en Mapas" ahora NAVEGA a una
+//    nueva página de mapa simple ('/mapa-lugar') y pasa el lugar.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +14,8 @@ import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/comentario.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 
+// (La importación del MapaVM ya no es necesaria aquí)
+
 class DetalleLugarPagina extends StatefulWidget {
   final Lugar lugar;
   const DetalleLugarPagina({super.key, required this.lugar});
@@ -22,6 +24,7 @@ class DetalleLugarPagina extends StatefulWidget {
 }
 
 class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
+  // (Tu código de initState, logic, etc., va aquí intacto...)
   bool _isDescriptionExpanded = false;
 
   @override
@@ -34,7 +37,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     });
   }
 
-  // --- Lógica de Seguridad (se mantiene) ---
   bool _checkAndRedirect(BuildContext context, String action) {
     final authVM = context.read<AutenticacionVM>();
     if (!authVM.estaLogueado) {
@@ -44,7 +46,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     return true;
   }
 
-  // --- Lógica de Acciones (se mantiene) ---
   void _onToggleFavorito(BuildContext context) {
     if (!_checkAndRedirect(context, 'guardar este lugar')) {
       return;
@@ -59,24 +60,20 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-
-        // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-        // Usamos ChangeNotifierProvider.value porque LugaresVM es un ChangeNotifier
         return ChangeNotifierProvider.value(
-          value: context.read<LugaresVM>(), // Pasa el VM existente
+          value: context.read<LugaresVM>(),
           child: _DialogoComentario(
             lugarId: widget.lugar.id,
             lugarNombre: widget.lugar.nombre,
           ),
         );
-        // --- FIN DE CORRECCIÓN ---
       },
     );
   }
 
-  // --- Construcción del "Menú" (UI) ---
   @override
   Widget build(BuildContext context) {
+    // (Tu código de build() va aquí intacto...)
     final vm = context.watch<LugaresVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
     final bool esFavorito = vm.esLugarFavorito(widget.lugar.id);
@@ -168,7 +165,12 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
                 ),
                 _buildDescriptionSection(widget.lugar.descripcion),
                 _buildSubPlacesSection(widget.lugar.puntosInteres),
-                _buildMapSection(),
+
+                // --- ¡MODIFICADO! ---
+                // Pasamos el context al widget
+                _buildMapSection(context),
+                // --- FIN DE LA MODIFICACIÓN ---
+
                 Padding(
                   padding: const EdgeInsets.only(top: 16, bottom: 8),
                   child: _buildReviewsSummary(
@@ -206,7 +208,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
                             top: 8.0, bottom: 16.0),
                         child: TextButton.icon(
                           onPressed: () {
-                            // Esta ruta (corregida) está BIEN
                             context.push('/inicio/comentarios', extra: widget.lugar);
                           },
                           icon: const Icon(Icons.arrow_right_alt),
@@ -235,6 +236,7 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
 
   // --- WIDGET AUXILIAR: MODAL DE INVITACIÓN (se mantiene) ---
   void _showLoginRequiredModal(BuildContext context, String action) {
+    // (Tu código intacto aquí...)
     final colorPrimario = Theme.of(context).colorScheme.primary;
     showDialog(
       context: context,
@@ -267,9 +269,9 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
   }
 
   // --- (Todos los demás widgets auxiliares se mantienen) ---
-  // (Omitidos por brevedad)
 
   Widget _buildInfoChip(IconData icon, String title, String value) {
+    // (Tu código intacto aquí...)
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -297,6 +299,7 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
   }
 
   Widget _buildDescriptionSection(String fullDescription) {
+    // (Tu código intacto aquí...)
     const int thresholdLength = 200;
     final bool needsExpansion = fullDescription.length > thresholdLength;
 
@@ -337,6 +340,7 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
   }
 
   Widget _buildSubPlacesSection(List<String> subPlaces) {
+    // (Tu código intacto aquí...)
     if (subPlaces.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
@@ -371,7 +375,8 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
     );
   }
 
-  Widget _buildMapSection() {
+  // --- ¡WIDGET MODIFICADO! ---
+  Widget _buildMapSection(BuildContext context) { // <-- Ahora recibe context
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -391,12 +396,14 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
             ),
             child: Center(
               child: ElevatedButton.icon(
+                // --- ¡AQUÍ ESTÁ LA LÓGICA CORREGIDA! ---
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Abriendo ubicación en el mapa...')),
-                  );
+                  // Ya no necesitamos al MapaVM
+                  // 1. Navegamos a la nueva página '/mapa-lugar'
+                  // 2. Pasamos el 'lugar' actual como 'extra'
+                  context.push('/mapa-lugar', extra: widget.lugar);
                 },
+                // --- FIN DE LA CORRECCIÓN ---
                 icon: const Icon(Icons.map, color: Colors.white),
                 label: const Text('Abrir en Mapas',
                     style: TextStyle(color: Colors.white)),
@@ -412,8 +419,10 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
       ),
     );
   }
+  // --- FIN DE LA MODIFICACIÓN ---
 
   Widget _buildReviewsSummary(Lugar lugar, int totalComentarios) {
+    // (Tu código intacto aquí...)
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Card(
@@ -443,7 +452,7 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
                     child: Column(
                       children: List.generate(5, (index) {
                         int star = 5 - index;
-                        double percentage = star / 5;
+                        double percentage = star / 5; // Simulación
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 2.0),
                           child: Row(
@@ -477,6 +486,7 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
   }
 
   Widget _buildComentarioCard(Comentario comentario) {
+    // (Tu código intacto aquí...)
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Card(
@@ -537,6 +547,7 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
   }
 
   Widget _buildRatingStars(double rating, int reviews, {bool small = false}) {
+    // (Tu código intacto aquí...)
     int fullStars = rating.floor();
     bool hasHalfStar = (rating - fullStars) >= 0.5;
     double size = small ? 14 : 18;
@@ -569,6 +580,7 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
 
   Widget _buildRatingStarsWithLikes(double rating, int reviews,
       {required int likes}) {
+    // (Tu código intacto aquí...)
     double size = 14;
     return Padding(
       padding: const EdgeInsets.only(top: 4.0),
@@ -618,6 +630,7 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
 // --- WIDGET DE DIÁLOGO (Separado y con estado propio) ---
 
 class _DialogoComentario extends StatefulWidget {
+  // (Tu código intacto del diálogo va aquí...)
   final String lugarId;
   final String lugarNombre;
   const _DialogoComentario({required this.lugarId, required this.lugarNombre});
@@ -626,12 +639,12 @@ class _DialogoComentario extends StatefulWidget {
 }
 
 class _DialogoComentarioState extends State<_DialogoComentario> {
-  // Estado local para el formulario del diálogo
-  double _ratingSeleccionado = 0; // 0 = no seleccionado
+  // (Tu código intacto del estado del diálogo va aquí...)
+  double _ratingSeleccionado = 0;
   final TextEditingController _tituloCtrl = TextEditingController();
   final TextEditingController _resenaCtrl = TextEditingController();
   bool _esAnonimo = false;
-  bool _estaEnviando = false; // Para mostrar un spinner en el botón
+  bool _estaEnviando = false;
 
   @override
   void dispose() {
@@ -640,7 +653,6 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
     super.dispose();
   }
 
-  // --- ¡FUNCIÓN DE ENVÍO ACOMPLADA! ---
   Future<void> _enviarResena(BuildContext dialogContext) async {
     if (_ratingSeleccionado == 0) {
       ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(
@@ -657,15 +669,11 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
 
     setState(() => _estaEnviando = true);
 
-    // --- MVVM: ORDEN AL "MESERO" ---
-    // (Usamos 'context.read' (del context principal)
-    // para llamar al VM 'LugaresVM' que está fuera del diálogo)
     await context.read<LugaresVM>().enviarComentario(
       widget.lugarId,
       _resenaCtrl.text,
       _ratingSeleccionado,
     );
-    // (El 'lugares_vm.dart' ya está "acoplado")
 
     if (mounted) {
       setState(() => _estaEnviando = false);
@@ -680,10 +688,10 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
       );
     }
   }
-  // --- FIN DE FUNCIÓN ACOMPLADA ---
 
   @override
   Widget build(BuildContext context) {
+    // (Tu código intacto del build del diálogo va aquí...)
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -692,7 +700,6 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // --- HEADER (Tu diseño) ---
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
@@ -716,8 +723,6 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
               ),
             ),
             const Divider(height: 1, thickness: 1),
-
-            // --- CUERPO DEL FORMULARIO (Scrollable) ---
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
@@ -774,8 +779,6 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
               ),
             ),
             const Divider(height: 1, thickness: 1),
-
-            // --- FOOTER (Botón de Enviar) ---
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -816,8 +819,8 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
     );
   }
 
-  // (Tu widget de estrellas, ahora con estado)
   Widget _buildStarRatingSelector() {
+    // (Tu código intacto aquí...)
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(5, (index) {
@@ -838,8 +841,8 @@ class _DialogoComentarioState extends State<_DialogoComentario> {
     );
   }
 
-  // (Tu widget de subir fotos)
   Widget _buildPhotoUploadArea() {
+    // (Tu código intacto aquí...)
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

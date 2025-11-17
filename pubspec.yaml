@@ -23,6 +23,11 @@ dependencies:
   shared_preferences: ^2.3.3
   lottie: ^3.1.0
   flutter_staggered_animations: ^1.0.0
+  url_launcher: ^6.3.1
+
+  firebase_core: ^2.15.0
+  firebase_storage: ^11.2.0
+  cached_network_image: ^3.3.0
 
 
   # GEOLOCALIZACIÓN Y MAPAS
@@ -41,7 +46,8 @@ flutter:
     - assets/logo.webp
     - assets/xplora_cusco_logo.png
     - assets/log.png
-    - assets/animaciones/viaje.json
+    - assets/imagenes/mapa_textura.png
+   # - assets/animaciones/viaje.json
 
 # Configuración del splash nativo (ajústala si quieres)
 flutter_native_splash:

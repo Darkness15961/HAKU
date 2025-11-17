@@ -1,9 +1,5 @@
-// --- PIEDRA 4: EL "MESERO" (VERSIÓN ACOMPLADA PARA COMENTARIOS Y GESTIÓN) ---
-//
-// (...)
-// 2. (¡NUEVO!): Añadida la lógica de Admin para 'crearLugar',
-//    'actualizarLugar' y 'eliminarLugar' (Simulado).
-// 3. (¡NUEVO!): Añadida la lógica de Admin para gestionar Provincias.
+// --- lib/caracteristicas/inicio/presentacion/vista_modelos/lugares_vm.dart ---
+// (Versión final con 'rethrow;' para cumplir con el lint de Dart)
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -39,7 +35,7 @@ class LugaresVM extends ChangeNotifier {
   int _carouselIndex = 0;
   bool _cargaInicialRealizada = false;
 
-  // --- ¡AÑADIDO! ESTADO DE GESTIÓN ---
+  // --- ESTADO DE GESTIÓN ---
   bool _estaCargandoGestion = false;
   String? _errorGestion;
 
@@ -52,7 +48,7 @@ class LugaresVM extends ChangeNotifier {
   bool get cargaInicialRealizada => _cargaInicialRealizada;
   List<Lugar> get lugaresTotales => _lugaresTotales;
 
-  // --- ¡AÑADIDO! GETTERS DE GESTIÓN ---
+  // --- GETTERS DE GESTIÓN ---
   bool get estaCargandoGestion => _estaCargandoGestion;
   String? get errorGestion => _errorGestion;
 
@@ -128,7 +124,6 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- I. MÉTODOS DE INICIALIZACIÓN (¡CORREGIDOS CON FUTURE!) ---
-  // (Tu código intacto aquí...)
   Future<void> cargarDatosIniciales(AutenticacionVM authVM) async {
     if (_authVM == null) {
       _authVM = authVM;
@@ -193,7 +188,6 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- J. MÉTODOS (Órdenes para INICIO_PAGINA) ---
-  // (Tu código intacto aquí...)
   void buscarEnInicio(String termino) {
     _terminoBusquedaInicio = termino;
     notifyListeners();
@@ -210,7 +204,6 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- K. MÉTODOS (Órdenes para PROVINCIA_LUGARES_PAGINA) ---
-  // (Tu código intacto aquí...)
   Future<void> cargarLugaresPorProvincia(String provinciaId) async {
     _estaCargandoLugaresDeProvincia = true;
     _terminoBusquedaProvincia = '';
@@ -236,7 +229,6 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- L. MÉTODOS (Órdenes para DETALLE_LUGAR_PAGINA) ---
-  // (Tu código intacto aquí...)
   Future<void> cargarComentarios(String lugarId) async {
     _estaCargandoComentarios = true;
     notifyListeners();
@@ -273,6 +265,7 @@ class LugaresVM extends ChangeNotifier {
   }
 
   Future<void> toggleLugarFavorito(String lugarId) async {
+    // (Tu lógica de 'toggleLugarFavorito' que ya estaba correcta)
     await _authVM?.toggleLugarFavorito(lugarId);
   }
 
@@ -290,6 +283,7 @@ class LugaresVM extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- ¡CORRECCIÓN DE SINTAXIS! ---
   Future<void> crearLugar(Map<String, dynamic> datosLugar) async {
     _estaCargandoGestion = true;
     _errorGestion = null;
@@ -301,16 +295,21 @@ class LugaresVM extends ChangeNotifier {
       final String categoriaNombre = _categorias.firstWhere((c) => c.id == categoriaId).nombre;
       datosLugar['provinciaNombre'] = provinciaNombre;
       datosLugar['categoriaNombre'] = categoriaNombre;
-      await _repositorio.crearLugar(datosLugar);
-      await cargarTodosLosLugares();
+
+      final nuevoLugar = await _repositorio.crearLugar(datosLugar);
+
+      _lugaresTotales.add(nuevoLugar);
+
     } catch (e) {
       _errorGestion = e.toString();
+      rethrow; // <-- CORREGIDO (era throw e;)
     } finally {
       _estaCargandoGestion = false;
       notifyListeners();
     }
   }
 
+  // --- ¡CORRECCIÓN DE SINTAXIS! ---
   Future<void> actualizarLugar(String lugarId, Map<String, dynamic> datosLugar) async {
     _estaCargandoGestion = true;
     _errorGestion = null;
@@ -322,16 +321,24 @@ class LugaresVM extends ChangeNotifier {
       final String categoriaNombre = _categorias.firstWhere((c) => c.id == categoriaId).nombre;
       datosLugar['provinciaNombre'] = provinciaNombre;
       datosLugar['categoriaNombre'] = categoriaNombre;
-      await _repositorio.actualizarLugar(lugarId, datosLugar);
-      await cargarTodosLosLugares();
+
+      final lugarActualizado = await _repositorio.actualizarLugar(lugarId, datosLugar);
+
+      final index = _lugaresTotales.indexWhere((l) => l.id == lugarId);
+      if (index != -1) {
+        _lugaresTotales[index] = lugarActualizado;
+      }
+
     } catch (e) {
       _errorGestion = e.toString();
+      rethrow; // <-- CORREGIDO (era throw e;)
     } finally {
       _estaCargandoGestion = false;
       notifyListeners();
     }
   }
 
+  // --- ¡CORRECCIÓN DE SINTAXIS! ---
   Future<void> eliminarLugar(String lugarId) async {
     _estaCargandoGestion = true;
     _errorGestion = null;
@@ -341,20 +348,21 @@ class LugaresVM extends ChangeNotifier {
       _lugaresTotales.removeWhere((l) => l.id == lugarId);
     } catch (e) {
       _errorGestion = e.toString();
+      rethrow; // <-- CORREGIDO (era throw e;)
+    } finally {
+      _estaCargandoGestion = false;
+      notifyListeners();
     }
-    _estaCargandoGestion = false;
-    notifyListeners();
   }
 
 
-  // --- ¡AÑADIDO! O. MÉTODOS (Órdenes para GESTIÓN DE PROVINCIAS) ---
+  // --- O. MÉTODOS (Órdenes para GESTIÓN DE PROVINCIAS) ---
+  // (Con la misma corrección de sintaxis)
 
-  // Usado para recargar la lista de 'provinciasFiltradas' en la página de gestión
   Future<void> cargarTodasLasProvincias() async {
     _estaCargandoGestion = true;
     notifyListeners();
     try {
-      // _provincias ya se carga al inicio, pero forzamos recarga
       _provincias = await _repositorio.obtenerProvincias();
     } catch (e) {
       _errorGestion = e.toString();
@@ -369,10 +377,10 @@ class LugaresVM extends ChangeNotifier {
     notifyListeners();
     try {
       await _repositorio.crearProvincia(datosProvincia);
-      // Recargamos la lista local
       await cargarTodasLasProvincias();
     } catch (e) {
       _errorGestion = e.toString();
+      rethrow; // <-- CORREGIDO (era throw e;)
     } finally {
       _estaCargandoGestion = false;
       notifyListeners();
@@ -388,6 +396,7 @@ class LugaresVM extends ChangeNotifier {
       await cargarTodasLasProvincias();
     } catch (e) {
       _errorGestion = e.toString();
+      rethrow; // <-- CORREGIDO (era throw e;)
     } finally {
       _estaCargandoGestion = false;
       notifyListeners();
@@ -400,13 +409,13 @@ class LugaresVM extends ChangeNotifier {
     notifyListeners();
     try {
       await _repositorio.eliminarProvincia(provinciaId);
-      // Actualizamos la lista localmente
       _provincias.removeWhere((p) => p.id == provinciaId);
     } catch (e) {
       _errorGestion = e.toString();
+      rethrow; // <-- CORREGIDO (era throw e;)
+    } finally {
+      _estaCargandoGestion = false;
+      notifyListeners();
     }
-    _estaCargandoGestion = false;
-    notifyListeners();
   }
-// --- FIN DE LO AÑADIDO ---
 }

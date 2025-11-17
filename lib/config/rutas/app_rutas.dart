@@ -4,6 +4,7 @@
 // 7. (¡CORREGIDO!): Añadida la importación y la ruta para el
 //    nuevo sub-menú 'gestion-contenido'.
 // 8. (¡AÑADIDO AHORA!): Añadidas las rutas para 'gestion-provincias' y 'crear-provincia'.
+// 9. (¡AÑADIDO AHORA!): Añadida la ruta para '/mapa-lugar'.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -36,11 +37,12 @@ import 'package:xplore_cusco/caracteristicas/notificaciones/presentacion/paginas
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_gestion_lugares_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_crear_lugar_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_gestion_contenido_pagina.dart';
-
-// --- ¡AÑADIDO! ---
-// Importamos las nuevas páginas de Gestión de Provincias
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_gestion_provincias_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_crear_provincia_pagina.dart';
+
+// --- ¡AÑADIDO! ---
+// Importamos la nueva página de mapa simple
+import 'package:xplore_cusco/caracteristicas/mapa/presentacion/paginas/mapa_simple_pagina.dart';
 // --- FIN DE LO AÑADIDO ---
 
 
@@ -80,8 +82,6 @@ class AppRutas {
           return const RegistroPagina();
         },
       ),
-
-      // --- ¡RUTA DE ADMIN RESTAURADA AQUÍ! ---
       GoRoute(
         path: '/panel-admin',
         builder: (BuildContext context, GoRouterState state) {
@@ -119,9 +119,6 @@ class AppRutas {
           return AdminCrearLugarPagina(lugar: lugar);
         },
       ),
-
-      // --- ¡AÑADIDO! ---
-      // Rutas para la nueva Gestión de Provincias
       GoRoute(
         path: '/admin/gestion-provincias',
         builder: (BuildContext context, GoRouterState state) {
@@ -133,6 +130,16 @@ class AppRutas {
         builder: (BuildContext context, GoRouterState state) {
           final provincia = state.extra as Provincia?;
           return AdminCrearProvinciaPagina(provincia: provincia);
+        },
+      ),
+
+      // --- ¡AÑADIDO! ---
+      // Ruta para la nueva página de mapa simple
+      GoRoute(
+        path: '/mapa-lugar',
+        builder: (BuildContext context, GoRouterState state) {
+          final lugar = state.extra as Lugar;
+          return MapaSimplePagina(lugar: lugar);
         },
       ),
       // --- FIN DE LO AÑADIDO ---
@@ -154,8 +161,7 @@ class AppRutas {
 
         // --- Pestañas Principales ---
         routes: <RouteBase>[
-
-          // (Tus pestañas 1, 2, 3, 4 van aquí intactas...)
+          // (Tus 4 pestañas de ShellRoute intactas...)
           // --- Pestaña 1: INICIO ---
           GoRoute(
               path: '/inicio',
