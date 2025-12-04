@@ -1,7 +1,5 @@
-// --- PIEDRA 1.1: LA "RECETA" DE LUGAR (¡VERSIÓN FINAL CON ID DE PROVINCIA!) ---
-
 class Lugar {
-  // --- Atributos del Carrusel ---
+  // --- Atributos Principales ---
   final String id;
   final String nombre;
   final String descripcion;
@@ -19,11 +17,15 @@ class Lugar {
   final double latitud;
   final double longitud;
 
-  // --- ¡ATRIBUTO FALTANTE CRÍTICO! ---
+  // --- Relaciones ---
   final String provinciaId;
-  // --- FIN ATRIBUTO FALTANTE ---
+  final String usuarioId;
 
-  // --- Constructor (El "Molde") ---
+  // --- Nuevo Campo ---
+  final String? videoTiktokUrl;
+  final String? fotoRecuerdoUrl;
+
+  // --- Constructor ---
   Lugar({
     required this.id,
     required this.nombre,
@@ -31,19 +33,18 @@ class Lugar {
     required this.urlImagen,
     required this.rating,
     required this.categoria,
-
-    // (Valores por defecto para que no den error)
+    this.fotoRecuerdoUrl,
     this.reviewsCount = 0,
     this.horario = 'No disponible',
     this.costoEntrada = 'Consultar',
     this.puntosInteres = const [],
 
-    // Valores de Coordenadas (Usamos Cusco como fallback)
     this.latitud = -13.5319,
     this.longitud = -71.9675,
 
-    // --- ¡PARÁMETRO FALTANTE CRÍTICO EN EL CONSTRUCTOR! ---
     required this.provinciaId,
-    // --- FIN PARÁMETRO FALTANTE ---
+    required this.usuarioId,
+
+    this.videoTiktokUrl,
   });
 }

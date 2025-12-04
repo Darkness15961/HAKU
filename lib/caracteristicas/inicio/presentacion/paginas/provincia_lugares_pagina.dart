@@ -165,7 +165,7 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                 border: Border.all(color: Colors.grey.shade300),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withValues(alpha: 0.1),
                     spreadRadius: 1,
                     blurRadius: 3,
                     offset: const Offset(0, 2),
@@ -244,7 +244,7 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                     right: 10,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withValues(alpha: 0.5),
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
@@ -271,7 +271,7 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
                           colors: [
-                            Colors.black.withOpacity(0.7),
+                            Colors.black.withValues(alpha: 0.7),
                             Colors.transparent,
                           ],
                         ),

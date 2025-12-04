@@ -29,12 +29,11 @@ import '../../../notificaciones/datos/repositorios/notificacion_repositorio_mock
 import '../../../notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
 // --- FIN DE LO AÑADIDO ---
 
-
 // Helper: Clase simple para representar un Lugar en la Ruta
 // --- ¡SIMPLIFICADO! Ya no tiene 'durationMinutes' ---
 class RouteLocation {
   final Lugar lugar;
-  RouteLocation({ required this.lugar });
+  RouteLocation({required this.lugar});
 }
 
 // 1. El "Edificio" (La Pantalla)
@@ -61,7 +60,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
 
   final _formKey = GlobalKey<FormState>();
 
-  String _selectedDifficulty = 'medio';
+  String _selectedDifficulty = 'Familiar';
   String _visibility = 'Privada';
   bool _estaGuardando = false;
 
@@ -80,16 +79,23 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       return;
     }
 
-    setState(() { _estaGuardando = true; });
+    setState(() {
+      _estaGuardando = true;
+    });
 
     // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
     // 1. Leemos el VM de Autenticación para obtener los datos del guía
     final vmAuth = context.read<AutenticacionVM>();
     if (vmAuth.usuarioActual == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error: No se pudo identificar al guía.'), backgroundColor: Colors.red)
+        const SnackBar(
+          content: Text('Error: No se pudo identificar al guía.'),
+          backgroundColor: Colors.red,
+        ),
       );
-      setState(() { _estaGuardando = false; });
+      setState(() {
+        _estaGuardando = false;
+      });
       return;
     }
     // --- FIN DE CORRECCIÓN ---
@@ -102,7 +108,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       'descripcion': _descripcionCtrl.text,
       'precio': double.tryParse(_precioCtrl.text) ?? 0.0,
       'cupos': int.tryParse(cuposText) ?? 10,
-      'dificultad': _selectedDifficulty,
+      'categoria': _selectedDifficulty,
       'visible': _visibility == 'Pública',
       'dias': int.tryParse(diasText) ?? 1,
       'lugaresIds': _locations.map((loc) => loc.lugar.id).toList(),
@@ -128,17 +134,17 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         mensajeExito = '¡Ruta creada con éxito!';
       } else {
         // MODO ACTUALIZAR
-        await context.read<RutasVM>().actualizarRuta(widget.ruta!.id, datosRuta);
+        await context.read<RutasVM>().actualizarRuta(
+          widget.ruta!.id,
+          datosRuta,
+        );
         mensajeExito = '¡Ruta actualizada con éxito!';
       }
       // --- FIN DE LA LÓGICA ---
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(mensajeExito),
-            backgroundColor: Colors.green,
-          ),
+          SnackBar(content: Text(mensajeExito), backgroundColor: Colors.green),
         );
         context.pop(); // Sale de la pág. de edición
         if (widget.ruta != null) {
@@ -149,15 +155,14 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       if (mounted) {
         final errorMsg = e.toString().replaceFirst("Exception: ", "");
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMsg),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
         );
       }
     } finally {
-      if(mounted) {
-        setState(() { _estaGuardando = false; });
+      if (mounted) {
+        setState(() {
+          _estaGuardando = false;
+        });
       }
     }
   }
@@ -176,14 +181,16 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
       // Usamos SIEMPRE 'preview_id' para forzar el modo previsualización
       id: 'preview_id',
-      // --- FIN DE LA CORRECCIÓN ---
 
+      // --- FIN DE LA CORRECCIÓN ---
       nombre: _nombreCtrl.text.isEmpty ? 'Nombre de tu Ruta' : _nombreCtrl.text,
-      descripcion: _descripcionCtrl.text.isEmpty ? 'Descripción de tu ruta...' : _descripcionCtrl.text,
+      descripcion: _descripcionCtrl.text.isEmpty
+          ? 'Descripción de tu ruta...'
+          : _descripcionCtrl.text,
       precio: double.tryParse(_precioCtrl.text) ?? 0.0,
       cuposTotales: cuposTotales,
       dias: int.tryParse(_diasCtrl.text) ?? 1,
-      dificultad: _selectedDifficulty,
+      categoria: _selectedDifficulty,
       visible: _visibility == 'Pública',
       urlImagenPrincipal: _locations.isNotEmpty
           ? _locations.first.lugar.urlImagen
@@ -198,7 +205,8 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       guiaFotoUrl: vmAuth.usuarioActual!.urlFotoPerfil ?? '',
 
       // --- Valores por Defecto para la Previsualización ---
-      rating: widget.ruta?.rating ?? 0.0, // Usa el rating real si estamos editando
+      rating:
+          widget.ruta?.rating ?? 0.0, // Usa el rating real si estamos editando
       reviewsCount: widget.ruta?.reviewsCount ?? 0,
       inscritosCount: widget.ruta?.inscritosCount ?? 0,
       estaInscrito: false,
@@ -210,12 +218,13 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     context.push('/rutas/detalle-ruta', extra: rutaTemporal);
   }
 
-
   // --- MÉTODO DEL SELECTOR (Corregido y Simplificado) ---
   void _mostrarSelectorLugares() {
     final vmLugares = context.read<LugaresVM>();
     final lugaresDisponibles = vmLugares.lugaresTotales;
-    List<String> idsSeleccionados = _locations.map((rl) => rl.lugar.id).toList();
+    List<String> idsSeleccionados = _locations
+        .map((rl) => rl.lugar.id)
+        .toList();
 
     Set<String> seleccionTemporal = idsSeleccionados.toSet();
 
@@ -228,7 +237,6 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (modalContext, setModalState) {
-
             return Container(
               height: MediaQuery.of(context).size.height * 0.8,
               child: Column(
@@ -238,16 +246,21 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                     padding: const EdgeInsets.all(16.0),
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Seleccione Lugares', style: Theme.of(context).textTheme.titleLarge),
+                        Text(
+                          'Seleccione Lugares',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
                         IconButton(
                           icon: const Icon(Icons.close),
                           onPressed: () => Navigator.of(modalContext).pop(),
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -256,7 +269,9 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                       itemCount: lugaresDisponibles.length,
                       itemBuilder: (context, index) {
                         final lugar = lugaresDisponibles[index];
-                        final estaSeleccionado = seleccionTemporal.contains(lugar.id);
+                        final estaSeleccionado = seleccionTemporal.contains(
+                          lugar.id,
+                        );
                         return CheckboxListTile(
                           title: Text(lugar.nombre),
                           subtitle: Text(lugar.categoria),
@@ -278,8 +293,14 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                   Container(
                     padding: const EdgeInsets.all(16.0),
                     decoration: BoxDecoration(
-                        color: Colors.white,
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 5, offset: Offset(0, -2))]
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 5,
+                          offset: Offset(0, -2),
+                        ),
+                      ],
                     ),
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -287,11 +308,14 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                         backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                       ),
-                      child: Text('Confirmar (${seleccionTemporal.length}) Lugares'),
+                      child: Text(
+                        'Confirmar (${seleccionTemporal.length}) Lugares',
+                      ),
                       onPressed: () {
                         setState(() {
                           _locations = seleccionTemporal.map((id) {
-                            final lugarEncontrado = lugaresDisponibles.firstWhere((l) => l.id == id);
+                            final lugarEncontrado = lugaresDisponibles
+                                .firstWhere((l) => l.id == id);
                             // ¡SIMPLIFICADO! Ya no pasamos 'durationMinutes'
                             return RouteLocation(lugar: lugarEncontrado);
                           }).toList();
@@ -299,7 +323,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                         Navigator.of(modalContext).pop();
                       },
                     ),
-                  )
+                  ),
                 ],
               ),
             );
@@ -326,7 +350,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       _precioCtrl.text = widget.ruta!.precio.toString();
       _diasCtrl.text = widget.ruta!.dias.toString();
       _cuposCtrl.text = widget.ruta!.cuposTotales.toString();
-      _selectedDifficulty = widget.ruta!.dificultad;
+      _selectedDifficulty = widget.ruta!.categoria;
       _visibility = widget.ruta!.visible ? 'Pública' : 'Privada';
 
       // (Pre-cargamos los lugares si estamos editando)
@@ -335,13 +359,16 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         final vmLugares = context.read<LugaresVM>();
         // --- ¡LÓGICA CORREGIDA! ---
         // Asumimos que 'lugaresIncluidosIds' SÍ son IDs.
-        _locations = widget.ruta!.lugaresIncluidosIds.map((id) {
-          final lugar = vmLugares.lugaresTotales.firstWhereOrNull((l) => l.id == id);
-          if (lugar != null) {
-            return RouteLocation(lugar: lugar);
-          }
-          return null;
-        })
+        _locations = widget.ruta!.lugaresIncluidosIds
+            .map((id) {
+              final lugar = vmLugares.lugaresTotales.firstWhereOrNull(
+                (l) => l.id == id,
+              );
+              if (lugar != null) {
+                return RouteLocation(lugar: lugar);
+              }
+              return null;
+            })
             .whereType<RouteLocation>() // Filtra los nulos
             .toList();
         setState(() {});
@@ -390,47 +417,61 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
 
     return Scaffold(
       appBar: AppBar(
-        title:
-        Text(modoEdicion ? 'Editar Ruta' : 'Crear Ruta', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          modoEdicion ? 'Editar Ruta' : 'Crear Ruta',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           _estaGuardando
               ? const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
-            child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))),
-          )
-
-          // --- ¡AQUÍ ESTÁ LA CORRECCIÓN PROFESIONAL! ---
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 3,
+                      ),
+                    ),
+                  ),
+                )
+              // --- ¡AQUÍ ESTÁ LA CORRECCIÓN PROFESIONAL! ---
               : Padding(
-            padding: const EdgeInsets.only(right: 10.0),
-            child: FilledButton(
-              onPressed: canSave ? _submitCrearRuta : null,
-              style: ButtonStyle(
-                // El color de fondo (el botón)
-                backgroundColor: MaterialStateProperty.resolveWith<Color>(
-                      (Set<MaterialState> states) {
-                    if (states.contains(MaterialState.disabled)) {
-                      return Colors.white.withOpacity(0.3); // Deshabilitado: Blanco transparente
-                    }
-                    return Colors.white; // Habilitado: Blanco sólido
-                  },
+                  padding: const EdgeInsets.only(right: 10.0),
+                  child: FilledButton(
+                    onPressed: canSave ? _submitCrearRuta : null,
+                    style: ButtonStyle(
+                      // El color de fondo (el botón)
+                      backgroundColor: MaterialStateProperty.resolveWith<Color>(
+                        (Set<MaterialState> states) {
+                          if (states.contains(MaterialState.disabled)) {
+                            return Colors.white.withOpacity(
+                              0.3,
+                            ); // Deshabilitado: Blanco transparente
+                          }
+                          return Colors.white; // Habilitado: Blanco sólido
+                        },
+                      ),
+                      // El color del texto (adentro)
+                      foregroundColor: MaterialStateProperty.resolveWith<Color>(
+                        (Set<MaterialState> states) {
+                          if (states.contains(MaterialState.disabled)) {
+                            return Colors.white.withOpacity(
+                              0.7,
+                            ); // Deshabilitado: Texto blanco opaco
+                          }
+                          // Habilitado: Texto azul (color primario)
+                          return Theme.of(context).colorScheme.primary;
+                        },
+                      ),
+                      textStyle: MaterialStateProperty.all<TextStyle>(
+                        const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    child: const Text('Guardar'),
+                  ),
                 ),
-                // El color del texto (adentro)
-                foregroundColor: MaterialStateProperty.resolveWith<Color>(
-                      (Set<MaterialState> states) {
-                    if (states.contains(MaterialState.disabled)) {
-                      return Colors.white.withOpacity(0.7); // Deshabilitado: Texto blanco opaco
-                    }
-                    // Habilitado: Texto azul (color primario)
-                    return Theme.of(context).colorScheme.primary;
-                  },
-                ),
-                textStyle: MaterialStateProperty.all<TextStyle>(
-                  const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              child: const Text('Guardar'),
-            ),
-          ),
           // --- FIN DE LA CORRECCIÓN ---
         ],
       ),
@@ -440,7 +481,11 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
           children: [
             SingleChildScrollView(
               padding: const EdgeInsets.only(
-                  left: 16.0, right: 16.0, top: 8.0, bottom: 120.0),
+                left: 16.0,
+                right: 16.0,
+                top: 8.0,
+                bottom: 120.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -450,13 +495,18 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                   const Divider(height: 32),
                   _buildLocationList(),
                   const Divider(height: 32),
-                  _buildVisibilityTools(context, hayInscritos), // <-- ¡Corregido!
-
+                  _buildVisibilityTools(
+                    context,
+                    hayInscritos,
+                  ), // <-- ¡Corregido!
                   // --- ¡NUEVA SECCIÓN DE GESTIÓN! ---
                   if (modoEdicion)
-                    _buildDangerZone(context, widget.ruta!, hayInscritos), // <-- ¡Corregido!
+                    _buildDangerZone(
+                      context,
+                      widget.ruta!,
+                      hayInscritos,
+                    ), // <-- ¡Corregido!
                   // --- FIN DE NUEVA SECCIÓN ---
-
                 ],
               ),
             ),
@@ -478,7 +528,10 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   Widget _buildInputLabel(String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      ),
     );
   }
 
@@ -493,11 +546,13 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
           decoration: InputDecoration(
             hintText: 'Ej. Valle Sagrado - 1 día',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
           validator: (v) =>
-          (v == null || v.isEmpty) ? 'El nombre es obligatorio' : null,
+              (v == null || v.isEmpty) ? 'El nombre es obligatorio' : null,
         ),
         const SizedBox(height: 16),
         _buildInputLabel('Descripción *'),
@@ -510,14 +565,15 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
             contentPadding: const EdgeInsets.all(16),
           ),
           validator: (v) =>
-          (v == null || v.isEmpty) ? 'La descripción es obligatoria' : null,
+              (v == null || v.isEmpty) ? 'La descripción es obligatoria' : null,
         ),
       ],
     );
   }
 
   // --- ¡WIDGET ACTUALIZADO! ---
-  Widget _buildRouteProperties(BuildContext context) { // <-- ¡Recibe context!
+  Widget _buildRouteProperties(BuildContext context) {
+    // <-- ¡Recibe context!
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -526,8 +582,12 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
           children: [
             Expanded(
               flex: 2,
-              child: _buildNumericInput('Precio (S/) *', _precioCtrl,
-                  Icons.monetization_on, isInteger: false),
+              child: _buildNumericInput(
+                'Precio (S/) *',
+                _precioCtrl,
+                Icons.monetization_on,
+                isInteger: false,
+              ),
             ),
             const SizedBox(width: 16),
 
@@ -543,10 +603,17 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.people, color: Theme.of(context).colorScheme.primary),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      prefixIcon: Icon(
+                        Icons.people,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
                     validator: (v) {
                       if (v == null || v.isEmpty) {
@@ -562,7 +629,8 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
 
                       // ¡Validación de Inscritos (Modo Edición)!
                       if (widget.ruta != null) {
-                        final int inscritosActuales = widget.ruta!.inscritosCount;
+                        final int inscritosActuales =
+                            widget.ruta!.inscritosCount;
                         if (nuevosCupos < inscritosActuales) {
                           // Error con el número exacto de inscritos
                           return 'Min: $inscritosActuales (ya inscritos)';
@@ -574,8 +642,8 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                 ],
               ),
             ),
-            // --- FIN DE LA LÓGICA DE VALIDACIÓN ---
 
+            // --- FIN DE LA LÓGICA DE VALIDACIÓN ---
           ],
         ),
         const SizedBox(height: 16),
@@ -584,7 +652,11 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
           children: [
             Expanded(
               child: _buildNumericInput(
-                  'Días *', _diasCtrl, Icons.calendar_today, isInteger: true),
+                'Días *',
+                _diasCtrl,
+                Icons.calendar_today,
+                isInteger: true,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -592,7 +664,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInputLabel('Dificultad *'),
+                    _buildInputLabel('categoria *'),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
@@ -603,11 +675,22 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                         child: DropdownButton<String>(
                           value: _selectedDifficulty,
                           isExpanded: true,
-                          items: ['facil', 'medio', 'dificil'].map((String value) {
-                            return DropdownMenuItem<String>(
-                                child: Text(value[0].toUpperCase() + value.substring(1)),
-                                value: value);
-                          }).toList(),
+                          items:
+                              [
+                                'Familiar',
+                                'Cultural',
+                                'Aventura',
+                                '+18',
+                                'Naturaleza',
+                                'Extrema',
+                              ].map((String value) {
+                                return DropdownMenuItem<String>(
+                                  child: Text(
+                                    value[0].toUpperCase() + value.substring(1),
+                                  ),
+                                  value: value,
+                                );
+                              }).toList(),
                           onChanged: (String? newValue) {
                             setState(() {
                               _selectedDifficulty = newValue!;
@@ -626,8 +709,12 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     );
   }
 
-  Widget _buildNumericInput(String label, TextEditingController controller,
-      IconData icon, {required bool isInteger}) {
+  Widget _buildNumericInput(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    required bool isInteger,
+  }) {
     // (Sin cambios)
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -642,13 +729,17 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
               ? [FilteringTextInputFormatter.digitsOnly]
               : [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))],
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
+            prefixIcon: Icon(
+              icon,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
-          validator: (v) =>
-          (v == null || v.isEmpty) ? 'Requerido' : null,
+          validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
         ),
       ],
     );
@@ -665,8 +756,10 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
           icon: const Icon(Icons.add_location_alt_outlined),
           label: const Text('Añadir / Editar Lugares de la Lista'),
           style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 44),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+            minimumSize: const Size(double.infinity, 44),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
           onPressed: _mostrarSelectorLugares,
         ),
@@ -675,8 +768,10 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
           const Center(
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 24.0),
-              child: Text('Aún no has añadido lugares.',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Aún no has añadido lugares.',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
           )
         else
@@ -695,13 +790,17 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                     _locations.removeAt(index);
                   });
                   ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${location.lugar.nombre} eliminado.')));
+                    SnackBar(
+                      content: Text('${location.lugar.nombre} eliminado.'),
+                    ),
+                  );
                 },
                 background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    color: Colors.red.shade400,
-                    child: const Icon(Icons.delete, color: Colors.white)),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  color: Colors.red.shade400,
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
                 child: _buildLocationCard(context, location),
               );
             },
@@ -723,25 +822,35 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         child: Row(
           children: [
             ReorderableDragStartListener(
-                index: _locations.indexOf(routeLocation),
-                child: Icon(Icons.drag_indicator, color: Colors.grey.shade600)),
+              index: _locations.indexOf(routeLocation),
+              child: Icon(Icons.drag_indicator, color: Colors.grey.shade600),
+            ),
             const SizedBox(width: 8),
             ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Image.network(
-                    lugar.urlImagen,
-                    width: 60, height: 50, fit: BoxFit.cover,
-                    errorBuilder: (_,__,___) => Container(
-                        width: 60, height: 50, color: Colors.grey[300],
-                        child: const Icon(Icons.image, size: 24, color: Colors.grey)
-                    )
-                )),
+              borderRadius: BorderRadius.circular(6),
+              child: Image.network(
+                lugar.urlImagen,
+                width: 60,
+                height: 50,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 60,
+                  height: 50,
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.image, size: 24, color: Colors.grey),
+                ),
+              ),
+            ),
             const SizedBox(width: 12),
             // --- ¡SIMPLIFICADO! Se quitó el campo de minutos ---
             Expanded(
-              child: Text(lugar.nombre,
-                  style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              child: Text(
+                lugar.nombre,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             ),
           ],
         ),
@@ -767,8 +876,12 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
             ),
             child: Row(
               children: [
-                Expanded(child: _buildVisibilityButton('Privada', hayInscritos)),
-                Expanded(child: _buildVisibilityButton('Pública', hayInscritos)),
+                Expanded(
+                  child: _buildVisibilityButton('Privada', hayInscritos),
+                ),
+                Expanded(
+                  child: _buildVisibilityButton('Pública', hayInscritos),
+                ),
               ],
             ),
           ),
@@ -779,14 +892,19 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         if (hayInscritos)
           Text(
             'No puedes cambiar la visibilidad mientras haya turistas inscritos. Debes "Cancelar la Ruta" primero.',
-            style: TextStyle(fontSize: 12, color: Colors.red.shade700, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.red.shade700,
+              fontWeight: FontWeight.bold,
+            ),
           )
         else
           Text(
-              _visibility == 'Pública'
-                  ? 'Las rutas públicas estan listas para recibir a los turistas.'
-                  : 'Solo tú puedes ver esta ruta.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            _visibility == 'Pública'
+                ? 'Las rutas públicas estan listas para recibir a los turistas.'
+                : 'Solo tú puedes ver esta ruta.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
       ],
     );
   }
@@ -801,7 +919,8 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
 
     return Expanded(
       child: ElevatedButton(
-        onPressed: () { // El AbsorbPointer se encarga de deshabilitar
+        onPressed: () {
+          // El AbsorbPointer se encarga de deshabilitar
           setState(() {
             _visibility = label;
           });
@@ -824,7 +943,8 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   }
 
   // --- WIDGET DE FOOTER (¡ACTUALIZADO!) ---
-  Widget _buildFixedFooter(BuildContext context) { // <-- ¡Recibe context!
+  Widget _buildFixedFooter(BuildContext context) {
+    // <-- ¡Recibe context!
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -833,9 +953,10 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5))
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
         ],
       ),
       child: Row(
@@ -845,22 +966,34 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Días',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-              Text('${_diasCtrl.text.isEmpty ? '0' : _diasCtrl.text} día(s)',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(
+                'Días',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              Text(
+                '${_diasCtrl.text.isEmpty ? '0' : _diasCtrl.text} día(s)',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             ],
           ),
           // Cupos
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Cupos',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-              Text('${_cuposCtrl.text.isEmpty ? '0' : _cuposCtrl.text} pers.',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(
+                'Cupos',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              Text(
+                '${_cuposCtrl.text.isEmpty ? '0' : _cuposCtrl.text} pers.',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             ],
           ),
           // Botón Previsualizar
@@ -873,10 +1006,12 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
             // --- FIN DE LA CORRECCIÓN ---
             child: const Icon(Icons.visibility, color: Colors.white),
             style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8))),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ],
       ),
@@ -892,7 +1027,11 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         const Divider(height: 40),
         const Text(
           'Zona de Peligro',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.red,
+          ),
         ),
         const SizedBox(height: 16),
 
@@ -902,18 +1041,20 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
             context: context,
             icon: Icons.warning_amber_rounded,
             label: 'Cancelar esta Ruta',
-            details: 'Esto notificará y expulsará a ${ruta.inscritosCount} turista(s) inscrito(s). Esta acción es reversible si vuelves a publicar la ruta.',
+            details:
+                'Esto notificará y expulsará a ${ruta.inscritosCount} turista(s) inscrito(s). Esta acción es reversible si vuelves a publicar la ruta.',
             onPressed: () {
               _mostrarDialogoCancelarRuta(context, ruta); // <-- ¡Modificado!
             },
           )
         else
-        // --- 2. Botón Eliminar Ruta (SOLO SI NO HAY INSCRITOS) ---
+          // --- 2. Botón Eliminar Ruta (SOLO SI NO HAY INSCRITOS) ---
           _buildDangerButton(
             context: context,
             icon: Icons.delete_forever,
             label: 'Eliminar Ruta Permanentemente',
-            details: 'Esta acción no se puede deshacer. La ruta se borrará de la base de datos.',
+            details:
+                'Esta acción no se puede deshacer. La ruta se borrará de la base de datos.',
             onPressed: () => _mostrarDialogoEliminarRuta(context),
           ),
       ],
@@ -927,11 +1068,16 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     required String details,
     required VoidCallback? onPressed,
   }) {
-    final Color buttonColor = (onPressed != null) ? Colors.red.shade700 : Colors.grey;
+    final Color buttonColor = (onPressed != null)
+        ? Colors.red.shade700
+        : Colors.grey;
 
     return OutlinedButton.icon(
       icon: Icon(icon, color: buttonColor),
-      label: Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: buttonColor)),
+      label: Text(
+        label,
+        style: TextStyle(fontWeight: FontWeight.bold, color: buttonColor),
+      ),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(double.infinity, 50),
         side: BorderSide(color: buttonColor.withOpacity(0.5)),
@@ -947,7 +1093,8 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   // --- ¡NUEVOS DIÁLOGOS DE CONFIRMACIÓN! ---
 
   // --- ¡AQUÍ ESTÁ LA MODIFICACIÓN FINAL! ---
-  void _mostrarDialogoCancelarRuta(BuildContext context, Ruta ruta) { // <-- ¡Modificado!
+  void _mostrarDialogoCancelarRuta(BuildContext context, Ruta ruta) {
+    // <-- ¡Modificado!
     // Guardamos los VMs y el Navigator ANTES del 'await'
     final vmRutas = context.read<RutasVM>();
     final navigator = GoRouter.of(context);
@@ -955,10 +1102,10 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     // --- ¡AÑADIDO! ---
     // Leemos el Repositorio Mock y el VM de Notificaciones
     // Hacemos un 'cast' (as) para acceder al método del mock
-    final repoNotificaciones = context.read<NotificacionRepositorio>() as NotificacionRepositorioMock;
+    final repoNotificaciones =
+        context.read<NotificacionRepositorio>() as NotificacionRepositorioMock;
     final vmNotificaciones = context.read<NotificacionesVM>();
     // --- FIN DE LO AÑADIDO ---
-
 
     // Controladores para el nuevo formulario de disculpa
     final TextEditingController mensajeCtrl = TextEditingController();
@@ -979,7 +1126,9 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Estás a punto de cancelar esta ruta y expulsar a ${ruta.inscritosCount} turista(s) inscrito(s).'), // <-- ¡Modificado!
+                    Text(
+                      'Estás a punto de cancelar esta ruta y expulsar a ${ruta.inscritosCount} turista(s) inscrito(s).',
+                    ), // <-- ¡Modificado!
                     const SizedBox(height: 16),
                     Text(
                       'Por favor, escribe un mensaje de disculpa o el motivo de la cancelación. Este mensaje se enviará a todos los inscritos.',
@@ -991,7 +1140,8 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                       autofocus: true,
                       maxLines: 3,
                       decoration: const InputDecoration(
-                        hintText: 'Ej. "Lamentamos informar que la ruta se cancela por motivos de..."',
+                        hintText:
+                            'Ej. "Lamentamos informar que la ruta se cancela por motivos de..."',
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
@@ -1018,37 +1168,47 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                   label: const Text('Sí, Cancelar'),
                   style: FilledButton.styleFrom(backgroundColor: Colors.red),
                   // Se deshabilita si el formulario no es válido
-                  onPressed: (mensajeCtrl.text.trim().isEmpty) ? null : () async {
-                    if (dialogFormKey.currentState!.validate()) {
+                  onPressed: (mensajeCtrl.text.trim().isEmpty)
+                      ? null
+                      : () async {
+                          if (dialogFormKey.currentState!.validate()) {
+                            // 1. Llama a la función del VM de Rutas (como ya lo tenías)
+                            await vmRutas.cancelarRuta(
+                              widget.ruta!.id,
+                              mensajeCtrl.text,
+                            );
 
-                      // 1. Llama a la función del VM de Rutas (como ya lo tenías)
-                      await vmRutas.cancelarRuta(widget.ruta!.id, mensajeCtrl.text);
+                            // --- ¡AQUÍ ESTÁ LA SIMULACIÓN! ---
+                            // 2. Llama al método del Repositorio Mock directamente
+                            await repoNotificaciones.simularEnvioDeNotificacion(
+                              titulo: 'Ruta Cancelada: ${widget.ruta!.nombre}',
+                              cuerpo: mensajeCtrl.text,
+                            );
+                            // --- FIN DE SIMULACIÓN ---
 
-                      // --- ¡AQUÍ ESTÁ LA SIMULACIÓN! ---
-                      // 2. Llama al método del Repositorio Mock directamente
-                      await repoNotificaciones.simularEnvioDeNotificacion(
-                        titulo: 'Ruta Cancelada: ${widget.ruta!.nombre}',
-                        cuerpo: mensajeCtrl.text,
-                      );
-                      // --- FIN DE SIMULACIÓN ---
+                            if (!context.mounted) return;
 
+                            // 3. Refresca el VM de Notificaciones para actualizar la 🔔
+                            vmNotificaciones.cargarNotificaciones();
 
-                      if (!context.mounted) return;
+                            Navigator.of(
+                              dialogContext,
+                            ).pop(); // Cierra el diálogo
 
-                      // 3. Refresca el VM de Notificaciones para actualizar la 🔔
-                      vmNotificaciones.cargarNotificaciones();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Ruta cancelada y turistas notificados (Simulado).',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
 
-                      Navigator.of(dialogContext).pop(); // Cierra el diálogo
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Ruta cancelada y turistas notificados (Simulado).'), backgroundColor: Colors.green)
-                      );
-
-                      // Regresa a la página anterior (detalle de ruta)
-                      navigator.pop();
-                      navigator.pop(); // Y a la lista de rutas
-                    }
-                  },
+                            // Regresa a la página anterior (detalle de ruta)
+                            navigator.pop();
+                            navigator.pop(); // Y a la lista de rutas
+                          }
+                        },
                 ),
               ],
             );
@@ -1067,7 +1227,9 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('¿Eliminar Permanentemente?'),
-        content: const Text('Esta acción no se puede deshacer. La ruta se borrará de la base de datos.\n\n¿Estás seguro?'),
+        content: const Text(
+          'Esta acción no se puede deshacer. La ruta se borrará de la base de datos.\n\n¿Estás seguro?',
+        ),
         actions: [
           TextButton(
             child: const Text('No, volver'),
@@ -1078,7 +1240,6 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
             label: const Text('Sí, Eliminar'),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-
               await vmRutas.eliminarRuta(widget.ruta!.id);
 
               if (!context.mounted) return;
@@ -1086,7 +1247,10 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
               Navigator.of(dialogContext).pop(); // Cierra el diálogo
 
               ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ruta eliminada permanentemente (Simulado).'), backgroundColor: Colors.green)
+                const SnackBar(
+                  content: Text('Ruta eliminada permanentemente (Simulado).'),
+                  backgroundColor: Colors.green,
+                ),
               );
 
               // Regresa dos páginas (a la lista de rutas)
@@ -1097,6 +1261,25 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         ],
       ),
     );
+  }
+
+  IconData _getIconForCategory(String category) {
+    switch (category) {
+      case 'Familiar':
+        return Icons.family_restroom;
+      case 'Cultural':
+        return Icons.museum;
+      case 'Aventura':
+        return Icons.hiking;
+      case '+18':
+        return Icons.local_bar; // o nightlight_round
+      case 'Naturaleza':
+        return Icons.spa; // o nature_people
+      case 'Extrema':
+        return Icons.landscape; // o warning
+      default:
+        return Icons.help_outline;
+    }
   }
 }
 

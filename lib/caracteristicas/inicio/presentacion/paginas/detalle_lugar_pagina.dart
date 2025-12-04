@@ -1,9 +1,3 @@
-// --- PIEDRA 6.6: EL "MENÚ" DE DETALLE DE LUGAR (ACOMPLADO PARA NAVEGACIÓN) ---
-//
-// (...)
-// 2. (¡FUNCIONAL!): El botón "Abrir en Mapas" ahora NAVEGA a una
-//    nueva página de mapa simple ('/mapa-lugar') y pasa el lugar.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -14,17 +8,15 @@ import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/comentario.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 
-// (La importación del MapaVM ya no es necesaria aquí)
-
 class DetalleLugarPagina extends StatefulWidget {
   final Lugar lugar;
   const DetalleLugarPagina({super.key, required this.lugar});
+
   @override
   State<DetalleLugarPagina> createState() => _DetalleLugarPaginaState();
 }
 
 class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
-  // (Tu código de initState, logic, etc., va aquí intacto...)
   bool _isDescriptionExpanded = false;
 
   @override
@@ -47,16 +39,13 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
   }
 
   void _onToggleFavorito(BuildContext context) {
-    if (!_checkAndRedirect(context, 'guardar este lugar')) {
-      return;
-    }
+    if (!_checkAndRedirect(context, 'guardar este lugar')) return;
     context.read<LugaresVM>().toggleLugarFavorito(widget.lugar.id);
   }
 
   void _mostrarDialogoComentario(BuildContext context) {
-    if (!_checkAndRedirect(context, 'escribir una reseña')) {
-      return;
-    }
+    if (!_checkAndRedirect(context, 'escribir una reseña')) return;
+
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -73,553 +62,549 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
 
   @override
   Widget build(BuildContext context) {
-    // (Tu código de build() va aquí intacto...)
     final vm = context.watch<LugaresVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
-    final bool esFavorito = vm.esLugarFavorito(widget.lugar.id);
+
+    // LUGAR VIVO (Datos actualizados en tiempo real)
+    final lugarVivo = vm.lugaresTotales.firstWhere(
+      (l) => l.id == widget.lugar.id,
+      orElse: () => widget.lugar,
+    );
+
+    final bool esFavorito = vm.esLugarFavorito(lugarVivo.id);
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // --- 1. La Barra de App (SliverAppBar) ---
+          // --- 1. HEADER CINEMÁTICO ---
           SliverAppBar(
             expandedHeight: 350.0,
             pinned: true,
-            stretch: true,
             backgroundColor: colorPrimario,
             actions: [
-              IconButton(
-                onPressed: () => _onToggleFavorito(context),
-                icon: Icon(
-                  esFavorito ? Icons.favorite : Icons.favorite_border,
-                  color: esFavorito ? Colors.red : Colors.white,
+              // Botón de Favorito con fondo para que se vea sobre cualquier foto
+              Container(
+                margin: const EdgeInsets.only(right: 16),
+                decoration: const BoxDecoration(
+                  color: Colors.white24, // Semi-transparente
+                  shape: BoxShape.circle,
                 ),
-                tooltip: 'Guardar en Favoritos',
-              ),
-              IconButton(
-                onPressed: () { /* Lógica de Compartir */ },
-                icon: const Icon(Icons.share, color: Colors.white),
+                child: IconButton(
+                  onPressed: () => _onToggleFavorito(context),
+                  icon: Icon(
+                    esFavorito ? Icons.favorite : Icons.favorite_border,
+                    color: esFavorito ? Colors.red : Colors.white,
+                  ),
+                ),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              centerTitle: false,
-              titlePadding: const EdgeInsets.only(left: 16, bottom: 20),
-              title: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // El título se mueve al cuerpo para un diseño más limpio,
+              // aquí dejamos solo la imagen.
+              background: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Text(
-                    widget.lugar.nombre,
-                    style: const TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [Shadow(blurRadius: 4.0, color: Colors.black54)],
+                  Image.network(
+                    lugarVivo.urlImagen,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(color: Colors.grey),
+                  ),
+                  // Gradiente inferior para transición suave
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.0),
+                          Colors.black.withOpacity(0.6),
+                        ],
+                        stops: const [0.0, 0.7, 1.0],
+                      ),
                     ),
                   ),
-                  _buildRatingStarsWithLikes(
-                      widget.lugar.rating, widget.lugar.reviewsCount,
-                      likes: widget.lugar.reviewsCount ~/ 2),
                 ],
-              ),
-              background: Hero(
-                tag: 'lugar_imagen_${widget.lugar.id}',
-                child: Image.network(
-                  widget.lugar.urlImagen,
-                  fit: BoxFit.cover,
-                  color: Colors.black.withOpacity(0.4),
-                  colorBlendMode: BlendMode.darken,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: colorPrimario.withOpacity(0.1),
-                    child: Center(
-                      child: Icon(Icons.image_search,
-                          size: 60, color: colorPrimario),
-                    ),
-                  ),
-                ),
               ),
             ),
           ),
 
-          // --- 2. Contenido del Cuerpo (SliverList) ---
+          // --- 2. CUERPO DE LA PÁGINA ---
           SliverList(
-            delegate: SliverChildListDelegate(
-              [
-                Padding(
-                  padding:
-                  const EdgeInsets.only(top: 16, bottom: 8, left: 16, right: 16),
-                  child: GridView.count(
-                    crossAxisCount: 3,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
+            delegate: SliverChildListDelegate([
+              // Contenedor principal que "sube" un poco sobre la imagen (Efecto Tarjeta)
+              Transform.translate(
+                offset: const Offset(0, -20),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(30),
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildInfoChip(Icons.schedule, 'Horario', widget.lugar.horario),
-                      _buildInfoChip(
-                          Icons.local_atm, 'Costo', widget.lugar.costoEntrada),
-                      _buildInfoChip(
-                          Icons.landscape, 'Tipo', widget.lugar.categoria),
+                      // TÍTULO Y CATEGORÍA
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  lugarVivo.nombre,
+                                  style: const TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.bold,
+                                    height: 1.1,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.location_on,
+                                      size: 16,
+                                      color: colorPrimario,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      lugarVivo
+                                          .categoria, // Podrías concatenar provincia aquí si la tuvieras
+                                      style: TextStyle(
+                                        color: colorPrimario,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // --- INFO ROW (NUEVO DISEÑO ESTILO AIRBNB) ---
+                      _buildModernInfoRow(context, lugarVivo),
+
+                      const SizedBox(height: 24),
+                      const Divider(height: 1),
+                      const SizedBox(height: 24),
+
+                      Text(
+                        'Descripción',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Descripción
+                      GestureDetector(
+                        onTap: () => setState(
+                          () =>
+                              _isDescriptionExpanded = !_isDescriptionExpanded,
+                        ),
+                        child: Text(
+                          lugarVivo.descripcion,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[700],
+                            height: 1.5,
+                          ),
+                          maxLines: _isDescriptionExpanded ? null : 4,
+                          overflow: _isDescriptionExpanded
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (lugarVivo.descripcion.length > 150)
+                        TextButton(
+                          onPressed: () => setState(
+                            () => _isDescriptionExpanded =
+                                !_isDescriptionExpanded,
+                          ),
+                          child: Text(
+                            _isDescriptionExpanded ? "Leer menos" : "Leer más",
+                            style: TextStyle(color: colorPrimario),
+                          ),
+                        ),
+
+                      const SizedBox(height: 24),
+                      _buildMapSection(context, lugarVivo),
+
+                      const SizedBox(height: 24),
+
+                      // Gráfica
+                      _buildReviewsSummary(context, lugarVivo, vm.comentarios),
+
+                      const SizedBox(height: 24),
+                      Text(
+                        'Comentarios (${vm.comentarios.length})',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      if (vm.estaCargandoComentarios)
+                        const Center(child: CircularProgressIndicator())
+                      else if (vm.comentarios.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              "Aún no hay reseñas. ¡Sé el primero!",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        )
+                      else ...[
+                        for (var c in vm.comentarios) _buildComentarioCard(c),
+                      ],
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),
-                _buildDescriptionSection(widget.lugar.descripcion),
-                _buildSubPlacesSection(widget.lugar.puntosInteres),
-
-                // --- ¡MODIFICADO! ---
-                // Pasamos el context al widget
-                _buildMapSection(context),
-                // --- FIN DE LA MODIFICACIÓN ---
-
-                Padding(
-                  padding: const EdgeInsets.only(top: 16, bottom: 8),
-                  child: _buildReviewsSummary(
-                      widget.lugar, vm.comentarios.length),
-                ),
-                const Divider(height: 30, thickness: 1),
-                Padding(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
-                  child: Text(
-                    'Comentarios',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                vm.estaCargandoComentarios
-                    ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-                    : (vm.comentarios.isEmpty
-                    ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32.0),
-                    child: Text('Aún no hay reseñas. ¡Sé el primero!'),
-                  ),
-                )
-                    : Column(
-                  children: [
-                    _buildComentarioCard(vm.comentarios.first),
-                    if (vm.comentarios.length > 1)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                            top: 8.0, bottom: 16.0),
-                        child: TextButton.icon(
-                          onPressed: () {
-                            context.push('/inicio/comentarios', extra: widget.lugar);
-                          },
-                          icon: const Icon(Icons.arrow_right_alt),
-                          label: Text(
-                              'Ver todas las ${vm.comentarios.length} reseñas',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                      )
-                  ],
-                )),
-                const SizedBox(height: 100),
-              ],
-            ),
+              ),
+            ]),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _mostrarDialogoComentario(context),
-        label: const Text('Añadir Reseña'),
-        icon: const Icon(Icons.edit),
+        label: const Text('Escribir Reseña'),
+        icon: const Icon(Icons.create),
         backgroundColor: colorPrimario,
       ),
     );
   }
 
-  // --- WIDGET AUXILIAR: MODAL DE INVITACIÓN (se mantiene) ---
-  void _showLoginRequiredModal(BuildContext context, String action) {
-    // (Tu código intacto aquí...)
-    final colorPrimario = Theme.of(context).colorScheme.primary;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Acción Requerida 🔒'),
-          content:
-          Text('Necesitas iniciar sesión o crear una cuenta para $action.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Seguir Explorando',
-                  style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                context.push('/login');
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: colorPrimario),
-              child: const Text('Iniciar Sesión',
-                  style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  // --- NUEVO DISEÑO DE LA FILA DE INFORMACIÓN ---
+  Widget _buildModernInfoRow(BuildContext context, Lugar lugar) {
+    final color = Theme.of(context).colorScheme.primary;
 
-  // --- (Todos los demás widgets auxiliares se mantienen) ---
+    // Formateo del precio
+    String precioStr = lugar.costoEntrada;
+    // Si viene solo número, le agregamos S/
+    if (double.tryParse(precioStr) != null) {
+      precioStr = 'S/ $precioStr';
+    }
 
-  Widget _buildInfoChip(IconData icon, String title, String value) {
-    // (Tu código intacto aquí...)
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 4.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.indigo, size: 24),
-            const SizedBox(height: 4),
-            Text(value,
-                style:
-                const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis),
-            Text(title,
-                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-                maxLines: 1),
-          ],
-        ),
+    // Formateo del rating
+    String ratingStr = lugar.rating > 0
+        ? lugar.rating.toStringAsFixed(1)
+        : "Nuevo";
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildInfoItem(
+            Icons.access_time_filled_rounded,
+            lugar.horario,
+            "Horario",
+            color,
+          ),
+          Container(width: 1, height: 40, color: Colors.grey[200]), // Separador
+          _buildInfoItem(
+            Icons.payments_rounded,
+            precioStr,
+            "Costo",
+            Colors.green,
+          ),
+          Container(width: 1, height: 40, color: Colors.grey[200]), // Separador
+          _buildInfoItem(
+            Icons.star_rounded,
+            ratingStr,
+            "Calificación",
+            Colors.amber,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildDescriptionSection(String fullDescription) {
-    // (Tu código intacto aquí...)
-    const int thresholdLength = 200;
-    final bool needsExpansion = fullDescription.length > thresholdLength;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+  Widget _buildInfoItem(
+    IconData icon,
+    String value,
+    String label,
+    Color color,
+  ) {
+    return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Resumen / Qué ver',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(height: 8),
           Text(
-            fullDescription,
-            style: const TextStyle(fontSize: 16, height: 1.4, color: Colors.black87),
-            maxLines: _isDescriptionExpanded ? null : 4,
-            overflow: _isDescriptionExpanded
-                ? TextOverflow.visible
-                : TextOverflow.ellipsis,
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          if (needsExpansion)
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _isDescriptionExpanded = !_isDescriptionExpanded;
-                });
-              },
-              child: Text(
-                _isDescriptionExpanded ? 'Ver menos' : 'Ver más',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: Colors.indigo),
-              ),
-            ),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
         ],
       ),
     );
   }
 
-  Widget _buildSubPlacesSection(List<String> subPlaces) {
-    // (Tu código intacto aquí...)
-    if (subPlaces.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Puntos de Interés en el Complejo',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8.0,
-            runSpacing: 4.0,
-            children: subPlaces
-                .map((place) => Chip(
-              label:
-              Text(place, style: const TextStyle(fontSize: 14)),
-              backgroundColor: Colors.indigo.shade50,
-              labelStyle: const TextStyle(color: Colors.indigo),
-              avatar: const Icon(Icons.check_circle,
-                  size: 16, color: Colors.indigo),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 4, vertical: 2),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
-            ))
-                .toList(),
-          ),
-        ],
-      ),
-    );
-  }
+  // --- GRÁFICA DE BARRAS (IGUAL QUE ANTES) ---
+  Widget _buildReviewsSummary(
+    BuildContext context,
+    Lugar lugar,
+    List<Comentario> comentarios,
+  ) {
+    Map<int, int> counts = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+    for (var c in comentarios) {
+      int star = c.rating.round().clamp(1, 5);
+      counts[star] = (counts[star] ?? 0) + 1;
+    }
+    int total = comentarios.length;
 
-  // --- ¡WIDGET MODIFICADO! ---
-  Widget _buildMapSection(BuildContext context) { // <-- Ahora recibe context
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
         children: [
-          const Text(
-            'Ubicación en el Mapa',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            height: 180,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: Colors.grey[200],
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Center(
-              child: ElevatedButton.icon(
-                // --- ¡AQUÍ ESTÁ LA LÓGICA CORREGIDA! ---
-                onPressed: () {
-                  // Ya no necesitamos al MapaVM
-                  // 1. Navegamos a la nueva página '/mapa-lugar'
-                  // 2. Pasamos el 'lugar' actual como 'extra'
-                  context.push('/mapa-lugar', extra: widget.lugar);
-                },
-                // --- FIN DE LA CORRECCIÓN ---
-                icon: const Icon(Icons.map, color: Colors.white),
-                label: const Text('Abrir en Mapas',
-                    style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
+          Column(
+            children: [
+              Text(
+                lugar.rating.toStringAsFixed(1),
+                style: TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
                 ),
               ),
+              Row(
+                children: [
+                  for (int i = 0; i < 5; i++)
+                    Icon(
+                      i < lugar.rating.round() ? Icons.star : Icons.star_border,
+                      size: 12,
+                      color: Colors.amber,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "$total reseñas",
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              children: [5, 4, 3, 2, 1].map((star) {
+                int count = counts[star] ?? 0;
+                double pct = total == 0 ? 0 : count / total;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Text(
+                        "$star",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: LinearProgressIndicator(
+                          value: pct,
+                          backgroundColor: Colors.grey[300],
+                          color: Colors.amber,
+                          minHeight: 6,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
       ),
     );
   }
-  // --- FIN DE LA MODIFICACIÓN ---
 
-  Widget _buildReviewsSummary(Lugar lugar, int totalComentarios) {
-    // (Tu código intacto aquí...)
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Column(
-                    children: [
-                      Text(lugar.rating.toStringAsFixed(1),
-                          style: TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.primary)),
-                      Text('($totalComentarios reseñas)',
-                          style:
-                          TextStyle(color: Colors.grey[600], fontSize: 12)),
-                    ],
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      children: List.generate(5, (index) {
-                        int star = 5 - index;
-                        double percentage = star / 5; // Simulación
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2.0),
-                          child: Row(
-                            children: [
-                              Text('$star★',
-                                  style: TextStyle(
-                                      color: Colors.grey[600], fontSize: 12)),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: LinearProgressIndicator(
-                                  value: percentage,
-                                  backgroundColor: Colors.grey[200],
-                                  color: Colors.indigo,
-                                  minHeight: 8,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+  Widget _buildMapSection(BuildContext context, Lugar lugar) {
+    return Container(
+      height: 180,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.grey[200],
+        image: const DecorationImage(
+          image: AssetImage(
+            'assets/imagenes/mapa_textura.png',
+          ), // Textura de fondo si tienes
+          fit: BoxFit.cover,
+          opacity: 0.5,
+        ),
+      ),
+      child: Center(
+        child: ElevatedButton.icon(
+          onPressed: () => context.push('/mapa-lugar', extra: lugar),
+          icon: const Icon(Icons.map),
+          label: const Text('Ver ubicación exacta'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black87,
+            elevation: 2,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildComentarioCard(Comentario comentario) {
-    // (Tu código intacto aquí...)
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: Colors.grey[200]!),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundImage: NetworkImage(comentario.usuarioFotoUrl),
-                    backgroundColor: Colors.grey[300],
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(comentario.usuarioNombre,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 15)),
-                        Text(comentario.fecha,
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.star,
-                          color: Colors.amber.shade600, size: 16),
-                      const SizedBox(width: 4),
-                      Text(comentario.rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 15)),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                comentario.texto,
-                style: const TextStyle(fontSize: 15, color: Colors.black87),
-              ),
-            ],
+  Widget _buildComentarioCard(Comentario c) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
           ),
-        ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildRatingStars(double rating, int reviews, {bool small = false}) {
-    // (Tu código intacto aquí...)
-    int fullStars = rating.floor();
-    bool hasHalfStar = (rating - fullStars) >= 0.5;
-    double size = small ? 14 : 18;
-
-    return Row(
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(5, (index) {
-            if (index < fullStars) {
-              return Icon(Icons.star, color: Colors.amber, size: size);
-            } else if (index == fullStars && hasHalfStar) {
-              return Icon(Icons.star_half, color: Colors.amber, size: size);
-            } else {
-              return Icon(Icons.star_border, color: Colors.amber, size: size);
-            }
-          }),
-        ),
-        if (!small) ...[
-          const SizedBox(width: 4),
-          Text(
-            '$rating ($reviews)',
-            style: const TextStyle(
-                fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500),
-          ),
-        ]
-      ],
-    );
-  }
-
-  Widget _buildRatingStarsWithLikes(double rating, int reviews,
-      {required int likes}) {
-    // (Tu código intacto aquí...)
-    double size = 14;
-    return Padding(
-      padding: const EdgeInsets.only(top: 4.0),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: List.generate(5, (index) {
-              if (index < rating.floor()) {
-                return Icon(Icons.star,
-                    color: Colors.amber.shade400, size: size);
-              } else if (index == rating.floor() &&
-                  (rating - rating.floor()) >= 0.5) {
-                return Icon(Icons.star_half,
-                    color: Colors.amber.shade400, size: size);
-              } else {
-                return Icon(Icons.star_border,
-                    color: Colors.amber.shade400, size: size);
-              }
-            }),
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundImage: (c.usuarioFotoUrl.isNotEmpty)
+                    ? NetworkImage(c.usuarioFotoUrl)
+                    : null,
+                backgroundColor: Colors.grey[300],
+                child: (c.usuarioFotoUrl.isEmpty)
+                    ? Text(
+                        c.usuarioNombre.substring(0, 1).toUpperCase(),
+                        style: const TextStyle(fontSize: 12),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c.usuarioNombre,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      c.fecha,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star, size: 14, color: Colors.amber),
+                    const SizedBox(width: 4),
+                    Text(
+                      c.rating.toString(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
+          const SizedBox(height: 12),
           Text(
-            rating.toStringAsFixed(1),
+            c.texto,
             style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                shadows: [Shadow(blurRadius: 4.0, color: Colors.black54)]),
+              fontSize: 14,
+              height: 1.4,
+              color: Colors.black87,
+            ),
           ),
-          const SizedBox(width: 12),
-          Icon(Icons.favorite, color: Colors.red.shade300, size: size),
-          const SizedBox(width: 4),
-          Text(
-            '${(likes / 1000).toStringAsFixed(1)}k',
-            style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white,
-                shadows: [Shadow(blurRadius: 4.0, color: Colors.black54)]),
+        ],
+      ),
+    );
+  }
+
+  void _showLoginRequiredModal(BuildContext context, String action) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¡Únete a nosotros!'),
+        content: Text('Para $action necesitas una cuenta. Es gratis y rápido.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Quizás luego',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.push('/login');
+            },
+            child: const Text('Iniciar Sesión'),
           ),
         ],
       ),
@@ -627,10 +612,8 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
   }
 }
 
-// --- WIDGET DE DIÁLOGO (Separado y con estado propio) ---
-
+// --- DIÁLOGO INTERNO (Sin cambios funcionales) ---
 class _DialogoComentario extends StatefulWidget {
-  // (Tu código intacto del diálogo va aquí...)
   final String lugarId;
   final String lugarNombre;
   const _DialogoComentario({required this.lugarId, required this.lugarNombre});
@@ -639,239 +622,74 @@ class _DialogoComentario extends StatefulWidget {
 }
 
 class _DialogoComentarioState extends State<_DialogoComentario> {
-  // (Tu código intacto del estado del diálogo va aquí...)
-  double _ratingSeleccionado = 0;
-  final TextEditingController _tituloCtrl = TextEditingController();
-  final TextEditingController _resenaCtrl = TextEditingController();
-  bool _esAnonimo = false;
-  bool _estaEnviando = false;
-
-  @override
-  void dispose() {
-    _tituloCtrl.dispose();
-    _resenaCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _enviarResena(BuildContext dialogContext) async {
-    if (_ratingSeleccionado == 0) {
-      ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(
-          content: Text('Por favor, selecciona una calificación de estrellas.'),
-          backgroundColor: Colors.red));
-      return;
-    }
-    if (_resenaCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(
-          content: Text('Por favor, escribe tu reseña.'),
-          backgroundColor: Colors.red));
-      return;
-    }
-
-    setState(() => _estaEnviando = true);
-
-    await context.read<LugaresVM>().enviarComentario(
-      widget.lugarId,
-      _resenaCtrl.text,
-      _ratingSeleccionado,
-    );
-
-    if (mounted) {
-      setState(() => _estaEnviando = false);
-    }
-
-    if (mounted) {
-      Navigator.of(dialogContext).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('¡Gracias! Tu reseña fue enviada.'),
-            backgroundColor: Colors.green),
-      );
-    }
-  }
+  final _ctrl = TextEditingController();
+  double _rating = 0;
 
   @override
   Widget build(BuildContext context) {
-    // (Tu código intacto del build del diálogo va aquí...)
-    return Dialog(
+    return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Tu reseña de ${widget.lugarNombre}',
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF00569A)),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, thickness: 1),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text('Tu calificación general',
-                            style: TextStyle(fontWeight: FontWeight.bold))),
-                    _buildStarRatingSelector(),
-                    const SizedBox(height: 16),
-                    const Text('Título de tu reseña (opcional)',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    const TextField(
-                        decoration: InputDecoration(
-                          hintText: '¿Qué fue lo más destacado?',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        )),
-                    const SizedBox(height: 16),
-                    const Text('Tu reseña',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    TextField(
-                        controller: _resenaCtrl,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          hintText:
-                          'Comparte los detalles de tu propia experiencia...',
-                          border: OutlineInputBorder(),
-                        )),
-                    const SizedBox(height: 16),
-                    const Text('Añadir fotos (Próximamente)',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    _buildPhotoUploadArea(),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Checkbox(
-                            value: _esAnonimo,
-                            onChanged: (val) {
-                              setState(() => _esAnonimo = val ?? false);
-                            },
-                            activeColor: Colors.indigo),
-                        const Text('Publicar como anónimo',
-                            style: TextStyle(fontSize: 13)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const Divider(height: 1, thickness: 1),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  ElevatedButton(
-                    onPressed: _estaEnviando ? null : () => _enviarResena(context),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      backgroundColor: Colors.indigo,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: _estaEnviando
-                        ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child:
-                      CircularProgressIndicator(color: Colors.white),
-                    )
-                        : const Text('Enviar Reseña',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Al publicar, aceptas nuestras políticas de la comunidad.',
-                    style:
-                    TextStyle(fontSize: 10, color: Colors.grey[600]),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStarRatingSelector() {
-    // (Tu código intacto aquí...)
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(5, (index) {
-        final rating = index + 1.0;
-        return IconButton(
-          icon: Icon(
-            _ratingSeleccionado >= rating ? Icons.star : Icons.star_border,
-            color: Colors.amber.shade600,
-            size: 40,
-          ),
-          onPressed: () {
-            setState(() {
-              _ratingSeleccionado = rating;
-            });
-          },
-        );
-      }),
-    );
-  }
-
-  Widget _buildPhotoUploadArea() {
-    // (Tu código intacto aquí...)
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade400, width: 1.0),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
+      title: Text('Califica ${widget.lugarNombre}'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.add_a_photo, size: 40, color: Colors.grey[400]),
-          const SizedBox(height: 8),
-          Text.rich(
-            TextSpan(
-              text: 'Arrastra y suelta o ',
-              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-              children: const [
-                TextSpan(
-                  text: 'pulsa para seleccionar',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.indigo),
-                ),
-              ],
-            ),
-            textAlign: TextAlign.center,
+          const Text(
+            "¿Qué te pareció esta experiencia?",
+            style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
-          const SizedBox(height: 4),
-          Text('(Próximamente)',
-              style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              5,
+              (i) => IconButton(
+                icon: Icon(
+                  i < _rating ? Icons.star : Icons.star_border,
+                  color: Colors.amber,
+                  size: 32,
+                ),
+                onPressed: () => setState(() => _rating = i + 1.0),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _ctrl,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Cuéntanos más (opcional)...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.all(12),
+            ),
+          ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          onPressed: () async {
+            if (_rating > 0) {
+              await context.read<LugaresVM>().enviarComentario(
+                widget.lugarId,
+                _ctrl.text,
+                _rating,
+              );
+              if (mounted) Navigator.pop(context);
+            }
+          },
+          child: const Text('Publicar'),
+        ),
+      ],
     );
   }
 }

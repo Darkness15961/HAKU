@@ -1,6 +1,6 @@
 // lib/caracteristicas/splash/presentacion/paginas/splash_pagina.dart
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart'; // <-- 1. IMPORTANTE: Importar Go_Router
+import 'package:go_router/go_router.dart';
 
 class SplashPagina extends StatefulWidget {
   const SplashPagina({super.key});
@@ -12,9 +12,11 @@ class SplashPagina extends StatefulWidget {
 class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderStateMixin {
   static const String assetFondo = 'assets/logo.webp';
   static const String assetLogo = 'assets/log.png';
-  static const String titulo = 'Xplora Cusco';
-  static const String subtitulo = 'Descubre el Valle Sagrado y rutas únicas.';
-  static const String botonTexto = 'Comenzar';
+  
+  // --- REBRANDING HAKU ---
+  static const String titulo = 'HAKU';
+  static const String subtitulo = 'Redescubriendo el Cusco';
+  static const String botonTexto = 'Vamos';
 
   late final AnimationController _ctrl;
   late final Animation<double> _scaleAnim;
@@ -25,14 +27,14 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
   void initState() {
     super.initState();
 
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _scaleAnim = Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _scaleAnim = Tween<double>(begin: 0.8, end: 1.0).animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
     _fadeAnim  = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
 
     _ctrl.forward();
 
     // Mostrar botón poco después de terminar la animación principal
-    Future.delayed(const Duration(milliseconds: 950), () {
+    Future.delayed(const Duration(milliseconds: 1000), () {
       if (mounted) setState(() => _mostrarBoton = true);
     });
   }
@@ -44,13 +46,8 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
   }
 
   void _irAlInicio() {
-    // 2. CAMBIO CLAVE: Usamos Go_Router para navegar por la ruta
-    // que definimos en app_rutas.dart.
     if (mounted) {
-      // --- ¡CORREGIDO! ---
-      // La ruta no es '/navegacion', es '/inicio'
       context.pushReplacement('/inicio');
-      // --- FIN DE LA CORRECCIÓN ---
     }
   }
 
@@ -69,13 +66,14 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
             errorBuilder: (_, __, ___) => Container(color: Colors.black87),
           ),
 
-          // Overlay degradado para contraste
+          // Overlay degradado para contraste (Más dramático para HAKU)
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Color.fromRGBO(0, 0, 0, 0.28),
-                  Color.fromRGBO(0, 0, 0, 0.62),
+                  Colors.black.withValues(alpha: 0.3),
+                  Colors.black.withValues(alpha: 0.7),
+                  Colors.black.withValues(alpha: 0.9),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -94,15 +92,27 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
                     scale: _scaleAnim,
                     child: FadeTransition(
                       opacity: _fadeAnim,
-                      child: Image.asset(
-                        assetLogo,
-                        height: 120,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.explore, size: 120, color: Colors.white),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: colorPrimario.withValues(alpha: 0.5),
+                              blurRadius: 30,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: Image.asset(
+                          assetLogo,
+                          height: 140,
+                          errorBuilder: (_, __, ___) => Icon(Icons.travel_explore, size: 120, color: colorPrimario),
+                        ),
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 24),
 
                   FadeTransition(
                     opacity: _fadeAnim,
@@ -111,37 +121,60 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 42,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2.0,
+                        fontFamily: 'Montserrat', // Ideal si se agrega, sino usa default
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
 
                   FadeTransition(
                     opacity: _fadeAnim,
                     child: Text(
                       subtitulo,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: 1.2,
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 48),
 
                   AnimatedOpacity(
                     opacity: _mostrarBoton ? 1 : 0,
-                    duration: const Duration(milliseconds: 300),
+                    duration: const Duration(milliseconds: 500),
                     child: ElevatedButton(
                       onPressed: _mostrarBoton ? _irAlInicio : null,
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 6,
+                        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        elevation: 8,
                         backgroundColor: colorPrimario,
+                        foregroundColor: Colors.white,
+                        shadowColor: colorPrimario.withValues(alpha: 0.6),
                       ),
-                      child: Text(botonTexto, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            botonTexto.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_rounded),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -149,12 +182,12 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
             ),
           ),
 
-          // Pie pequeño
+          // Pie pequeño (Actualizado)
           Positioned(
             bottom: 16,
             left: 0,
             right: 0,
-            child: Center(child: Text('© Xplora Cusco', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12))),
+            child: Center(child: Text('© HAKU Travel', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12))),
           ),
         ],
       ),

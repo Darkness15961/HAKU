@@ -59,7 +59,7 @@ class _AdminGestionLugaresPaginaState extends State<AdminGestionLugaresPagina> {
           // Overlay de Carga (Spinner)
           if (vmLugares.estaCargandoGestion)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),

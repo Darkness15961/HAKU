@@ -1,4 +1,4 @@
-# xplore_cusco
+# HAKU
 
 Turismo en Cusco.
 

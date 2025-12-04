@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:lottie/lottie.dart'; // <-- Importación de Lottie
+
 
 import '../vista_modelos/lugares_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
@@ -123,12 +123,8 @@ class _InicioPaginaState extends State<InicioPagina> {
         ),
         // 2. El contenido de la página va como 'child'
         child: vmLugares.estaCargandoInicio
-            ? Center(
-          child: Lottie.asset(
-            'assets/animaciones/viaje.json',
-            width: 150,
-            height: 150,
-          ),
+            ? const Center(
+          child: CircularProgressIndicator(),
         )
             : RefreshIndicator(
           onRefresh: _handleRefresh,
@@ -170,8 +166,8 @@ class _InicioPaginaState extends State<InicioPagina> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF1565C0), // Azul intenso Cusco (tema oficial)
-            const Color(0xFF1E88E5), // Azul secundario (tema oficial)
+            const Color(0xFF00BCD4), // Azul intenso Cusco (tema oficial)
+            const Color(0xFF26C6DA), // Azul secundario (tema oficial)
           ],
         ),
         boxShadow: [
@@ -348,7 +344,7 @@ class _InicioPaginaState extends State<InicioPagina> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
               borderSide: const BorderSide(
-                color: Color(0xFF1565C0), // Azul del tema
+                color: Color(0xFF00BCD4), // Azul del tema
                 width: 2,
               ),
             ),
@@ -386,7 +382,7 @@ class _InicioPaginaState extends State<InicioPagina> {
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1565C0), // Azul del tema
+              color: Color(0xFF00BCD4), // Azul del tema
               letterSpacing: 0.3,
             ),
           ),
@@ -583,7 +579,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                             onPressed: () => _irAlDetalle(item),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF1565C0), // Azul del tema
+                              foregroundColor: const Color(0xFF00BCD4), // Azul del tema
                               elevation: 4,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 20, vertical: 12),
@@ -621,133 +617,39 @@ class _InicioPaginaState extends State<InicioPagina> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0xFFD4AF37),
-                          Color(0xFFB8941F),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Provincias',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1565C0), // Azul del tema
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ],
-              ),
-              if (vmLugares.categoriaSeleccionadaIdInicio != '1')
-                TextButton.icon(
-                  onPressed: () {
-                    vmLugares.seleccionarCategoriaEnInicio('1');
-                  },
-                  icon: const Icon(Icons.close, size: 18),
-                  label: const Text('Borrar filtro'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF1565C0), // Azul del tema
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 50,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            scrollDirection: Axis.horizontal,
-            itemCount: vmLugares.categorias.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, i) {
-              if (i >= vmLugares.categorias.length) {
-                return const SizedBox.shrink();
-              }
-
-              final c = vmLugares.categorias[i];
-              final selected = c.id == vmLugares.categoriaSeleccionadaIdInicio;
-
-              Widget? avatar;
-              if (c.id == '1') {
-                avatar = Icon(
-                  Icons.apps_rounded,
-                  size: 18,
-                  color: selected ? Colors.white : const Color(0xFF1565C0), // Azul del tema
-                );
-              } else if (c.urlImagen.isNotEmpty) {
-                avatar = CircleAvatar(
-                  radius: 12,
-                  backgroundColor: Colors.transparent,
-                  backgroundImage: NetworkImage(c.urlImagen),
-                );
-              }
-
-              return Container(
+              Container(
+                width: 4,
+                height: 24,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: selected
-                      ? [
-                    BoxShadow(
-                      color: const Color(0xFF1565C0).withOpacity(0.3), // Azul del tema
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                      : [],
-                ),
-                child: ChoiceChip(
-                  avatar: avatar,
-                  labelPadding: avatar == null
-                      ? const EdgeInsets.symmetric(horizontal: 14)
-                      : const EdgeInsets.only(right: 14, left: 8),
-                  label: Text(c.nombre),
-                  selected: selected,
-                  onSelected: (_) {
-                    vmLugares.seleccionarCategoriaEnInicio(c.id);
-                  },
-                  backgroundColor: Colors.white,
-                  selectedColor: const Color(0xFF1565C0), // Azul del tema
-                  labelStyle: TextStyle(
-                    color: selected ? Colors.white : const Color(0xFF1565C0), // Azul del tema
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFFD4AF37),
+                      Color(0xFFB8941F),
+                    ],
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
-                    side: BorderSide(
-                      color: selected
-                          ? const Color(0xFF1565C0) // Azul del tema
-                          : Colors.grey[300]!,
-                      width: 1.5,
-                    ),
-                  ),
-                  elevation: selected ? 0 : 2,
-                  pressElevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-              );
-            },
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Provincias',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF00BCD4),
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 24),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: vmLugares.provinciasFiltradas.isEmpty
+          child: vmLugares.todasLasProvincias.isEmpty
               ? Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 60),
@@ -760,7 +662,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No hay provincias que coincidan',
+                    'No hay provincias disponibles',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.grey[600],
@@ -775,7 +677,7 @@ class _InicioPaginaState extends State<InicioPagina> {
             child: GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
-              itemCount: vmLugares.provinciasFiltradas.length,
+              itemCount: vmLugares.todasLasProvincias.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 mainAxisSpacing: 20,
@@ -783,7 +685,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                 childAspectRatio: 0.85,
               ),
               itemBuilder: (context, index) {
-                final p = vmLugares.provinciasFiltradas[index];
+                final p = vmLugares.todasLasProvincias[index];
                 return AnimationConfiguration.staggeredGrid(
                   position: index,
                   duration: const Duration(milliseconds: 375),
@@ -1009,12 +911,12 @@ class _InicioPaginaState extends State<InicioPagina> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1565C0).withOpacity(0.1), // Azul del tema
+                  color: const Color(0xFF00BCD4).withOpacity(0.1), // Azul del tema
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.lock_outline_rounded,
-                  color: Color(0xFF1565C0), // Azul del tema
+                  color: Color(0xFF00BCD4), // Azul del tema
                   size: 24,
                 ),
               ),
@@ -1025,7 +927,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1565C0), // Azul del tema
+                    color: Color(0xFF00BCD4), // Azul del tema
                   ),
                 ),
               ),
@@ -1058,7 +960,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                 context.push('/login');
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1565C0), // Azul del tema
+                backgroundColor: const Color(0xFF00BCD4), // Azul del tema
                 foregroundColor: Colors.white,
                 elevation: 2,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),

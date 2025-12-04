@@ -130,17 +130,17 @@ class _NotificacionesPaginaState extends State<NotificacionesPagina> {
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
           side: BorderSide(
-            color: noLeida ? colorPrimario.withOpacity(0.5) : Colors.transparent,
+            color: noLeida ? colorPrimario.withValues(alpha: 0.5) : Colors.transparent,
             width: 0.5,
           )
       ),
       child: ListTile(
         // Resaltado sutil para los no leídos
-        tileColor: noLeida ? colorPrimario.withOpacity(0.03) : Colors.white,
+        tileColor: noLeida ? colorPrimario.withValues(alpha: 0.03) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
         contentPadding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
         leading: CircleAvatar(
-          backgroundColor: iconColor.withOpacity(0.1),
+          backgroundColor: iconColor.withValues(alpha: 0.1),
           child: Icon(iconData, color: iconColor),
         ),
         title: Text(

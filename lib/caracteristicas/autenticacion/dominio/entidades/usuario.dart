@@ -1,26 +1,18 @@
-// --- lib/caracteristicas/autenticacion/dominio/entidades/usuario.dart ---
-// (Versión con el campo de certificado AÑADIDO)
-
 class Usuario {
-  // --- Atributos (Ingredientes) ---
   final String id;
   final String nombre;
   final String email;
-  final String rol; // (Ej: 'turista', 'guia_aprobado', 'admin')
+  final String rol; // 'turista', 'guia_local', 'admin'
   final String? urlFotoPerfil;
-  final String? dni;
+  final String? dni; // Nuevo
 
-  // --- ¡CAMPOS PARA EL PANEL DE ADMIN! ---
-  final String? solicitudEstado; // (Ej: 'pendiente', 'aprobado', 'rechazado')
-  final String? solicitudExperiencia; // (Datos que envió el guía)
+  // Gestión de Guías
+  final String? solicitudEstado; // 'pendiente', 'aprobado', 'rechazado'
+  final String? solicitudExperiencia;
+  final String? solicitudCertificadoUrl;
 
-  // --- ¡NUEVO CAMPO AÑADIDO! ---
-  final String? solicitudCertificadoUrl; // (La URL del certificado)
-  // --- FIN DE NUEVO CAMPO ---
+  final String token; // Token de sesión de Supabase
 
-  final String token; // El "Pase" de seguridad
-
-  // --- Constructor (El "Molde" Acoplado) ---
   Usuario({
     required this.id,
     required this.nombre,
@@ -30,7 +22,33 @@ class Usuario {
     this.dni,
     this.solicitudEstado,
     this.solicitudExperiencia,
-    this.solicitudCertificadoUrl, // <-- ¡AÑADIDO!
+    this.solicitudCertificadoUrl,
     required this.token,
   });
+
+  Usuario copyWith({
+    String? id,
+    String? nombre,
+    String? email,
+    String? rol,
+    String? urlFotoPerfil,
+    String? dni,
+    String? solicitudEstado,
+    String? solicitudExperiencia,
+    String? solicitudCertificadoUrl,
+    String? token,
+  }) {
+    return Usuario(
+      id: id ?? this.id,
+      nombre: nombre ?? this.nombre,
+      email: email ?? this.email,
+      rol: rol ?? this.rol,
+      urlFotoPerfil: urlFotoPerfil ?? this.urlFotoPerfil,
+      dni: dni ?? this.dni,
+      solicitudEstado: solicitudEstado ?? this.solicitudEstado,
+      solicitudExperiencia: solicitudExperiencia ?? this.solicitudExperiencia,
+      solicitudCertificadoUrl: solicitudCertificadoUrl ?? this.solicitudCertificadoUrl,
+      token: token ?? this.token,
+    );
+  }
 }

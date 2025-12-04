@@ -141,7 +141,7 @@ class AdminDashboardPagina extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: color.withOpacity(0.1),
+                  backgroundColor: color.withValues(alpha: 0.1),
                   child: Icon(icono, color: color, size: 24),
                 ),
                 const SizedBox(width: 12),
@@ -184,7 +184,7 @@ class AdminDashboardPagina extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           radius: 22,
-          backgroundColor: color.withOpacity(0.1),
+          backgroundColor: color.withValues(alpha: 0.1),
           child: Icon(icono, color: color),
         ),
         title: Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),

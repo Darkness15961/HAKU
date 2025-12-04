@@ -8,7 +8,6 @@
 //    para evitar conflictos con el ShellRoute y solucionar el crash.
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart'; // <-- ¡IMPORTADO!
 
 // --- IMPORTACIONES DE PESTAÑAS (Ya no se necesitan aquí) ---

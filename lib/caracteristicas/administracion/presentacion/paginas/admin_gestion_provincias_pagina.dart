@@ -52,13 +52,30 @@ class _AdminGestionProvinciasPaginaState extends State<AdminGestionProvinciasPag
       ),
       body: Stack(
         children: [
-          // Usamos el getter 'provinciasFiltradas' que ya existe
-          _buildContent(context, vmLugares, vmLugares.provinciasFiltradas),
+          // Usamos 'todasLasProvincias' para evitar filtros de la Home
+          _buildContent(context, vmLugares, vmLugares.todasLasProvincias),
           if (vmLugares.estaCargandoGestion)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(),
+              ),
+            ),
+          if (vmLugares.errorGestion != null)
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Text(
+                  'Error: ${vmLugares.errorGestion}',
+                  style: TextStyle(color: Colors.red.shade800),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
         ],

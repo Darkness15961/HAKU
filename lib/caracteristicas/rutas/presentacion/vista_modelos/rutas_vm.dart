@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import '../../dominio/repositorios/rutas_repositorio.dart';
+import '../../datos/repositorios/rutas_repositorio_supabase.dart'; // Importar implementación concreta para cast
 import '../../dominio/entidades/ruta.dart';
 import '../../../../locator.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
@@ -19,24 +20,23 @@ class RutasVM extends ChangeNotifier {
   bool _estaCargando = false;
   List<Ruta> _rutas = [];
   String _pestanaActual = 'Recomendadas';
-  String _dificultadActual = 'Todos';
+  String _categoriaActual = 'Todos';
   String? _error;
   bool _cargaInicialRealizada = false;
 
   // --- C. GETTERS ---
   bool get estaCargando => _estaCargando;
   String get pestanaActual => _pestanaActual;
-  String get dificultadActual => _dificultadActual;
+  String get categoriaActual => _categoriaActual;
   String? get error => _error;
   bool get cargaInicialRealizada => _cargaInicialRealizada;
 
   List<Ruta> get rutasFiltradas {
-    if (_dificultadActual == 'Todos') {
+    if (_categoriaActual == 'Todos') {
       return _rutas;
     } else {
       return _rutas.where((ruta) {
-        return ruta.dificultad.toLowerCase() ==
-            _dificultadActual.toLowerCase();
+        return ruta.categoria.toLowerCase() == _categoriaActual.toLowerCase();
       }).toList();
     }
   }
@@ -87,7 +87,11 @@ class RutasVM extends ChangeNotifier {
     final rol = _authVM?.usuarioActual?.rol;
     final esAnonimo = !(_authVM?.estaLogueado ?? false);
 
-    if (_pestanaActual == 'Creadas por mí' && rol != 'guia_aprobado' && rol != 'admin') {
+    if (_pestanaActual == 'Creadas por mí' &&
+        rol != 'guia_aprobado' &&
+        rol != 'guia' &&
+        rol != 'guia_local' &&
+        rol != 'admin') {
       _pestanaActual = 'Recomendadas';
     }
     if (_pestanaActual == 'Guardadas' && esAnonimo) {
@@ -109,27 +113,16 @@ class RutasVM extends ChangeNotifier {
     try {
       String tipoFiltro = 'recomendadas';
 
-      // --- ¡CAMBIO DE LÓGICA! ---
-      if (_pestanaActual == 'Guardadas') {
-        // "Guardadas" ya no es un filtro de API.
-        // Pedimos todas las rutas públicas para poder filtrarlas localmente.
-        tipoFiltro = 'recomendadas';
+      // --- CAMBIO DE LÓGICA ---
+      if (_pestanaActual == 'Mis Inscripciones') {
+        // <-- Nombre nuevo
+        tipoFiltro = 'inscritas'; // <-- Filtro nuevo del repo
       } else if (_pestanaActual == 'Creadas por mí') {
         tipoFiltro = 'creadas_por_mi';
       }
-      // --- FIN DEL CAMBIO ---
 
+      // Llamada al repositorio
       _rutas = await _repositorio.obtenerRutas(tipoFiltro);
-
-      // --- ¡FILTRO DEL CEREBRO! ---
-      // Si la pestaña es "Guardadas", filtramos la lista
-      // usando los IDs del AuthVM (el "Cerebro").
-      if (_pestanaActual == 'Guardadas' && (_authVM?.estaLogueado ?? false)) {
-        // Necesitamos 'rutasFavoritasIds' del AuthVM
-        final idsFavoritos = _authVM!.rutasFavoritasIds;
-        _rutas = _rutas.where((r) => idsFavoritos.contains(r.id)).toList();
-      }
-
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -151,13 +144,13 @@ class RutasVM extends ChangeNotifier {
   void cambiarPestana(String nuevaPestana) {
     if (nuevaPestana == _pestanaActual) return;
     _pestanaActual = nuevaPestana;
-    _dificultadActual = 'Todos';
+    _categoriaActual = 'Todos';
     cargarRutas();
   }
 
-  void cambiarDificultad(String nuevaDificultad) {
-    if (nuevaDificultad == _dificultadActual) return;
-    _dificultadActual = nuevaDificultad;
+  void cambiarCategoria(String nuevaCategoria) {
+    if (nuevaCategoria == _categoriaActual) return;
+    _categoriaActual = nuevaCategoria;
     notifyListeners();
   }
 
@@ -205,7 +198,10 @@ class RutasVM extends ChangeNotifier {
   // --- ¡NUEVAS FUNCIONES CRUD AÑADIDAS! ---
 
   /// Actualiza una ruta existente en la base de datos.
-  Future<void> actualizarRuta(String rutaId, Map<String, dynamic> datosRuta) async {
+  Future<void> actualizarRuta(
+    String rutaId,
+    Map<String, dynamic> datosRuta,
+  ) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
@@ -224,7 +220,8 @@ class RutasVM extends ChangeNotifier {
   }
 
   /// Cancela una ruta: notifica a usuarios y la oculta (lógica de negocio).
-  Future<void> cancelarRuta(String rutaId, String mensaje) async { // <-- ¡ACTUALIZADO!
+  Future<void> cancelarRuta(String rutaId, String mensaje) async {
+    // <-- ¡ACTUALIZADO!
     _estaCargando = true;
     _error = null;
     notifyListeners();
@@ -259,4 +256,44 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
+  // Acción del Turista
+  Future<void> marcarAsistencia(String rutaId) async {
+    _estaCargando = true;
+    notifyListeners();
+    try {
+      // Necesitamos castear si no agregaste el método al contrato abstracto
+      // (Idealmente agrégalo a RutasRepositorio también)
+      if (_repositorio is RutasRepositorioSupabase) {
+        await (_repositorio as RutasRepositorioSupabase).marcarAsistencia(
+          rutaId,
+        );
+      }
+      await cargarRutas(); // Recargar para ver el check verde
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _estaCargando = false;
+      notifyListeners();
+    }
+  }
+
+  // Acción del Guía
+  Future<void> cambiarEstadoRuta(String rutaId, String nuevoEstado) async {
+    _estaCargando = true;
+    notifyListeners();
+    try {
+      if (_repositorio is RutasRepositorioSupabase) {
+        await (_repositorio as RutasRepositorioSupabase).cambiarEstadoRuta(
+          rutaId,
+          nuevoEstado,
+        );
+      }
+      await cargarRutas();
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _estaCargando = false;
+      notifyListeners();
+    }
+  }
 }

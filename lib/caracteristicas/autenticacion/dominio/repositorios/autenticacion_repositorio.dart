@@ -1,13 +1,5 @@
-// --- PIEDRA 2 (AUTENTICACIÓN): EL "ENCHUFE" (ACOMPLADO CON ADMIN) ---
-//
-// 1. (ACOMPLADO): Se añadieron las 3 "órdenes" para el Admin:
-//    obtenerSolicitudesPendientes, aprobarGuia, rechazarGuia.
-// 2. (¡NUEVO!): Añadidas las órdenes 9 y 10 para Gestionar Cuentas.
-
-// 1. Importamos la "Receta" (Entidad)
 import '../entidades/usuario.dart';
 
-// 2. Definimos el "Contrato" (la clase abstracta)
 abstract class AutenticacionRepositorio {
   // --- ÓRDENES EXISTENTES ---
 
@@ -50,5 +42,11 @@ abstract class AutenticacionRepositorio {
   // ORDEN 10: "Eliminar un usuario de la base de datos"
   Future<void> eliminarUsuario(String usuarioId);
 
-// --- FIN DE LO AÑADIDO ---
+  // --- ¡NUEVO! GESTIÓN DE PERFIL ---
+  
+  // ORDEN 11: "Actualizar foto de perfil"
+  Future<void> actualizarFotoPerfil(String usuarioId, String nuevaFotoUrl);
+
+  // ORDEN 12: "Cambiar contraseña"
+  Future<void> cambiarPassword(String newPassword);
 }

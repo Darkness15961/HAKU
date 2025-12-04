@@ -1,0 +1,150 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../dominio/entidades/usuario.dart';
+import '../../dominio/repositorios/autenticacion_repositorio.dart';
+
+class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  @override
+  Future<Usuario> iniciarSesion(String email, String password) async {
+    // 1. Autenticación con Supabase Auth
+    final AuthResponse res = await _supabase.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+
+    if (res.user == null) throw Exception('Error al iniciar sesión');
+
+    // 2. Obtener datos extra de la tabla 'perfiles' (Rol, DNI, etc.)
+    final perfilData = await _supabase
+        .from('perfiles')
+        .select()
+        .eq('id', res.user!.id)
+        .single();
+
+    // 3. Construir y devolver el Usuario
+    return _mapPerfilToUsuario(perfilData, res.session!.accessToken);
+  }
+
+  @override
+  Future<Usuario> registrarUsuario(String nombre, String email, String password, String dni) async {
+    // 1. Crear usuario en Supabase Auth
+    final AuthResponse res = await _supabase.auth.signUp(
+      email: email,
+      password: password,
+    );
+
+    if (res.user == null) throw Exception('Error al registrarse');
+
+    // 2. Crear registro en tabla 'perfiles' (Tu tabla personalizada)
+    final nuevoPerfil = {
+      'id': res.user!.id, // Vinculamos con el ID de Auth
+      'nombre': nombre,
+      'email': email,
+      'dni': dni,
+      'rol': 'turista', // Por defecto
+      'solicitud_estado': 'no_iniciado',
+    };
+
+    await _supabase.from('perfiles').insert(nuevoPerfil);
+
+    return _mapPerfilToUsuario(nuevoPerfil, res.session?.accessToken ?? '');
+  }
+
+  // Helper para convertir JSON de BD a Entidad Usuario
+  Usuario _mapPerfilToUsuario(Map<String, dynamic> data, String token) {
+    return Usuario(
+      id: data['id'],
+      nombre: data['nombre'] ?? '',
+      email: data['email'] ?? '',
+      rol: data['rol'] ?? 'turista',
+      dni: data['dni'],
+      urlFotoPerfil: data['url_foto_perfil'],
+      solicitudEstado: data['solicitud_estado'],
+      solicitudExperiencia: data['solicitud_experiencia'],
+      solicitudCertificadoUrl: data['solicitud_certificado_url'],
+      token: token,
+    );
+  }
+
+  // --- MÉTODOS DE GESTIÓN DE GUÍAS (Admin) ---
+
+  @override
+  Future<void> solicitarSerGuia(String experiencia, String rutaCertificado) async {
+    final userId = _supabase.auth.currentUser!.id;
+    await _supabase.from('perfiles').update({
+      'solicitud_experiencia': experiencia,
+      'solicitud_certificado_url': rutaCertificado,
+      'solicitud_estado': 'pendiente',
+      'rol': 'guia_pendiente', // Cambia temporalmente
+    }).eq('id', userId);
+  }
+
+  @override
+  Future<List<Usuario>> obtenerSolicitudesPendientes() async {
+    final data = await _supabase
+        .from('perfiles')
+        .select()
+        .eq('solicitud_estado', 'pendiente');
+        
+    return (data as List).map((json) => _mapPerfilToUsuario(json, '')).toList();
+  }
+
+  @override
+  Future<void> aprobarGuia(String usuarioId) async {
+    await _supabase.from('perfiles').update({
+      'rol': 'guia_aprobado', // ¡Rol actualizado!
+      'solicitud_estado': 'aprobado',
+    }).eq('id', usuarioId);
+  }
+
+  @override
+  Future<void> rechazarGuia(String usuarioId) async {
+    await _supabase.from('perfiles').update({
+      'rol': 'turista', // Vuelve a turista
+      'solicitud_estado': 'rechazado',
+    }).eq('id', usuarioId);
+  }
+
+  @override
+  Future<void> cerrarSesion() async => await _supabase.auth.signOut();
+  
+  @override
+  Future<Usuario?> verificarEstadoSesion() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return null;
+    // Si hay sesión, traemos el perfil actualizado
+    try {
+      final data = await _supabase.from('perfiles').select().eq('id', user.id).single();
+      return _mapPerfilToUsuario(data, _supabase.auth.currentSession?.accessToken ?? '');
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  @override
+  Future<List<Usuario>> obtenerTodosLosUsuarios() async {
+     final data = await _supabase.from('perfiles').select();
+     return (data as List).map((json) => _mapPerfilToUsuario(json, '')).toList();
+  }
+  
+  @override
+  Future<void> eliminarUsuario(String usuarioId) async {
+    // Ojo: Esto solo borra de 'perfiles'. Para borrar de Auth se requiere una Edge Function o hacerlo desde el dashboard
+    await _supabase.from('perfiles').delete().eq('id', usuarioId);
+  }
+
+  @override
+  Future<void> actualizarFotoPerfil(String usuarioId, String nuevaFotoUrl) async {
+    await _supabase.from('perfiles').update({
+      'url_foto_perfil': nuevaFotoUrl,
+    }).eq('id', usuarioId);
+  }
+
+  @override
+  Future<void> cambiarPassword(String nuevaPassword) async {
+    await _supabase.auth.updateUser(
+      UserAttributes(password: nuevaPassword),
+    );
+  }
+}

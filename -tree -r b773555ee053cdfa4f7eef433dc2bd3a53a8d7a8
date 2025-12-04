@@ -1,0 +1,358 @@
+[33mcommit b773555ee053cdfa4f7eef433dc2bd3a53a8d7a8[m
+Merge: e64b227 7900a63
+Author: darkness15961 <60859960@continental.edu.pe>
+Date:   Thu Dec 4 04:02:10 2025 -0500
+
+    WIP on edu: e64b227 se agrego la logica del CRUD en el dashboard de Administrador, mas errores, de loguin, detalle de lugares
+
+[1mdiff --cc README.md[m
+[1mindex 2ca1021,2ca1021..903967f[m
+[1m--- a/README.md[m
+[1m+++ b/README.md[m
+[36m@@@ -1,4 -1,4 +1,4 @@@[m
+[31m--# xplore_cusco[m
+[32m++# HAKU[m
+  [m
+  Turismo en Cusco.[m
+  [m
+[1mdiff --cc android/app/src/main/AndroidManifest.xml[m
+[1mindex 95251a0,95251a0..89fdcb6[m
+[1m--- a/android/app/src/main/AndroidManifest.xml[m
+[1m+++ b/android/app/src/main/AndroidManifest.xml[m
+[36m@@@ -7,7 -7,7 +7,7 @@@[m
+  [m
+  [m
+      <application[m
+[31m--        android:label="xplore_cusco"[m
+[32m++        android:label="HAKU"[m
+          android:name="${applicationName}"[m
+          android:icon="@mipmap/ic_launcher">[m
+  [m
+[36m@@@ -33,6 -33,6 +33,20 @@@[m
+                  <action android:name="android.intent.action.MAIN"/>[m
+                  <category android:name="android.intent.category.LAUNCHER"/>[m
+              </intent-filter>[m
+[32m++[m
+[32m++            <!-- Deep Links para recuperación de contraseña -->[m
+[32m++            <intent-filter android:autoVerify="true">[m
+[32m++                <action android:name="android.intent.action.VIEW" />[m
+[32m++                <category android:name="android.intent.category.DEFAULT" />[m
+[32m++                <category android:name="android.intent.category.BROWSABLE" />[m
+[32m++                [m
+[32m++                <data[m
+[32m++                    android:scheme="com.turismo.xplore_cusco"[m
+[32m++                    android:host="reset-password" />[m
+[32m++                <data[m
+[32m++                    android:scheme="com.turismo.xplore_cusco"[m
+[32m++                    android:host="login" />[m
+[32m++            </intent-filter>[m
+          </activity>[m
+  [m
+          <meta-data[m
+[1mdiff --cc android/app/src/main/res/drawable-hdpi/android12splash.png[m
+[1mindex 3746e4b,3746e4b..67d21db[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-hdpi/splash.png[m
+[1mindex 3746e4b,3746e4b..67d21db[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-mdpi/android12splash.png[m
+[1mindex 53a0e51,53a0e51..13660e4[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-mdpi/splash.png[m
+[1mindex 53a0e51,53a0e51..13660e4[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-night-hdpi/android12splash.png[m
+[1mindex 3746e4b,3746e4b..67d21db[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-night-mdpi/android12splash.png[m
+[1mindex 53a0e51,53a0e51..13660e4[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-night-xhdpi/android12splash.png[m
+[1mindex cfe0df8,cfe0df8..991f72f[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-night-xxhdpi/android12splash.png[m
+[1mindex 156c20d,156c20d..93b7a00[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-night-xxxhdpi/android12splash.png[m
+[1mindex f51d4ef,f51d4ef..43ec0bf[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-xhdpi/android12splash.png[m
+[1mindex cfe0df8,cfe0df8..991f72f[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-xhdpi/splash.png[m
+[1mindex cfe0df8,cfe0df8..991f72f[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-xxhdpi/android12splash.png[m
+[1mindex 156c20d,156c20d..93b7a00[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-xxhdpi/splash.png[m
+[1mindex 156c20d,156c20d..93b7a00[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-xxxhdpi/android12splash.png[m
+[1mindex f51d4ef,f51d4ef..43ec0bf[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/drawable-xxxhdpi/splash.png[m
+[1mindex f51d4ef,f51d4ef..43ec0bf[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/mipmap-hdpi/ic_launcher.png[m
+[1mindex db77bb4,db77bb4..3478cc9[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/mipmap-mdpi/ic_launcher.png[m
+[1mindex 17987b7,17987b7..2fb437c[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/mipmap-xhdpi/ic_launcher.png[m
+[1mindex 09d4391,09d4391..eba945c[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png[m
+[1mindex d5f1c8d,d5f1c8d..8202640[m
+Binary files differ
+[1mdiff --cc android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png[m
+[1mindex 4d6372e,4d6372e..3f9316f[m
+Binary files differ
+[1mdiff --cc assets/logo.webp[m
+[1mindex f498eca,f498eca..0000000[m
+[1mdeleted file mode 100644,100644[m
+Binary files differ
+[1mdiff --cc ios/Runner.xcodeproj/project.pbxproj[m
+[1mindex f687048,f687048..1b224be[m
+[1m--- a/ios/Runner.xcodeproj/project.pbxproj[m
+[1m+++ b/ios/Runner.xcodeproj/project.pbxproj[m
+[36m@@@ -427,7 -427,7 +427,7 @@@[m
+  			isa = XCBuildConfiguration;[m
+  			buildSettings = {[m
+  				ALWAYS_SEARCH_USER_PATHS = NO;[m
+[31m--				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;[m
+[32m++				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = AppIcon;[m
+  				CLANG_ANALYZER_NONNULL = YES;[m
+  				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";[m
+  				CLANG_CXX_LIBRARY = "libc++";[m
+[36m@@@ -484,7 -484,7 +484,7 @@@[m
+  			isa = XCBuildConfiguration;[m
+  			buildSettings = {[m
+  				ALWAYS_SEARCH_USER_PATHS = NO;[m
+[31m--				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;[m
+[32m++				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = AppIcon;[m
+  				CLANG_ANALYZER_NONNULL = YES;[m
+  				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";[m
+  				CLANG_CXX_LIBRARY = "libc++";[m
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png[m
+[1mindex dc9ada4,dc9ada4..c08cfe2[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png[m
+[1mindex 7353c41,7353c41..60c593a[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png[m
+[1mindex 797d452,797d452..de63c60[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png[m
+[1mindex 6ed2d93,6ed2d93..3469fd3[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png[m
+[1mindex 4cd7b00,4cd7b00..5b12501[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png[m
+[1mindex fe73094,fe73094..3b86a17[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png[m
+[1mindex 321773c,321773c..7cbb723[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png[m
+[1mindex 797d452,797d452..de63c60[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png[m
+[1mindex 502f463,502f463..760416e[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png[m
+[1mindex 0ec3034,0ec3034..d149d62[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png[m
+[1mindex 0ec3034,0ec3034..d149d62[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png[m
+[1mindex e9f5fea,e9f5fea..ce8d8ff[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png[m
+[1mindex 84ac32a,84ac32a..424e120[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png[m
+[1mindex 8953cba,8953cba..a2db1e4[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png[m
+[1mindex 0467bf1,0467bf1..a7a440b[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png[m
+[1mindex 53a0e51,53a0e51..13660e4[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png[m
+[1mindex cfe0df8,cfe0df8..991f72f[m
+Binary files differ
+[1mdiff --cc ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png[m
+[1mindex 156c20d,156c20d..93b7a00[m
+Binary files differ
+[1mdiff --cc ios/Runner/Base.lproj/LaunchScreen.storyboard[m
+[1mindex 086a3dc,086a3dc..2876738[m
+[1m--- a/ios/Runner/Base.lproj/LaunchScreen.storyboard[m
+[1m+++ b/ios/Runner/Base.lproj/LaunchScreen.storyboard[m
+[36m@@@ -38,7 -38,7 +38,7 @@@[m
+          </scene>[m
+      </scenes>[m
+      <resources>[m
+[31m--        <image name="LaunchImage" width="400" height="400"/>[m
+[32m++        <image name="LaunchImage" width="500" height="500"/>[m
+          <image name="LaunchBackground" width="1" height="1"/>[m
+      </resources>[m
+  </document>[m
+[1mdiff --cc ios/Runner/Info.plist[m
+[1mindex 28aa203,28aa203..7c93325[m
+[1m--- a/ios/Runner/Info.plist[m
+[1m+++ b/ios/Runner/Info.plist[m
+[36m@@@ -2,20 -2,20 +2,19 @@@[m
+  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">[m
+  <plist version="1.0">[m
+  	<dict>[m
+[31m--[m
+[31m--	<key>NSLocationWhenInUseUsageDescription</key>[m
+[31m--    <string>Para mostrar tu ubicación en el mapa y seguir tu progreso en tiempo real.</string>[m
+[31m--    <key>NSLocationAlwaysUsageDescription</key>[m
+[31m--    <string>Para mostrar tu ubicación en el mapa y seguir tu progreso en tiempo real.</string>[m
+[31m--      <key>LSApplicationQueriesSchemes</key>[m
+[31m--      <array>[m
+[31m--      <string>https</string>[m
+[31m--      <string>http</string>[m
+[31m--      </array>[m
+[32m++		<key>NSLocationWhenInUseUsageDescription</key>[m
+[32m++		<string>Para mostrar tu ubicación en el mapa y seguir tu progreso en tiempo real.</string>[m
+[32m++		<key>NSLocationAlwaysUsageDescription</key>[m
+[32m++		<string>Para mostrar tu ubicación en el mapa y seguir tu progreso en tiempo real.</string>[m
+[32m++		<key>LSApplicationQueriesSchemes</key>[m
+[32m++		<array>[m
+[32m++			<string>https</string>[m
+[32m++			<string>http</string>[m
+[32m++		</array>[m
+  		<key>CFBundleDevelopmentRegion</key>[m
+  		<string>$(DEVELOPMENT_LANGUAGE)</string>[m
+  		<key>CFBundleDisplayName</key>[m
+[31m--		<string>Xplore Cusco</string>[m
+[32m++		<string>HAKU</string>[m
+  		<key>CFBundleExecutable</key>[m
+  		<string>$(EXECUTABLE_NAME)</string>[m
+  		<key>CFBundleIdentifier</key>[m
+[36m@@@ -23,7 -23,7 +22,7 @@@[m
+  		<key>CFBundleInfoDictionaryVersion</key>[m
+  		<string>6.0</string>[m
+  		<key>CFBundleName</key>[m
+[31m--		<string>xplore_cusco</string>[m
+[32m++		<string>HAKU</string>[m
+  		<key>CFBundlePackageType</key>[m
+  		<string>APPL</string>[m
+  		<key>CFBundleShortVersionString</key>[m
+[1mdiff --cc lib/caracteristicas/administracion/presentacion/paginas/admin_crear_lugar_pagina.dart[m
+[1mindex ca9dd95,ca9dd95..98b3153[m
+[1m--- a/lib/caracteristicas/administracion/presentacion/paginas/admin_crear_lugar_pagina.dart[m
+[1m+++ b/lib/caracteristicas/administracion/presentacion/paginas/admin_crear_lugar_pagina.dart[m
+[36m@@@ -1,16 -1,16 +1,16 @@@[m
+[31m--// --- lib/caracteristicas/administracion/presentacion/paginas/admin_crear_lugar_pagina.dart ---[m
+[31m--// (Versión con el 'List<String>' corregido)[m
+[31m--[m
+  import 'package:flutter/material.dart';[m
+  import 'package:provider/provider.dart';[m
+  import 'package:go_router/go_router.dart';[m
+[32m++import 'package:google_maps_flutter/google_maps_flutter.dart';[m
+  import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/lugar.dart';[m
+  import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';[m
+  import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/categoria.dart';[m
+  import 'package:xplore_cusco/caracteristicas/inicio/presentacion/vista_modelos/lugares_vm.dart';[m
+[32m++import 'package:xplore_cusco/core/servicios/imagen_servicio.dart';[m
+[32m++import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';[m
+  [m
+  class AdminCrearLugarPagina extends StatefulWidget {[m
+[31m--  final Lugar? lugar; // Si 'lugar' no es nulo, estamos en modo Edición[m
+[32m++  final Lugar? lugar;[m
+  [m
+    const AdminCrearLugarPagina({super.key, this.lugar});[m
+  [m
+[36m@@@ -21,21 -21,21 +21,31 @@@[m
+  class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {[m
+    final _formKey = GlobalKey<FormState>();[m
+  [m
+[31m--  // (Controladores y estado local intactos...)[m
+[32m++  // Controladores[m
+    final TextEditingController _nombreCtrl = TextEditingController();[m
+    final TextEditingController _descripcionCtrl = TextEditingController();[m
+    final TextEditingController _urlImagenCtrl = TextEditingController();[m
+[31m--  final TextEditingController _horarioCtrl = TextEditingController();[m
+    final TextEditingController _costoEntradaCtrl = TextEditingController();[m
+    final TextEditingController _latitudCtrl = TextEditingController();[m
+    final TextEditingController _longitudCtrl = TextEditingController();[m
+[32m++  final TextEditingController _videoTiktokCtrl = TextEditingController();[m
+[32m++[m
+[32m++  final ImagenServicio _imagenServicio = ImagenServicio();[m
+[32m++[m
+    String? _selectedProvinciaId;[m
+    String? _selectedCategoriaId;[m
+[32m++  String? _horaInicioSeleccionada;[m
+[32m++  String? _horaFinSeleccionada;[m
+[32m++[m
+    bool _esModoEdicion = false;[m
+[32m++  bool _subiendoImagen = false;[m
+[32m++[m
+[32m++  final List<String> _listaHoras = List.generate(24, (index) {[m
+[32m++    return '${index.toString().padLeft(2, '0')}:00';[m
+[32m++  });[m
+  [m
+    @override[m
+    void initState() {[m
+[31m--    // (Tu initState intacto...)[m
+      super.initState();[m
+      if (widget.lugar != null) {[m
+        _esModoEdicion = true;[m
+[36m@@@ -43,84 -43,84 +53,157 @@@[m
+        _nombreCtrl.text = lugar.nombre;[m
+        _descripcionCtrl.text = lugar.descripcion;[m
+        _urlImagenCtrl.text = lugar.urlImagen;[m
+[31m--      _horarioCtrl.text = lugar.horario;[m
+[32m++[m
+[32m++      if (lugar.horario.contains('-')) {[m
+[32m++        final partes = lugar.horario.split('-');[m
+[32m++        if (partes.length == 2) {[m
+[32m++          String inicio = partes[0].trim();[m
+[32m++          String fin = partes[1].trim();[m
+[32m++          if (_listaHoras.contains(inicio)) _horaInicioSeleccionada = inicio;[m
+[32m++          if (_listaHoras.contains(fin)) _horaFinSeleccionada = fin;[m
+[32m++        }[m
+[32m++      }[m
+[32m++[m
+        _costoEntradaCtrl.text = lugar.costoEntrada;[m
+        _latitudCtrl.text = lugar.latitud.toString();[m
+        _longitudCtrl.text = lugar.longitud.toString();[m
+[32m++      _videoTiktokCtrl.text = lugar.videoTiktokUrl ?? '';[m
+        _selectedProvinciaId = lugar.provinciaId;[m
+[31m--      final vmLugares = context.read<LugaresVM>();[m
+[31m--      final categoria = vmLugares.categorias.firstWhere([m
+[31m--            (c) => c.nombre.toLowerCase() == lugar.categoria.toLowerCase(),[m
+[31m--        orElse: () => vmLugares.categorias.first,[m
+[31m--      );[m
+[31m--      _selectedCategoriaId = categoria.id;[m
+[32m++[m
+[32m++      WidgetsBinding.instance.addPostFrameCallback((_) {[m
+[32m++        final vmLugares = context.read<LugaresVM>();[m
+[32m++        if (vmLugares.categorias.isNotEmpty) {[m
+[32m++          try {[m
+[32m++            final categoria = vmLugares.categorias.firstWhere([m
+[32m++              (c) => c.nombre.toLowerCase() == lugar.categoria.toLowerCase(),[m
+[32m++              orElse: () => vmLugares.categorias.first,[m
+[32m++            );[m
+[32m++            setState(() {[m
+[32m++              _selectedCategoriaId = categoria.id;[m
+[32m++            });[m
+[32m++          } catch (e) {[m
+[32m++            // Error silencioso[m
+[32m++          }[m
+[32m++        }[m
+[32m++      });[m
+      }[m
+    }[m
+  [m
+    @override[m
+    void dispose() {[m
+[31m--    // (Tu dispose intact

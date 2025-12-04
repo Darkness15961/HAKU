@@ -50,7 +50,7 @@ class _AdminGestionCuentasPaginaState extends State<AdminGestionCuentasPagina> {
           // Overlay de Carga (Spinner)
           if (vmAuth.estaCargandoAdmin)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),
@@ -144,7 +144,7 @@ class _AdminGestionCuentasPaginaState extends State<AdminGestionCuentasPagina> {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: rolColor.withOpacity(0.1),
+              backgroundColor: rolColor.withValues(alpha: 0.1),
               child: Icon(rolIcon, color: rolColor),
             ),
             const SizedBox(width: 12),

@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 // --- MVVM: IMPORTACIONES ---
-import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
 import '../../../inicio/dominio/entidades/lugar.dart';
 
