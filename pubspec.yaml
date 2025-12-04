@@ -59,8 +59,9 @@ flutter:
 
   assets:
     - assets/logo.webp
-    - assets/xplora_cusco_logo.png
-    - assets/logoHAKU.png 
+    - assets/logoAppconvertido.jpeg
+    - assets/logoHaku1.png
+    - assets/header.png
     - assets/imagenes/mapa_textura.png
    # - assets/animaciones/viaje.json
 
@@ -70,16 +71,16 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/logoHAKU.png"
+  image_path: "assets/logoHaku1.png"
   min_sdk_android: 21
 
 # 2. Configuración de la Pantalla de Carga (Splash Screen)
 flutter_native_splash:
   color: "#121212"
-  image: assets/logoHAKU.png
+  image: assets/logoAppconvertido.jpeg
   android: true
   ios: true
   android_12:
-    image: assets/logoHAKU.png
+    image: assets/logoAppconvertido.jpeg
     icon_background_color: "#121212"
   ios_content_mode: center

@@ -89,6 +89,31 @@ class DetalleRutaPagina extends StatelessWidget {
     return Icons.info_outline;
   }
 
+  // Obtener descripción de la categoría
+  String _getDescripcionCategoria(String categoria) {
+    final categoriaLower = categoria.toLowerCase().trim();
+
+    if (categoriaLower.contains('arqueología') ||
+        categoriaLower.contains('arqueologia'))
+      return 'Exploración de sitios arqueológicos, restos históricos y ruinas antiguas';
+    if (categoriaLower.contains('naturaleza'))
+      return 'Experiencias enfocadas en paisajes naturales, flora y fauna';
+    if (categoriaLower.contains('aventura'))
+      return 'Rutas con actividades dinámicas, caminatas y desafíos físicos';
+    if (categoriaLower.contains('familiar'))
+      return 'Actividades ideales para todas las edades y grupos familiares';
+    if (categoriaLower.contains('cultural'))
+      return 'Experiencias basadas en historia, tradiciones y patrimonio cultural';
+    if (categoriaLower.contains('+18') || categoriaLower.contains('exclusiva'))
+      return 'Actividades solo para adultos, como vida nocturna y experiencias premium';
+    if (categoriaLower.contains('relax'))
+      return 'Experiencias diseñadas para desconectar, relajarse y renovar energías';
+    if (categoriaLower.contains('extrema'))
+      return 'Rutas de alta exigencia física o riesgo controlado para aventureros experimentados';
+
+    return 'Experiencia turística única en Cusco';
+  }
+
   @override
   Widget build(BuildContext context) {
     final vmAuth = context.watch<AutenticacionVM>();
@@ -326,6 +351,63 @@ class DetalleRutaPagina extends StatelessWidget {
             delegate: SliverChildListDelegate([
               const SizedBox(height: 20),
               _buildInfoCard(context, ruta, cuposDisponibles: cuposDisponibles),
+
+              // --- DESCRIPCIÓN DE LA CATEGORÍA ---
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _getColorCategoria(
+                    ruta.categoria,
+                  ).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _getColorCategoria(
+                      ruta.categoria,
+                    ).withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      _getIconForCategory(ruta.categoria),
+                      color: _getColorCategoria(ruta.categoria),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ruta.categoria.toUpperCase(),
+                            style: TextStyle(
+                              color: _getColorCategoria(ruta.categoria),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _getDescripcionCategoria(ruta.categoria),
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 13,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
               // --- AVISO DE ESTADO (DINÁMICO) ---
               if (ruta.estado != 'convocatoria')

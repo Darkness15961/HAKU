@@ -9,14 +9,15 @@ class SplashPagina extends StatefulWidget {
   State<SplashPagina> createState() => _SplashPaginaState();
 }
 
-class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderStateMixin {
+class _SplashPaginaState extends State<SplashPagina>
+    with SingleTickerProviderStateMixin {
   static const String assetFondo = 'assets/logo.webp';
-  static const String assetLogo = 'assets/log.png';
-  
+  static const String assetLogo = 'assets/logoHaku1.png';
+
   // --- REBRANDING HAKU ---
   static const String titulo = 'HAKU';
-  static const String subtitulo = 'Redescubriendo el Cusco';
-  static const String botonTexto = 'Vamos';
+  static const String subtitulo = 'Redescubriendo nuestra cultura milenaria';
+  static const String botonTexto = 'VAMOS';
 
   late final AnimationController _ctrl;
   late final Animation<double> _scaleAnim;
@@ -27,9 +28,15 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
   void initState() {
     super.initState();
 
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
-    _scaleAnim = Tween<double>(begin: 0.8, end: 1.0).animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
-    _fadeAnim  = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _scaleAnim = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
+    _fadeAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
 
     _ctrl.forward();
 
@@ -66,7 +73,7 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
             errorBuilder: (_, __, ___) => Container(color: Colors.black87),
           ),
 
-          // Overlay degradado para contraste (Más dramático para HAKU)
+          // Overlay degradado para contraste
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -81,33 +88,23 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
             ),
           ),
 
-          // Contenido centrado (logo + textos + botón)
+          // Contenido centrado (icono + textos + botón)
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 28.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Logo de la app
                   ScaleTransition(
                     scale: _scaleAnim,
                     child: FadeTransition(
                       opacity: _fadeAnim,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: colorPrimario.withValues(alpha: 0.5),
-                              blurRadius: 30,
-                              spreadRadius: 5,
-                            ),
-                          ],
-                        ),
-                        child: Image.asset(
-                          assetLogo,
-                          height: 140,
-                          errorBuilder: (_, __, ___) => Icon(Icons.travel_explore, size: 120, color: colorPrimario),
-                        ),
+                      child: Image.asset(
+                        assetLogo,
+                        height: 120,
+                        errorBuilder: (_, __, ___) =>
+                            Icon(Icons.explore, size: 120, color: Colors.white),
                       ),
                     ),
                   ),
@@ -124,7 +121,7 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
                         fontSize: 42,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 2.0,
-                        fontFamily: 'Montserrat', // Ideal si se agrega, sino usa default
+                        fontFamily: 'Montserrat',
                       ),
                     ),
                   ),
@@ -153,27 +150,26 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
                     child: ElevatedButton(
                       onPressed: _mostrarBoton ? _irAlInicio : null,
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 48,
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
                         elevation: 8,
                         backgroundColor: colorPrimario,
                         foregroundColor: Colors.white,
                         shadowColor: colorPrimario.withValues(alpha: 0.6),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            botonTexto.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded),
-                        ],
+                      child: Text(
+                        botonTexto,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2.5,
+                          fontFamily: 'Roboto',
+                        ),
                       ),
                     ),
                   ),
@@ -182,12 +178,20 @@ class _SplashPaginaState extends State<SplashPagina> with SingleTickerProviderSt
             ),
           ),
 
-          // Pie pequeño (Actualizado)
+          // Pie pequeño
           Positioned(
             bottom: 16,
             left: 0,
             right: 0,
-            child: Center(child: Text('© HAKU Travel', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12))),
+            child: Center(
+              child: Text(
+                '© HAKU Travel',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12,
+                ),
+              ),
+            ),
           ),
         ],
       ),

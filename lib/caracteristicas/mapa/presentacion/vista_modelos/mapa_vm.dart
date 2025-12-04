@@ -15,6 +15,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:go_router/go_router.dart';
 
 // VMs
 import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
@@ -197,8 +198,8 @@ class MapaVM extends ChangeNotifier {
           // CASO NORMAL (Todos o Favoritos)
           for (var lugar in _lugaresFiltrados) {
             if (lugar.latitud != 0 && lugar.longitud != 0) {
-              // ¡AQUÍ CREAMOS LA POLAROID!
-              final marker = await _crearMarcadorPolaroid(lugar);
+              // Crear marcador según el filtro actual
+              final marker = await _crearMarcador(lugar);
               _markers.add(marker);
             }
           }
@@ -214,7 +215,44 @@ class MapaVM extends ChangeNotifier {
     }
   }
 
-  // --- 3. DIBUJADO DEL MARCADOR POLAROID (CANVAS) ---
+  // --- 3. DIBUJADO DE MARCADORES (CANVAS) ---
+
+  // Método que decide qué tipo de marcador crear según el filtro
+  Future<Marker> _crearMarcador(Lugar lugar) async {
+    if (_filtroActual == 0) {
+      // "Explorar Todo": Marcador circular con borde celeste
+      return await _crearMarcadorCircular(lugar);
+    } else {
+      // "Mis Recuerdos" o "Por Visitar": Marcador Polaroid
+      return await _crearMarcadorPolaroid(lugar);
+    }
+  }
+
+  // Marcador CIRCULAR con borde CELESTE para "Explorar Todo"
+  Future<Marker> _crearMarcadorCircular(Lugar lugar) async {
+    BitmapDescriptor icon;
+    try {
+      icon = await _crearIconoCircular(lugar.urlImagen);
+    } catch (e) {
+      // Fallback si la imagen falla
+      icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan);
+    }
+
+    return Marker(
+      markerId: MarkerId(lugar.id),
+      position: LatLng(lugar.latitud, lugar.longitud),
+      icon: icon,
+      zIndex: -lugar.latitud,
+      onTap: () {
+        final context = navigatorKey.currentContext;
+        if (context != null) {
+          context.push('/inicio/detalle-lugar', extra: lugar);
+        }
+      },
+    );
+  }
+
+  // Marcador POLAROID para "Mis Recuerdos"
 
   Future<Marker> _crearMarcadorPolaroid(Lugar lugar) async {
     BitmapDescriptor icon;
@@ -231,8 +269,18 @@ class MapaVM extends ChangeNotifier {
       icon: icon,
       zIndex: -lugar.latitud,
       onTap: () {
-        _lugarSeleccionado = lugar;
-        notifyListeners();
+        // Si estamos en "Explorar Todo" (filtro 0), navegar directamente
+        if (_filtroActual == 0) {
+          final context = navigatorKey.currentContext;
+          if (context != null) {
+            // Usar go_router para navegar
+            context.push('/inicio/detalle-lugar', extra: lugar);
+          }
+        } else {
+          // En "Mis Recuerdos" o "Por Visitar", mostrar Polaroid
+          _lugarSeleccionado = lugar;
+          notifyListeners();
+        }
       },
     );
   }
@@ -319,6 +367,87 @@ class MapaVM extends ChangeNotifier {
     );
 
     // 7. Convertir a Bitmap
+    final ui.Image markerAsImage = await pictureRecorder.endRecording().toImage(
+      canvasSize.toInt(),
+      canvasSize.toInt(),
+    );
+    final ByteData? byteData = await markerAsImage.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
+    final Uint8List uint8List = byteData!.buffer.asUint8List();
+
+    return BitmapDescriptor.fromBytes(uint8List);
+  }
+
+  // Crear icono CIRCULAR con borde CELESTE
+  Future<BitmapDescriptor> _crearIconoCircular(String url) async {
+    // 1. Descargar y Decodificar
+    final File markerImageFile = await DefaultCacheManager().getSingleFile(url);
+    final Uint8List imageBytes = await markerImageFile.readAsBytes();
+    final ui.Codec codec = await ui.instantiateImageCodec(
+      imageBytes,
+      targetWidth: 120,
+      targetHeight: 120,
+    );
+    final ui.FrameInfo fi = await codec.getNextFrame();
+    final ui.Image image = fi.image;
+
+    // 2. Configurar Lienzo
+    const double canvasSize = 160.0;
+    const double photoSize = 120.0;
+    const double borderWidth = 6.0;
+
+    final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(
+      pictureRecorder,
+      Rect.fromLTWH(0, 0, canvasSize, canvasSize),
+    );
+
+    final Paint paint = Paint()
+      ..isAntiAlias = true
+      ..filterQuality = FilterQuality.high;
+
+    // Centro del canvas
+    final double center = canvasSize / 2;
+    final double radius = photoSize / 2;
+
+    // 3. Sombra
+    paint.color = Colors.black.withValues(alpha: 0.3);
+    paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(
+      Offset(center + 2, center + 2),
+      radius + borderWidth,
+      paint,
+    );
+    paint.maskFilter = null;
+
+    // 4. Borde CELESTE
+    paint.color = const Color(0xFF00BCD4); // Color celeste del tema
+    paint.style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(center, center), radius + borderWidth, paint);
+
+    // 5. Círculo blanco interno (para separar la foto del borde)
+    paint.color = Colors.white;
+    canvas.drawCircle(Offset(center, center), radius + 2, paint);
+
+    // 6. Clip circular para la foto
+    final Path clipPath = Path()
+      ..addOval(
+        Rect.fromCircle(center: Offset(center, center), radius: radius),
+      );
+    canvas.clipPath(clipPath);
+
+    // 7. Dibujar la foto
+    paint.style = PaintingStyle.fill;
+    final double imageOffset = (canvasSize - photoSize) / 2;
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      Rect.fromLTWH(imageOffset, imageOffset, photoSize, photoSize),
+      paint,
+    );
+
+    // 8. Convertir a Bitmap
     final ui.Image markerAsImage = await pictureRecorder.endRecording().toImage(
       canvasSize.toInt(),
       canvasSize.toInt(),

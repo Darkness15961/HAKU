@@ -11,7 +11,6 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-
 import '../vista_modelos/lugares_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../dominio/entidades/lugar.dart';
@@ -123,30 +122,28 @@ class _InicioPaginaState extends State<InicioPagina> {
         ),
         // 2. El contenido de la página va como 'child'
         child: vmLugares.estaCargandoInicio
-            ? const Center(
-          child: CircularProgressIndicator(),
-        )
+            ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
-          onRefresh: _handleRefresh,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context, vmAuth),
-                const SizedBox(height: 24),
-                _buildSearchBar(),
-                const SizedBox(height: 32),
-                _buildSectionTitle('Lugares populares'),
-                const SizedBox(height: 16),
-                _buildCarousel(vmLugares, vmAuth),
-                const SizedBox(height: 40),
-                _buildProvincesSection(vmLugares),
-                const SizedBox(height: 32),
-              ],
-            ),
-          ),
-        ),
+                onRefresh: _handleRefresh,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(context, vmAuth),
+                      const SizedBox(height: 24),
+                      _buildSearchBar(),
+                      const SizedBox(height: 32),
+                      _buildSectionTitle('Lugares populares'),
+                      const SizedBox(height: 16),
+                      _buildCarousel(vmLugares, vmAuth),
+                      const SizedBox(height: 40),
+                      _buildProvincesSection(vmLugares),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
+              ),
       ),
       // --- FIN DE LA MEJORA ---
     );
@@ -162,13 +159,9 @@ class _InicioPaginaState extends State<InicioPagina> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF00BCD4), // Azul intenso Cusco (tema oficial)
-            const Color(0xFF26C6DA), // Azul secundario (tema oficial)
-          ],
+        image: DecorationImage(
+          image: AssetImage('assets/header.png'),
+          fit: BoxFit.cover,
         ),
         boxShadow: [
           BoxShadow(
@@ -178,123 +171,159 @@ class _InicioPaginaState extends State<InicioPagina> {
           ),
         ],
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24.0, 20.0, 16.0, 28.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withValues(alpha: 0.2),
+              Colors.black.withValues(alpha: 0.4),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24.0, 20.0, 16.0, 28.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bienvenido a Cusco',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.white.withValues(alpha: 0.95),
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.5,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.8),
+                              blurRadius: 6,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        vmAuth.estaLogueado
+                            ? vmAuth.usuarioActual!.nombre
+                            : 'Explorador',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.3,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.8),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
                   children: [
-                    Text(
-                      'Bienvenido a Cusco',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Colors.white.withOpacity(0.85),
-                        fontWeight: FontWeight.w400,
-                        letterSpacing: 0.5,
+                    if (vmAuth.estaLogueado)
+                      Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Consumer<NotificacionesVM>(
+                          builder: (context, vmNotificaciones, child) {
+                            final int unreadCount =
+                                vmNotificaciones.unreadCount;
+                            return IconButton(
+                              icon: Badge(
+                                isLabelVisible: unreadCount > 0,
+                                label: Text(unreadCount.toString()),
+                                backgroundColor: const Color(0xFFD4AF37),
+                                child: const Icon(
+                                  Icons.notifications_outlined,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                              onPressed: () {
+                                context.push('/notificaciones');
+                              },
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      vmAuth.estaLogueado
-                          ? vmAuth.usuarioActual!.nombre
-                          : 'Explorador',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.3,
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 2.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      child: CircleAvatar(
+                        radius: 26,
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundImage:
+                            (vmAuth.estaLogueado &&
+                                vmAuth.usuarioActual!.urlFotoPerfil != null &&
+                                vmAuth.usuarioActual!.urlFotoPerfil!.isNotEmpty)
+                            ? NetworkImage(vmAuth.usuarioActual!.urlFotoPerfil!)
+                            : null,
+                        child:
+                            (vmAuth.estaLogueado &&
+                                (vmAuth.usuarioActual!.urlFotoPerfil == null ||
+                                    vmAuth
+                                        .usuarioActual!
+                                        .urlFotoPerfil!
+                                        .isEmpty))
+                            ? Text(
+                                vmAuth.usuarioActual!.nombre
+                                    .substring(0, 1)
+                                    .toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : (!vmAuth.estaLogueado
+                                  ? const Icon(
+                                      Icons.person_outline,
+                                      size: 28,
+                                      color: Colors.white,
+                                    )
+                                  : null),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              Row(
-                children: [
-                  if (vmAuth.estaLogueado)
-                    Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Consumer<NotificacionesVM>(
-                        builder: (context, vmNotificaciones, child) {
-                          final int unreadCount = vmNotificaciones.unreadCount;
-                          return IconButton(
-                            icon: Badge(
-                              isLabelVisible: unreadCount > 0,
-                              label: Text(unreadCount.toString()),
-                              backgroundColor: const Color(0xFFD4AF37),
-                              child: const Icon(
-                                Icons.notifications_outlined,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                            onPressed: () {
-                              context.push('/notificaciones');
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 2.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 26,
-                      backgroundColor: Colors.white.withOpacity(0.2),
-                      backgroundImage: (vmAuth.estaLogueado &&
-                          vmAuth.usuarioActual!.urlFotoPerfil != null &&
-                          vmAuth.usuarioActual!.urlFotoPerfil!.isNotEmpty)
-                          ? NetworkImage(vmAuth.usuarioActual!.urlFotoPerfil!)
-                          : null,
-                      child: (vmAuth.estaLogueado &&
-                          (vmAuth.usuarioActual!.urlFotoPerfil == null ||
-                              vmAuth.usuarioActual!.urlFotoPerfil!.isEmpty))
-                          ? Text(
-                        vmAuth.usuarioActual!.nombre
-                            .substring(0, 1)
-                            .toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                          : (!vmAuth.estaLogueado
-                          ? const Icon(Icons.person_outline,
-                          size: 28, color: Colors.white)
-                          : null),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
   // 🔍 SEARCH BAR CON EFECTO GLASSMORPHISM
   Widget _buildSearchBar() {
     // (Tu código de _buildSearchBar intacto)
@@ -317,10 +346,7 @@ class _InicioPaginaState extends State<InicioPagina> {
           style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(
             hintText: 'Buscar destinos en Cusco...',
-            hintStyle: TextStyle(
-              color: Colors.grey[500],
-              fontSize: 15,
-            ),
+            hintStyle: TextStyle(color: Colors.grey[500], fontSize: 15),
             prefixIcon: Icon(
               Icons.search_rounded,
               color: Colors.grey[600],
@@ -328,18 +354,17 @@ class _InicioPaginaState extends State<InicioPagina> {
             ),
             filled: true,
             fillColor: Colors.white,
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 18,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
-              borderSide: BorderSide(
-                color: Colors.grey[200]!,
-                width: 1,
-              ),
+              borderSide: BorderSide(color: Colors.grey[200]!, width: 1),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
@@ -353,6 +378,7 @@ class _InicioPaginaState extends State<InicioPagina> {
       ),
     );
   }
+
   // 📝 TÍTULOS DE SECCIÓN MÁS ELEGANTES
   Widget _buildSectionTitle(String title) {
     // (Tu código de _buildSectionTitle intacto)
@@ -390,6 +416,7 @@ class _InicioPaginaState extends State<InicioPagina> {
       ),
     );
   }
+
   // 🎠 CARRUSEL DE LUGARES POPULARES
   Widget _buildCarousel(LugaresVM vmLugares, AutenticacionVM vmAuth) {
     // (Tu código de _buildCarousel intacto)
@@ -413,8 +440,12 @@ class _InicioPaginaState extends State<InicioPagina> {
                     double value = 1.0;
                     if (_pageController.hasClients) {
                       final page =
-                          _pageController.page ?? _pageController.initialPage.toDouble();
-                      value = (1 - ((page - index).abs() * 0.12)).clamp(0.86, 1.0);
+                          _pageController.page ??
+                          _pageController.initialPage.toDouble();
+                      value = (1 - ((page - index).abs() * 0.12)).clamp(
+                        0.86,
+                        1.0,
+                      );
                     }
                     return Transform.scale(scale: value, child: child);
                   },
@@ -433,9 +464,13 @@ class _InicioPaginaState extends State<InicioPagina> {
       ),
     );
   }
+
   // 🎴 CARD DEL CARRUSEL CON DISEÑO PREMIUM
   Widget _buildCarouselCard(
-      Lugar item, LugaresVM vmLugares, AutenticacionVM vmAuth) {
+    Lugar item,
+    LugaresVM vmLugares,
+    AutenticacionVM vmAuth,
+  ) {
     // (Tu código de _buildCarouselCard intacto)
     // ...
     final bool esFavorito = vmLugares.esLugarFavorito(item.id);
@@ -467,7 +502,11 @@ class _InicioPaginaState extends State<InicioPagina> {
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       color: Colors.grey[300],
-                      child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                      child: const Icon(
+                        Icons.image,
+                        size: 50,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
                 ),
@@ -502,7 +541,9 @@ class _InicioPaginaState extends State<InicioPagina> {
                     child: IconButton(
                       icon: Icon(
                         esFavorito ? Icons.favorite : Icons.favorite_border,
-                        color: esFavorito ? const Color(0xFFFF6B6B) : Colors.white,
+                        color: esFavorito
+                            ? const Color(0xFFFF6B6B)
+                            : Colors.white,
                         size: 26,
                       ),
                       onPressed: () {
@@ -526,10 +567,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
                           shadows: [
-                            Shadow(
-                              color: Colors.black45,
-                              blurRadius: 8,
-                            ),
+                            Shadow(color: Colors.black45, blurRadius: 8),
                           ],
                         ),
                         maxLines: 2,
@@ -540,7 +578,9 @@ class _InicioPaginaState extends State<InicioPagina> {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFD4AF37).withOpacity(0.9),
                               borderRadius: BorderRadius.circular(20),
@@ -548,8 +588,11 @@ class _InicioPaginaState extends State<InicioPagina> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.star,
-                                    color: Colors.white, size: 16),
+                                const Icon(
+                                  Icons.star,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   item.rating.toStringAsFixed(1),
@@ -579,10 +622,14 @@ class _InicioPaginaState extends State<InicioPagina> {
                             onPressed: () => _irAlDetalle(item),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF00BCD4), // Azul del tema
+                              foregroundColor: const Color(
+                                0xFF00BCD4,
+                              ), // Azul del tema
                               elevation: 4,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 12),
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -607,6 +654,7 @@ class _InicioPaginaState extends State<InicioPagina> {
       ),
     );
   }
+
   // 🏔️ SECCIÓN DE PROVINCIAS
   Widget _buildProvincesSection(LugaresVM vmLugares) {
     // (Tu código de _buildProvincesSection intacto)
@@ -625,10 +673,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                   gradient: const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFFD4AF37),
-                      Color(0xFFB8941F),
-                    ],
+                    colors: [Color(0xFFD4AF37), Color(0xFFB8941F)],
                   ),
                   borderRadius: BorderRadius.circular(2),
                 ),
@@ -651,61 +696,63 @@ class _InicioPaginaState extends State<InicioPagina> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: vmLugares.todasLasProvincias.isEmpty
               ? Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 60),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.search_off_rounded,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No hay provincias disponibles',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 60),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.search_off_rounded,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No hay provincias disponibles',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          )
+                )
               : AnimationLimiter(
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: vmLugares.todasLasProvincias.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 20,
-                crossAxisSpacing: 16,
-                childAspectRatio: 0.85,
-              ),
-              itemBuilder: (context, index) {
-                final p = vmLugares.todasLasProvincias[index];
-                return AnimationConfiguration.staggeredGrid(
-                  position: index,
-                  duration: const Duration(milliseconds: 375),
-                  columnCount: 2,
-                  child: ScaleAnimation(
-                    child: FadeInAnimation(
-                      child: GestureDetector(
-                        onTap: () => _irALugaresPorProvincia(p),
-                        child: _buildProvinceCard(p),
-                      ),
-                    ),
+                  child: GridView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: vmLugares.todasLasProvincias.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 20,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 0.85,
+                        ),
+                    itemBuilder: (context, index) {
+                      final p = vmLugares.todasLasProvincias[index];
+                      return AnimationConfiguration.staggeredGrid(
+                        position: index,
+                        duration: const Duration(milliseconds: 375),
+                        columnCount: 2,
+                        child: ScaleAnimation(
+                          child: FadeInAnimation(
+                            child: GestureDetector(
+                              onTap: () => _irALugaresPorProvincia(p),
+                              child: _buildProvinceCard(p),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-          ),
+                ),
         ),
       ],
     );
   }
+
   // 🗺️ CARD DE PROVINCIA CON BADGES MEJORADOS
   Widget _buildProvinceCard(Provincia p) {
     // (Tu código de _buildProvinceCard intacto)
@@ -759,7 +806,9 @@ class _InicioPaginaState extends State<InicioPagina> {
                     children: p.categories.take(2).map((cat) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.6),
                           borderRadius: BorderRadius.circular(12),
@@ -788,20 +837,17 @@ class _InicioPaginaState extends State<InicioPagina> {
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.3,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black45,
-                          blurRadius: 6,
-                        ),
-                      ],
+                      shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFD4AF37).withOpacity(0.9),
                       borderRadius: BorderRadius.circular(12),
@@ -834,6 +880,7 @@ class _InicioPaginaState extends State<InicioPagina> {
       ),
     );
   }
+
   // 📍 INDICADORES DEL CARRUSEL
   Widget _buildIndicators({
     required int count,
@@ -854,31 +901,33 @@ class _InicioPaginaState extends State<InicioPagina> {
           decoration: BoxDecoration(
             gradient: selected
                 ? const LinearGradient(
-              colors: [
-                Color(0xFFD4AF37),
-                Color(0xFFB8941F),
-              ],
-            )
+                    colors: [Color(0xFFD4AF37), Color(0xFFB8941F)],
+                  )
                 : null,
             color: selected ? null : Colors.grey[350],
             borderRadius: BorderRadius.circular(4),
             boxShadow: selected
                 ? [
-              BoxShadow(
-                color: const Color(0xFFD4AF37).withOpacity(0.4),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ]
+                    BoxShadow(
+                      color: const Color(0xFFD4AF37).withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
                 : [],
           ),
         );
       }),
     );
   }
+
   // 🔒 LÓGICA DE FAVORITOS (INTACTA)
-  void _onToggleFavorito(BuildContext context, String lugarId,
-      AutenticacionVM vmAuth, LugaresVM vmLugares) {
+  void _onToggleFavorito(
+    BuildContext context,
+    String lugarId,
+    AutenticacionVM vmAuth,
+    LugaresVM vmLugares,
+  ) {
     // (Tu código de _onToggleFavorito intacto)
     // ...
     if (!_checkAndRedirect(context, 'guardar este lugar')) {
@@ -886,6 +935,7 @@ class _InicioPaginaState extends State<InicioPagina> {
     }
     vmLugares.toggleLugarFavorito(lugarId);
   }
+
   bool _checkAndRedirect(BuildContext context, String action) {
     // (Tu código de _checkAndRedirect intacto)
     // ...
@@ -896,6 +946,7 @@ class _InicioPaginaState extends State<InicioPagina> {
     }
     return true;
   }
+
   void _showLoginRequiredModal(BuildContext context, String action) {
     // (Tu código de _showLoginRequiredModal intacto)
     // ...
@@ -911,7 +962,9 @@ class _InicioPaginaState extends State<InicioPagina> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00BCD4).withOpacity(0.1), // Azul del tema
+                  color: const Color(
+                    0xFF00BCD4,
+                  ).withOpacity(0.1), // Azul del tema
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -947,7 +1000,10 @@ class _InicioPaginaState extends State<InicioPagina> {
               onPressed: () => Navigator.of(context).pop(),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.grey[600],
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
               ),
               child: const Text(
                 'Seguir Explorando',
@@ -963,17 +1019,17 @@ class _InicioPaginaState extends State<InicioPagina> {
                 backgroundColor: const Color(0xFF00BCD4), // Azul del tema
                 foregroundColor: Colors.white,
                 elevation: 2,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
               child: const Text(
                 'Iniciar Sesión',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
             ),
           ],

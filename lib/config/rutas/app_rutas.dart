@@ -62,11 +62,11 @@ final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(
 class AppRutas {
   static final router = GoRouter(
     navigatorKey: mapa_vm.navigatorKey,
-    initialLocation: '/inicio', // Arranca en inicio
+    initialLocation: '/', // Arranca en splash screen SIEMPRE
 
     routes: [
       // --- Rutas SIN "cáscara" (Pantalla completa) ---
-      GoRoute(path: '/', builder: (context, state) => const SplashPagina()),
+      GoRoute(path: '/', builder: (context, state) => SplashPagina()),
       GoRoute(path: '/login', builder: (context, state) => const LoginPagina()),
       GoRoute(
         path: '/registro',

@@ -74,15 +74,30 @@ class _RutasPaginaState extends State<RutasPagina> {
       initialIndex: initialIndex < 0 ? 0 : initialIndex,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: colorPrimario,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/header.png'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
           elevation: 0,
-          title: const Text(
+          title: Text(
             'Rutas y Tours',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.white,
+              shadows: [
+                Shadow(
+                  color: Colors.black.withValues(alpha: 0.8),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
           ),
           actions: [
@@ -94,7 +109,10 @@ class _RutasPaginaState extends State<RutasPagina> {
                     icon: Badge(
                       isLabelVisible: unreadCount > 0,
                       label: Text(unreadCount.toString()),
-                      child: const Icon(Icons.notifications_outlined),
+                      child: const Icon(
+                        Icons.notifications_outlined,
+                        color: Colors.white,
+                      ),
                     ),
                     onPressed: () => context.push('/notificaciones'),
                   );
@@ -106,8 +124,17 @@ class _RutasPaginaState extends State<RutasPagina> {
             isScrollable: false,
             indicatorColor: Colors.white,
             labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+            unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.bold,
+              shadows: [
+                Shadow(
+                  color: Colors.black.withValues(alpha: 0.8),
+                  blurRadius: 6,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
             onTap: (index) {
               if (index < pestanasVisibles.length) {
                 context.read<RutasVM>().cambiarPestana(pestanasVisibles[index]);
@@ -124,6 +151,7 @@ class _RutasPaginaState extends State<RutasPagina> {
               child: RefreshIndicator(
                 onRefresh: _handleRefresh,
                 child: TabBarView(
+                  key: ValueKey(vmRutas.pestanaActual),
                   physics: const NeverScrollableScrollPhysics(),
                   children: pestanasVisibles
                       .map(
@@ -163,12 +191,13 @@ class _RutasPaginaState extends State<RutasPagina> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white.withOpacity(0.25),
+          backgroundColor: Colors.white.withValues(alpha: 0.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          elevation: 2,
+          shadowColor: Colors.black.withValues(alpha: 0.3),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       ),
     );
