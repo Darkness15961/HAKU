@@ -17,7 +17,6 @@ import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/provincia.dart';
 import '../../dominio/entidades/categoria.dart';
 
-
 class ProvinciaLugaresPagina extends StatefulWidget {
   final Provincia provincia;
 
@@ -36,9 +35,7 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
     super.initState();
     Future.microtask(() {
       // 1. Pedimos al Mesero de Lugares que cargue solo los datos de esta provincia.
-      context
-          .read<LugaresVM>()
-          .cargarLugaresPorProvincia(widget.provincia.id);
+      context.read<LugaresVM>().cargarLugaresPorProvincia(widget.provincia.id);
     });
     // Sincronizamos la búsqueda con el VM
     _searchCtrl.addListener(_onSearchChanged);
@@ -105,18 +102,23 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                 ? const Center(child: CircularProgressIndicator())
                 : lugares.isEmpty
                 ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.location_off_outlined, size: 50, color: Colors.grey[400]),
-                  const SizedBox(height: 10),
-                  const Text('No se encontraron lugares con esos filtros.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.location_off_outlined,
+                          size: 50,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'No se encontraron lugares con esos filtros.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  )
                 : _buildLugaresList(context, vmLugares, lugares),
           ),
         ],
@@ -130,10 +132,11 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
     // (Tu código intacto aquí...)
     final List<Categoria> categorias = [
       Categoria(id: '1', nombre: 'Todos', urlImagen: ''),
-      ...vmLugares.categorias.where((c) => c.id != '1').toList()
+      ...vmLugares.categorias.where((c) => c.id != '1').toList(),
     ];
 
-    final String selectedCategoryId = vmLugares.categoriaSeleccionadaIdProvincia;
+    final String selectedCategoryId =
+        vmLugares.categoriaSeleccionadaIdProvincia;
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
     return Padding(
@@ -152,7 +155,10 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 10,
+                ),
               ),
             ),
           ),
@@ -160,17 +166,17 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    spreadRadius: 1,
-                    blurRadius: 3,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  spreadRadius: 1,
+                  blurRadius: 3,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
@@ -196,7 +202,11 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
   }
 
   // --- ¡WIDGET REDISEÑADO PARA SER MÁS ELEGANTE! ---
-  Widget _buildLugaresList(BuildContext context, LugaresVM vmLugares, List<Lugar> lugares) {
+  Widget _buildLugaresList(
+    BuildContext context,
+    LugaresVM vmLugares,
+    List<Lugar> lugares,
+  ) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       itemCount: lugares.length,
@@ -209,7 +219,9 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
           margin: const EdgeInsets.only(bottom: 16.0),
           elevation: 6,
           clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -232,7 +244,13 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                           height: 180,
                           width: double.infinity,
                           color: Colors.grey[200],
-                          child: Center(child: Icon(Icons.place_outlined, size: 50, color: Colors.grey[400])),
+                          child: Center(
+                            child: Icon(
+                              Icons.place_outlined,
+                              size: 50,
+                              color: Colors.grey[400],
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -257,38 +275,6 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                       ),
                     ),
                   ),
-
-                  // --- ¡CORRECCIÓN DE DISEÑO! (No más "azul feo") ---
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    // Usamos un gradiente negro para asegurar legibilidad
-                    child: Container(
-                      height: 60, // Altura del gradiente
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.7),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
-                      alignment: Alignment.bottomLeft,
-                      child: Text(
-                        lugar.categoria,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // --- FIN DE LA CORRECCIÓN DE DISEÑO ---
                 ],
               ),
 
@@ -307,7 +293,9 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                           child: Text(
                             lugar.nombre,
                             style: const TextStyle(
-                                fontSize: 22, fontWeight: FontWeight.bold),
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -316,10 +304,12 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                     ),
 
                     const SizedBox(height: 8),
-                    Text(lugar.descripcion,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      lugar.descripcion,
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
@@ -337,7 +327,10 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
       children: [
         Icon(Icons.star, color: Colors.amber, size: 18),
         const SizedBox(width: 4),
-        Text(rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(
+          rating.toStringAsFixed(1),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
       ],
     );
   }
@@ -350,16 +343,20 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('Acción Requerida 🔒'),
-          content:
-          Text('Necesitas iniciar sesión o crear una cuenta para $action.'),
+          content: Text(
+            'Necesitas iniciar sesión o crear una cuenta para $action.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Seguir Explorando',
-                  style: TextStyle(color: Colors.grey)),
+              child: const Text(
+                'Seguir Explorando',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
@@ -367,8 +364,10 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
                 context.push('/login');
               },
               style: ElevatedButton.styleFrom(backgroundColor: colorPrimario),
-              child: const Text('Iniciar Sesión',
-                  style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Iniciar Sesión',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );

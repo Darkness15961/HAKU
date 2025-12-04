@@ -27,7 +27,7 @@ class MapaSimplePagina extends StatelessWidget {
         position: LatLng(lugar.latitud, lugar.longitud),
         infoWindow: InfoWindow(
           title: lugar.nombre,
-          snippet: lugar.categoria,
+          snippet: lugar.nombre,
         ),
       ),
     };

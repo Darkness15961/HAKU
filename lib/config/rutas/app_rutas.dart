@@ -15,6 +15,7 @@ import 'package:xplore_cusco/caracteristicas/rutas/dominio/entidades/ruta.dart';
 import 'package:xplore_cusco/caracteristicas/splash/presentacion/paginas/splash_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/login_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/registro_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/recuperar_contrasena_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/navegacion/presentacion/paginas/navegacion_principal.dart';
 
 // Páginas de Inicio
@@ -71,6 +72,10 @@ class AppRutas {
       GoRoute(
         path: '/registro',
         builder: (context, state) => const RegistroPagina(),
+      ),
+      GoRoute(
+        path: '/recuperar-contrasena',
+        builder: (context, state) => const RecuperarContrasenaPage(),
       ),
 
       // Rutas de Admin

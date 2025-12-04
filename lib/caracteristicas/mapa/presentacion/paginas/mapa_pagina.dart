@@ -67,6 +67,7 @@ class _MapaPaginaState extends State<MapaPagina> {
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
+            zoomGesturesEnabled: true, // Habilitar zoom con gestos y botones
             compassEnabled: false,
             onMapCreated: (GoogleMapController controller) {
               if (mounted) vmMapa.setNewMapController(controller);
@@ -303,7 +304,7 @@ class _MapaPaginaState extends State<MapaPagina> {
 
                   // 3. DETALLES PEQUEÑOS
                   Text(
-                    "${lugar.categoria} • ${lugar.rating} ★",
+                    " • ${lugar.rating} ★",
                     style: TextStyle(
                       fontFamily: 'Serif',
                       fontSize: 14,

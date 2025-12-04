@@ -85,7 +85,7 @@ class MisLugaresFavoritosPagina extends StatelessWidget {
               // --- FIN DE LA CORRECCIÓN ---
 
               title: Text(lugar.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(lugar.categoria, style: TextStyle(color: Colors.grey[600])),
+              // subtitle eliminado
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 // --- ¡CORREGIDO! ---

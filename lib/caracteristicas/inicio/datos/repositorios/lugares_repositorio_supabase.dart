@@ -79,10 +79,7 @@ class LugaresRepositorioSupabase implements LugaresRepositorio {
         'descripcion': datosLugar['descripcion'],
         'url_imagen': datosLugar['url_imagen'] ?? datosLugar['urlImagen'],
         'provincia_id': datosLugar['provincia_id'] ?? datosLugar['provinciaId'],
-        'categoria_id': datosLugar['categoria_id'] ?? datosLugar['categoriaId'],
         'horario': datosLugar['horario'],
-        'costo_entrada_referencial':
-            datosLugar['costo_entrada'] ?? datosLugar['costoEntrada'],
         'latitud': datosLugar['latitud'],
         'longitud': datosLugar['longitud'],
         'video_tiktok_url':
@@ -118,10 +115,7 @@ class LugaresRepositorioSupabase implements LugaresRepositorio {
         'descripcion': datosLugar['descripcion'],
         'url_imagen': datosLugar['url_imagen'] ?? datosLugar['urlImagen'],
         'provincia_id': datosLugar['provincia_id'] ?? datosLugar['provinciaId'],
-        'categoria_id': datosLugar['categoria_id'] ?? datosLugar['categoriaId'],
         'horario': datosLugar['horario'],
-        'costo_entrada_referencial':
-            datosLugar['costo_entrada'] ?? datosLugar['costoEntrada'],
         'latitud': datosLugar['latitud'],
         'longitud': datosLugar['longitud'],
         'video_tiktok_url':

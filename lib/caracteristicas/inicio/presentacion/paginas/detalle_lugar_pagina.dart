@@ -163,25 +163,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
                                     color: Colors.black87,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.location_on,
-                                      size: 16,
-                                      color: colorPrimario,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      lugarVivo
-                                          .categoria, // Podrías concatenar provincia aquí si la tuvieras
-                                      style: TextStyle(
-                                        color: colorPrimario,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ],
                             ),
                           ),
@@ -294,13 +275,6 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
   Widget _buildModernInfoRow(BuildContext context, Lugar lugar) {
     final color = Theme.of(context).colorScheme.primary;
 
-    // Formateo del precio
-    String precioStr = lugar.costoEntrada;
-    // Si viene solo número, le agregamos S/
-    if (double.tryParse(precioStr) != null) {
-      precioStr = 'S/ $precioStr';
-    }
-
     // Formateo del rating
     String ratingStr = lugar.rating > 0
         ? lugar.rating.toStringAsFixed(1)
@@ -320,20 +294,13 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildInfoItem(
             Icons.access_time_filled_rounded,
             lugar.horario,
-            "Horario",
+            "Horario Recomendado",
             color,
-          ),
-          Container(width: 1, height: 40, color: Colors.grey[200]), // Separador
-          _buildInfoItem(
-            Icons.payments_rounded,
-            precioStr,
-            "Costo",
-            Colors.green,
           ),
           Container(width: 1, height: 40, color: Colors.grey[200]), // Separador
           _buildInfoItem(

@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/lugar.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';
-import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/categoria.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/presentacion/vista_modelos/lugares_vm.dart';
 import 'package:xplore_cusco/core/servicios/imagen_servicio.dart';
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
@@ -25,7 +24,6 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
   final TextEditingController _nombreCtrl = TextEditingController();
   final TextEditingController _descripcionCtrl = TextEditingController();
   final TextEditingController _urlImagenCtrl = TextEditingController();
-  final TextEditingController _costoEntradaCtrl = TextEditingController();
   final TextEditingController _latitudCtrl = TextEditingController();
   final TextEditingController _longitudCtrl = TextEditingController();
   final TextEditingController _videoTiktokCtrl = TextEditingController();
@@ -33,7 +31,6 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
   final ImagenServicio _imagenServicio = ImagenServicio();
 
   String? _selectedProvinciaId;
-  String? _selectedCategoriaId;
   String? _horaInicioSeleccionada;
   String? _horaFinSeleccionada;
 
@@ -64,28 +61,10 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
         }
       }
 
-      _costoEntradaCtrl.text = lugar.costoEntrada;
       _latitudCtrl.text = lugar.latitud.toString();
       _longitudCtrl.text = lugar.longitud.toString();
       _videoTiktokCtrl.text = lugar.videoTiktokUrl ?? '';
       _selectedProvinciaId = lugar.provinciaId;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final vmLugares = context.read<LugaresVM>();
-        if (vmLugares.categorias.isNotEmpty) {
-          try {
-            final categoria = vmLugares.categorias.firstWhere(
-              (c) => c.nombre.toLowerCase() == lugar.categoria.toLowerCase(),
-              orElse: () => vmLugares.categorias.first,
-            );
-            setState(() {
-              _selectedCategoriaId = categoria.id;
-            });
-          } catch (e) {
-            // Error silencioso
-          }
-        }
-      });
     }
   }
 
@@ -94,7 +73,6 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
     _nombreCtrl.dispose();
     _descripcionCtrl.dispose();
     _urlImagenCtrl.dispose();
-    _costoEntradaCtrl.dispose();
     _latitudCtrl.dispose();
     _longitudCtrl.dispose();
     _videoTiktokCtrl.dispose();
@@ -144,11 +122,9 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
     }
 
     if (_selectedProvinciaId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: Selecciona una Provincia')));
-      return;
-    }
-    if (_selectedCategoriaId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: Selecciona una Categoría')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Selecciona una Provincia')),
+      );
       return;
     }
 
@@ -159,12 +135,12 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
       'descripcion': _descripcionCtrl.text,
       'url_imagen': _urlImagenCtrl.text,
       'provincia_id': _selectedProvinciaId,
-      'categoria_id': _selectedCategoriaId,
       'horario': horarioFinal,
-      'costo_entrada_referencial': _costoEntradaCtrl.text, // FIX: Correct column name
       'latitud': double.tryParse(_latitudCtrl.text) ?? 0.0,
       'longitud': double.tryParse(_longitudCtrl.text) ?? 0.0,
-      'video_tiktok_url': _videoTiktokCtrl.text.isNotEmpty ? _videoTiktokCtrl.text : null,
+      'video_tiktok_url': _videoTiktokCtrl.text.isNotEmpty
+          ? _videoTiktokCtrl.text
+          : null,
       'registrado_por': vmAuth.usuarioActual!.id,
     };
 
@@ -190,7 +166,9 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lugar ${_esModoEdicion ? 'actualizado' : 'creado'} con éxito'),
+            content: Text(
+              'Lugar ${_esModoEdicion ? 'actualizado' : 'creado'} con éxito',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -200,7 +178,7 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
       print('!!! ERROR AL GUARDAR LUGAR !!!');
       print('Error: $e');
       print('StackTrace: $stackTrace');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
@@ -217,14 +195,10 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
     // Safety check: Ensure selected values exist in the current lists
     if (_selectedProvinciaId != null &&
         vmLugares.todasLasProvincias.isNotEmpty &&
-        !vmLugares.todasLasProvincias.any((p) => p.id == _selectedProvinciaId)) {
+        !vmLugares.todasLasProvincias.any(
+          (p) => p.id == _selectedProvinciaId,
+        )) {
       _selectedProvinciaId = null;
-    }
-
-    if (_selectedCategoriaId != null &&
-        vmLugares.categorias.isNotEmpty &&
-        !vmLugares.categorias.any((c) => c.id == _selectedCategoriaId)) {
-      _selectedCategoriaId = null;
     }
 
     return Scaffold(
@@ -246,28 +220,34 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
                   TextFormField(
                     controller: _nombreCtrl,
                     decoration: _buildInputDecoration('Nombre del Lugar'),
-                    validator: (v) => (v == null || v.isEmpty) ? 'Campo requerido' : null,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Campo requerido' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _descripcionCtrl,
                     decoration: _buildInputDecoration('Descripción'),
                     maxLines: 4,
-                    validator: (v) => (v == null || v.isEmpty) ? 'Campo requerido' : null,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Campo requerido' : null,
                   ),
                   const SizedBox(height: 12),
 
                   _buildInputLabel('Imagen Principal'),
                   const SizedBox(height: 8),
                   GestureDetector(
-                    onTap: _subiendoImagen ? null : () async {
-                      setState(() => _subiendoImagen = true);
-                      final url = await _imagenServicio.seleccionarYSubir('lugares');
-                      if (url != null) {
-                        setState(() => _urlImagenCtrl.text = url);
-                      }
-                      setState(() => _subiendoImagen = false);
-                    },
+                    onTap: _subiendoImagen
+                        ? null
+                        : () async {
+                            setState(() => _subiendoImagen = true);
+                            final url = await _imagenServicio.seleccionarYSubir(
+                              'lugares',
+                            );
+                            if (url != null) {
+                              setState(() => _urlImagenCtrl.text = url);
+                            }
+                            setState(() => _subiendoImagen = false);
+                          },
                     child: Container(
                       height: 200,
                       width: double.infinity,
@@ -285,75 +265,67 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
                       child: _subiendoImagen
                           ? const Center(child: CircularProgressIndicator())
                           : _urlImagenCtrl.text.isEmpty
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.add_a_photo, size: 40, color: Colors.grey[600]),
-                                    const SizedBox(height: 8),
-                                    Text('Toca para subir una foto', style: TextStyle(color: Colors.grey[600])),
-                                  ],
-                                )
-                              : null,
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_a_photo,
+                                  size: 40,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Toca para subir una foto',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
                   ),
                   if (_urlImagenCtrl.text.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 4.0),
-                      child: Text('URL: ${_urlImagenCtrl.text}',
-                          style: const TextStyle(fontSize: 10, color: Colors.grey),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        'URL: ${_urlImagenCtrl.text}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
 
                   const Divider(height: 32),
 
                   _buildSectionTitle('Clasificación'),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedProvinciaId,
-                          decoration: _buildInputDecoration('Provincia'),
-                          items: vmLugares.todasLasProvincias.map((Provincia p) {
-                            return DropdownMenuItem<String>(
-                              value: p.id,
-                              child: Text(p.nombre.isNotEmpty ? p.nombre : 'Sin Nombre'),
-                            );
-                          }).toList(),
-                          onChanged: (value) => setState(() => _selectedProvinciaId = value),
-                          validator: (v) => v == null ? 'Requerido' : null,
+                  DropdownButtonFormField<String>(
+                    value: _selectedProvinciaId,
+                    decoration: _buildInputDecoration('Provincia'),
+                    items: vmLugares.todasLasProvincias.map((Provincia p) {
+                      return DropdownMenuItem<String>(
+                        value: p.id,
+                        child: Text(
+                          p.nombre.isNotEmpty ? p.nombre : 'Sin Nombre',
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedCategoriaId,
-                          decoration: _buildInputDecoration('Categoría'),
-                          items: vmLugares.categorias
-                              .map((Categoria c) {
-                            return DropdownMenuItem<String>(
-                              value: c.id,
-                              child: Text(c.nombre),
-                            );
-                          }).toList(),
-                          onChanged: (value) => setState(() => _selectedCategoriaId = value),
-                          validator: (v) => v == null ? 'Requerido' : null,
-                        ),
-                      ),
-                    ],
+                      );
+                    }).toList(),
+                    onChanged: (value) =>
+                        setState(() => _selectedProvinciaId = value),
+                    validator: (v) => v == null ? 'Requerido' : null,
                   ),
 
                   const Divider(height: 32),
 
-                  _buildSectionTitle('Detalles Adicionales'),
-                  
+                  _buildSectionTitle('Horas Recomendadas para Visitar'),
+
                   Row(
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           value: _horaInicioSeleccionada,
-                          decoration: _buildInputDecoration('Hora Inicio'),
+                          decoration: _buildInputDecoration('Desde'),
                           menuMaxHeight: 300,
                           items: _listaHoras.map((hora) {
                             return DropdownMenuItem(
@@ -361,7 +333,8 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
                               child: Text(hora),
                             );
                           }).toList(),
-                          onChanged: (val) => setState(() => _horaInicioSeleccionada = val),
+                          onChanged: (val) =>
+                              setState(() => _horaInicioSeleccionada = val),
                           validator: (v) => v == null ? 'Requerido' : null,
                         ),
                       ),
@@ -369,7 +342,7 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           value: _horaFinSeleccionada,
-                          decoration: _buildInputDecoration('Hora Fin'),
+                          decoration: _buildInputDecoration('Hasta'),
                           menuMaxHeight: 300,
                           items: _listaHoras.map((hora) {
                             return DropdownMenuItem(
@@ -377,18 +350,14 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
                               child: Text(hora),
                             );
                           }).toList(),
-                          onChanged: (val) => setState(() => _horaFinSeleccionada = val),
+                          onChanged: (val) =>
+                              setState(() => _horaFinSeleccionada = val),
                           validator: (v) => v == null ? 'Requerido' : null,
                         ),
                       ),
                     ],
                   ),
-                  
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _costoEntradaCtrl,
-                    decoration: _buildInputDecoration('Costo (Ej. S/ 10.00)'),
-                  ),
+
                   const SizedBox(height: 24),
 
                   _buildSectionTitle('Ubicación en Mapa'),
@@ -436,7 +405,9 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _videoTiktokCtrl,
-                    decoration: _buildInputDecoration('Link de TikTok (Opcional)'),
+                    decoration: _buildInputDecoration(
+                      'Link de TikTok (Opcional)',
+                    ),
                     keyboardType: TextInputType.url,
                   ),
 
@@ -449,7 +420,9 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
                       backgroundColor: colorPrimario,
                       foregroundColor: Colors.white,
                     ),
-                    child: Text(_esModoEdicion ? 'Actualizar Lugar' : 'Crear Lugar'),
+                    child: Text(
+                      _esModoEdicion ? 'Actualizar Lugar' : 'Crear Lugar',
+                    ),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -476,14 +449,21 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
     );
   }
 
   Widget _buildInputLabel(String label) {
     return Text(
       label,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87),
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        color: Colors.black87,
+      ),
     );
   }
 }

@@ -274,7 +274,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                         );
                         return CheckboxListTile(
                           title: Text(lugar.nombre),
-                          subtitle: Text(lugar.categoria),
+                          // subtitle eliminado
                           value: estaSeleccionado,
                           onChanged: (bool? seleccionado) {
                             setModalState(() {

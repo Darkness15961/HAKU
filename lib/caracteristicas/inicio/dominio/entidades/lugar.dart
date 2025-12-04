@@ -5,12 +5,10 @@ class Lugar {
   final String descripcion;
   final String urlImagen;
   final double rating;
-  final String categoria;
 
   // --- Atributos de Detalle ---
   final int reviewsCount;
   final String horario;
-  final String costoEntrada;
   final List<String> puntosInteres;
 
   // --- Atributos de Coordenadas ---
@@ -32,11 +30,9 @@ class Lugar {
     required this.descripcion,
     required this.urlImagen,
     required this.rating,
-    required this.categoria,
     this.fotoRecuerdoUrl,
     this.reviewsCount = 0,
     this.horario = 'No disponible',
-    this.costoEntrada = 'Consultar',
     this.puntosInteres = const [],
 
     this.latitud = -13.5319,

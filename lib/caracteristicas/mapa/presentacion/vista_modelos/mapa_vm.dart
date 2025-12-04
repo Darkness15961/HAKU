@@ -180,12 +180,9 @@ class MapaVM extends ChangeNotifier {
               latitud: recuerdo.latitud,
               longitud: recuerdo.longitud,
               rating: 5.0,
-              categoria:
-                  'Recuerdo ${recuerdo.fecha.day}/${recuerdo.fecha.month}',
               provinciaId: '0',
               usuarioId: '',
-              horario: '',
-              costoEntrada: '',
+              horario: 'Recuerdo ${recuerdo.fecha.day}/${recuerdo.fecha.month}',
               reviewsCount: 0,
               videoTiktokUrl: '',
             );
@@ -222,9 +219,21 @@ class MapaVM extends ChangeNotifier {
     if (_filtroActual == 0) {
       // "Explorar Todo": Marcador circular con borde celeste
       return await _crearMarcadorCircular(lugar);
-    } else {
-      // "Mis Recuerdos" o "Por Visitar": Marcador Polaroid
+    } else if (_filtroActual == 1) {
+      // "Mis Recuerdos": Marcador Polaroid
       return await _crearMarcadorPolaroid(lugar);
+    } else {
+      // "Por Visitar" (filtro 2): Pin rojo por defecto de Google Maps
+      return Marker(
+        markerId: MarkerId(lugar.id),
+        position: LatLng(lugar.latitud, lugar.longitud),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        zIndex: -lugar.latitud,
+        onTap: () {
+          _lugarSeleccionado = lugar;
+          notifyListeners();
+        },
+      );
     }
   }
 

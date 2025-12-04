@@ -7,27 +7,36 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
 
   @override
   Future<Usuario> iniciarSesion(String email, String password) async {
-    // 1. Autenticación con Supabase Auth
-    final AuthResponse res = await _supabase.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      // 1. Autenticación con Supabase Auth
+      final AuthResponse res = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
 
-    if (res.user == null) throw Exception('Error al iniciar sesión');
+      if (res.user == null) throw Exception('Error al iniciar sesión');
 
-    // 2. Obtener datos extra de la tabla 'perfiles' (Rol, DNI, etc.)
-    final perfilData = await _supabase
-        .from('perfiles')
-        .select()
-        .eq('id', res.user!.id)
-        .single();
+      // 2. Obtener datos extra de la tabla 'perfiles' (Rol, DNI, etc.)
+      final perfilData = await _supabase
+          .from('perfiles')
+          .select()
+          .eq('id', res.user!.id)
+          .single();
 
-    // 3. Construir y devolver el Usuario
-    return _mapPerfilToUsuario(perfilData, res.session!.accessToken);
+      // 3. Construir y devolver el Usuario
+      return _mapPerfilToUsuario(perfilData, res.session!.accessToken);
+    } catch (e) {
+      throw Exception(_traducirErrorAuth(e.toString()));
+    }
   }
 
   @override
-  Future<Usuario> registrarUsuario(String nombre, String email, String password, String dni) async {
+  Future<Usuario> registrarUsuario(
+    String nombre,
+    String email,
+    String password,
+    String dni,
+  ) async {
     // 1. Crear usuario en Supabase Auth
     final AuthResponse res = await _supabase.auth.signUp(
       email: email,
@@ -51,6 +60,39 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
     return _mapPerfilToUsuario(nuevoPerfil, res.session?.accessToken ?? '');
   }
 
+  // Helper para traducir errores de autenticación al español
+  String _traducirErrorAuth(String errorOriginal) {
+    final errorLower = errorOriginal.toLowerCase();
+
+    if (errorLower.contains('invalid login credentials') ||
+        errorLower.contains('invalid_credentials')) {
+      return 'Credenciales de inicio de sesión inválidas';
+    }
+
+    if (errorLower.contains('email not confirmed')) {
+      return 'El correo electrónico no ha sido confirmado';
+    }
+
+    if (errorLower.contains('user not found')) {
+      return 'Usuario no encontrado';
+    }
+
+    if (errorLower.contains('invalid email')) {
+      return 'Correo electrónico inválido';
+    }
+
+    if (errorLower.contains('network') || errorLower.contains('connection')) {
+      return 'Error de conexión. Verifica tu internet';
+    }
+
+    if (errorLower.contains('too many requests')) {
+      return 'Demasiados intentos. Intenta más tarde';
+    }
+
+    // Si no coincide con ningún error conocido, devolver mensaje genérico
+    return 'Error al iniciar sesión. Verifica tus credenciales';
+  }
+
   // Helper para convertir JSON de BD a Entidad Usuario
   Usuario _mapPerfilToUsuario(Map<String, dynamic> data, String token) {
     return Usuario(
@@ -70,14 +112,20 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
   // --- MÉTODOS DE GESTIÓN DE GUÍAS (Admin) ---
 
   @override
-  Future<void> solicitarSerGuia(String experiencia, String rutaCertificado) async {
+  Future<void> solicitarSerGuia(
+    String experiencia,
+    String rutaCertificado,
+  ) async {
     final userId = _supabase.auth.currentUser!.id;
-    await _supabase.from('perfiles').update({
-      'solicitud_experiencia': experiencia,
-      'solicitud_certificado_url': rutaCertificado,
-      'solicitud_estado': 'pendiente',
-      'rol': 'guia_pendiente', // Cambia temporalmente
-    }).eq('id', userId);
+    await _supabase
+        .from('perfiles')
+        .update({
+          'solicitud_experiencia': experiencia,
+          'solicitud_certificado_url': rutaCertificado,
+          'solicitud_estado': 'pendiente',
+          'rol': 'guia_pendiente', // Cambia temporalmente
+        })
+        .eq('id', userId);
   }
 
   @override
@@ -86,48 +134,61 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
         .from('perfiles')
         .select()
         .eq('solicitud_estado', 'pendiente');
-        
+
     return (data as List).map((json) => _mapPerfilToUsuario(json, '')).toList();
   }
 
   @override
   Future<void> aprobarGuia(String usuarioId) async {
-    await _supabase.from('perfiles').update({
-      'rol': 'guia_aprobado', // ¡Rol actualizado!
-      'solicitud_estado': 'aprobado',
-    }).eq('id', usuarioId);
+    await _supabase
+        .from('perfiles')
+        .update({
+          'rol': 'guia_aprobado', // ¡Rol actualizado!
+          'solicitud_estado': 'aprobado',
+        })
+        .eq('id', usuarioId);
   }
 
   @override
   Future<void> rechazarGuia(String usuarioId) async {
-    await _supabase.from('perfiles').update({
-      'rol': 'turista', // Vuelve a turista
-      'solicitud_estado': 'rechazado',
-    }).eq('id', usuarioId);
+    await _supabase
+        .from('perfiles')
+        .update({
+          'rol': 'turista', // Vuelve a turista
+          'solicitud_estado': 'rechazado',
+        })
+        .eq('id', usuarioId);
   }
 
   @override
   Future<void> cerrarSesion() async => await _supabase.auth.signOut();
-  
+
   @override
   Future<Usuario?> verificarEstadoSesion() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return null;
     // Si hay sesión, traemos el perfil actualizado
     try {
-      final data = await _supabase.from('perfiles').select().eq('id', user.id).single();
-      return _mapPerfilToUsuario(data, _supabase.auth.currentSession?.accessToken ?? '');
+      final data = await _supabase
+          .from('perfiles')
+          .select()
+          .eq('id', user.id)
+          .single();
+      return _mapPerfilToUsuario(
+        data,
+        _supabase.auth.currentSession?.accessToken ?? '',
+      );
     } catch (e) {
       return null;
     }
   }
-  
+
   @override
   Future<List<Usuario>> obtenerTodosLosUsuarios() async {
-     final data = await _supabase.from('perfiles').select();
-     return (data as List).map((json) => _mapPerfilToUsuario(json, '')).toList();
+    final data = await _supabase.from('perfiles').select();
+    return (data as List).map((json) => _mapPerfilToUsuario(json, '')).toList();
   }
-  
+
   @override
   Future<void> eliminarUsuario(String usuarioId) async {
     // Ojo: Esto solo borra de 'perfiles'. Para borrar de Auth se requiere una Edge Function o hacerlo desde el dashboard
@@ -135,16 +196,18 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
   }
 
   @override
-  Future<void> actualizarFotoPerfil(String usuarioId, String nuevaFotoUrl) async {
-    await _supabase.from('perfiles').update({
-      'url_foto_perfil': nuevaFotoUrl,
-    }).eq('id', usuarioId);
+  Future<void> actualizarFotoPerfil(
+    String usuarioId,
+    String nuevaFotoUrl,
+  ) async {
+    await _supabase
+        .from('perfiles')
+        .update({'url_foto_perfil': nuevaFotoUrl})
+        .eq('id', usuarioId);
   }
 
   @override
   Future<void> cambiarPassword(String nuevaPassword) async {
-    await _supabase.auth.updateUser(
-      UserAttributes(password: nuevaPassword),
-    );
+    await _supabase.auth.updateUser(UserAttributes(password: nuevaPassword));
   }
 }

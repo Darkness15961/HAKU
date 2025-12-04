@@ -104,16 +104,7 @@ class LugaresVM extends ChangeNotifier {
 
   List<Lugar> get lugaresFiltradosDeProvincia {
     List<Lugar> filtrados = _lugaresDeProvincia;
-    if (_categoriaSeleccionadaIdProvincia != '1') {
-      final categoria = _categorias.firstWhere(
-        (c) => c.id == _categoriaSeleccionadaIdProvincia,
-      );
-      filtrados = filtrados
-          .where(
-            (l) => l.categoria.toLowerCase() == categoria.nombre.toLowerCase(),
-          )
-          .toList();
-    }
+    // Categorías ahora solo pertenecen a rutas, no a lugares
     if (_terminoBusquedaProvincia.isNotEmpty) {
       final busqueda = _terminoBusquedaProvincia.toLowerCase();
       filtrados = filtrados

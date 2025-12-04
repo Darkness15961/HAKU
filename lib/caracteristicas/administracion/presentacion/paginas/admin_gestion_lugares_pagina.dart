@@ -167,7 +167,7 @@ class _AdminGestionLugaresPaginaState extends State<AdminGestionLugaresPagina> {
                   const SizedBox(height: 4),
                   // Usamos la info desnormalizada (copiada)
                   Text(
-                    '${lugar.categoria} • ${lugar.provinciaId}', // (El mock de lugar no tiene provinciaNombre)
+                    'Lugar • ${lugar.provinciaId}', // (El mock de lugar no tiene provinciaNombre)
                     style: const TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                 ],
