@@ -386,7 +386,7 @@ class _RutasPaginaState extends State<RutasPagina> {
                           const Icon(Icons.star, color: Colors.amber, size: 16),
                           const SizedBox(width: 4),
                           Text(
-                            ruta.rating.toStringAsFixed(1),
+                            ruta.guiaRating.toStringAsFixed(1),
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],

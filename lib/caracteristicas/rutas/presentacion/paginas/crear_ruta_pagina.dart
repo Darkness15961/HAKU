@@ -27,7 +27,7 @@ import '../../dominio/entidades/ruta.dart';
 import '../../../notificaciones/dominio/repositorios/notificacion_repositorio.dart';
 import '../../../notificaciones/datos/repositorios/notificacion_repositorio_mock.dart';
 import '../../../notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
-// --- FIN DE LO AÑADIDO ---
+import '../../../../core/servicios/imagen_servicio.dart'; // <--- Importado
 
 // Helper: Clase simple para representar un Lugar en la Ruta
 // --- ¡SIMPLIFICADO! Ya no tiene 'durationMinutes' ---
@@ -57,12 +57,17 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   final TextEditingController _precioCtrl = TextEditingController(text: '0');
   final TextEditingController _diasCtrl = TextEditingController(text: '1');
   final TextEditingController _cuposCtrl = TextEditingController(text: '10');
+  final TextEditingController _urlImagenCtrl =
+      TextEditingController(); // <--- Nuevo
+
+  final ImagenServicio _imagenServicio = ImagenServicio(); // <--- Nuevo
 
   final _formKey = GlobalKey<FormState>();
 
   String _selectedDifficulty = 'Familiar';
   String _visibility = 'Privada';
   bool _estaGuardando = false;
+  bool _subiendoImagen = false; // <--- Nuevo
 
   List<RouteLocation> _locations = [];
 
@@ -119,8 +124,17 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       'guiaId': vmAuth.usuarioActual!.id,
       'guiaNombre': vmAuth.usuarioActual!.nombre,
       'guiaFotoUrl': vmAuth.usuarioActual!.urlFotoPerfil ?? '',
+      'url_imagen_principal': _urlImagenCtrl.text.isNotEmpty
+          ? _urlImagenCtrl.text
+          : (_locations.isNotEmpty ? _locations.first.lugar.urlImagen : ''),
       // --- FIN DE CORRECCIÓN ---
     };
+
+    print('DEBUG: Creando ruta con datos: $datosRuta');
+    print('DEBUG: Locations count: ${_locations.length}');
+    if (_locations.isNotEmpty) {
+      print('DEBUG: First location image: ${_locations.first.lugar.urlImagen}');
+    }
 
     try {
       if (!mounted) return;
@@ -203,7 +217,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       guiaId: vmAuth.usuarioActual!.id,
       guiaNombre: vmAuth.usuarioActual!.nombre,
       guiaFotoUrl: vmAuth.usuarioActual!.urlFotoPerfil ?? '',
-
+      guiaRating: widget.ruta?.guiaRating ?? 5.0, // Default para preview
       // --- Valores por Defecto para la Previsualización ---
       rating:
           widget.ruta?.rating ?? 0.0, // Usa el rating real si estamos editando
@@ -351,7 +365,10 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       _diasCtrl.text = widget.ruta!.dias.toString();
       _cuposCtrl.text = widget.ruta!.cuposTotales.toString();
       _selectedDifficulty = widget.ruta!.categoria;
+      _selectedDifficulty = widget.ruta!.categoria;
       _visibility = widget.ruta!.visible ? 'Pública' : 'Privada';
+      _urlImagenCtrl.text =
+          widget.ruta!.urlImagenPrincipal; // <--- Cargar imagen existente
 
       // (Pre-cargamos los lugares si estamos editando)
       // (Necesitamos el LugaresVM para esto)
@@ -490,6 +507,9 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildRouteDetailsInputs(),
+                  const SizedBox(height: 24),
+                  _buildImageUploadInput(), // <--- Widget de subida de imagen
+                  const Divider(height: 32),
                   const Divider(height: 32),
                   _buildRouteProperties(context), // <-- ¡Le pasamos el context!
                   const Divider(height: 32),
@@ -532,6 +552,89 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         label,
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
       ),
+    );
+  }
+
+  // --- Widget de Subida de Imagen ---
+  Widget _buildImageUploadInput() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildInputLabel('Imagen de Portada'),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _subiendoImagen
+              ? null
+              : () async {
+                  setState(() => _subiendoImagen = true);
+                  // Usamos 'rutas' como carpeta en el bucket
+                  final url = await _imagenServicio.seleccionarYSubir('rutas');
+                  if (url != null) {
+                    setState(() => _urlImagenCtrl.text = url);
+                  }
+                  setState(() => _subiendoImagen = false);
+                },
+          child: Container(
+            height: 200,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade400),
+              image: _urlImagenCtrl.text.isNotEmpty
+                  ? DecorationImage(
+                      image: NetworkImage(_urlImagenCtrl.text),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: _subiendoImagen
+                ? const Center(child: CircularProgressIndicator())
+                : _urlImagenCtrl.text.isEmpty
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_a_photo,
+                        size: 40,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Toca para subir una foto',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
+                  )
+                : null,
+          ),
+        ),
+        if (_urlImagenCtrl.text.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'URL: ${_urlImagenCtrl.text}',
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                  onPressed: () {
+                    setState(() {
+                      _urlImagenCtrl.clear();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 

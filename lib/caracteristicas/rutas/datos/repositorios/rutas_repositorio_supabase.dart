@@ -15,7 +15,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       // Consulta base
       var query = _supabase.from('rutas').select('''
             *,
-            perfiles!guia_id (nombre, url_foto_perfil),
+            perfiles!guia_id (nombre, url_foto_perfil, rating),
             ruta_detalles (
               orden_visita,
               lugares (id, nombre)
@@ -173,6 +173,9 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         guiaId: json['guia_id']?.toString() ?? '',
         guiaNombre: guiaNombre,
         guiaFotoUrl: guiaFoto,
+        guiaRating: (perfilData != null && perfilData['rating'] != null)
+            ? (perfilData['rating'] as num).toDouble()
+            : 0.0,
         rating: 0.0,
         reviewsCount: 0,
         inscritosCount: inscritosCount,
@@ -202,7 +205,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         'precio': datosRuta['precio'],
         'cupos_totales': datosRuta['cupos'],
         'dias': datosRuta['dias'],
-        'dificultad': datosRuta['dificultad'],
+        'categoria': datosRuta['categoria'],
         'visible': datosRuta['visible'],
         'guia_id': datosRuta['guiaId'],
         'url_imagen_principal': datosRuta['url_imagen_principal'],
@@ -246,7 +249,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
             'precio': datosRuta['precio'],
             'cupos_totales': datosRuta['cupos'],
             'dias': datosRuta['dias'],
-            'dificultad': datosRuta['dificultad'],
+            'categoria': datosRuta['categoria'],
             'visible': datosRuta['visible'],
             'url_imagen_principal': datosRuta['url_imagen_principal'],
             'enlace_grupo_whatsapp': datosRuta['enlace_grupo_whatsapp'],

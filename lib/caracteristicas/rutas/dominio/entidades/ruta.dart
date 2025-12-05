@@ -28,6 +28,7 @@ class Ruta {
   final String guiaId;
   final String guiaNombre;
   final String guiaFotoUrl;
+  final double guiaRating; // Nuevo campo
   final double rating;
   final int reviewsCount;
   final int inscritosCount;
@@ -64,6 +65,7 @@ class Ruta {
     required this.guiaId,
     required this.guiaNombre,
     required this.guiaFotoUrl,
+    required this.guiaRating, // Nuevo campo
     required this.rating,
     required this.reviewsCount,
     required this.lugaresIncluidos,

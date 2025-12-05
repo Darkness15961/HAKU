@@ -14,7 +14,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       // Usamos la sintaxis de Supabase para relaciones (!)
       var query = _supabase.from('rutas').select('''
         *,
-        perfiles!guia_id (nombre, url_foto_perfil),
+        perfiles!guia_id (nombre, url_foto_perfil, rating),
         ruta_detalles (
           orden_visita,
           lugares (id, nombre)
@@ -114,6 +114,9 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       guiaId: json['guia_id'] ?? '',
       guiaNombre: nombreGuia,
       guiaFotoUrl: fotoGuia,
+      guiaRating: (perfilGuia != null && perfilGuia['rating'] != null)
+          ? (perfilGuia['rating'] as num).toDouble()
+          : 0.0,
 
       rating: 0.0, // Pendiente implementar rating real
       reviewsCount: 0,
