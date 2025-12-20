@@ -8,11 +8,11 @@ abstract class AutenticacionRepositorio {
 
   // ORDEN 2: "Intentar registrar un nuevo usuario"
   Future<Usuario> registrarUsuario(
-      String nombre,
-      String email,
-      String password,
-      String dni,
-      );
+    String nombre,
+    String email,
+    String password,
+    String dni,
+  );
 
   // ORDEN 3: "Cerrar la sesión actual"
   Future<void> cerrarSesion();
@@ -43,10 +43,13 @@ abstract class AutenticacionRepositorio {
   Future<void> eliminarUsuario(String usuarioId);
 
   // --- ¡NUEVO! GESTIÓN DE PERFIL ---
-  
+
   // ORDEN 11: "Actualizar foto de perfil"
   Future<void> actualizarFotoPerfil(String usuarioId, String nuevaFotoUrl);
 
   // ORDEN 12: "Cambiar contraseña"
   Future<void> cambiarPassword(String newPassword);
+
+  // ORDEN 13: "Iniciar sesión con Google"
+  Future<Usuario> iniciarSesionConGoogle();
 }

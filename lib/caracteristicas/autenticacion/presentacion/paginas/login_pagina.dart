@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 // ViewModel de autenticación
 import '../vista_modelos/autenticacion_vm.dart';
+import '../widgets/terminos_condiciones_dialog.dart';
 
 class LoginPagina extends StatefulWidget {
   const LoginPagina({super.key});
@@ -13,45 +14,30 @@ class LoginPagina extends StatefulWidget {
 }
 
 class _LoginPaginaState extends State<LoginPagina> {
-  final TextEditingController _emailCtrl = TextEditingController();
-  final TextEditingController _passwordCtrl = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-
-  bool _obscurePassword = true;
-
   @override
   void dispose() {
-    _emailCtrl.dispose();
-    _passwordCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _submitLogin() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    final email = _emailCtrl.text.trim();
-    final password = _passwordCtrl.text.trim();
-
+  Future<void> _submitGoogleLogin() async {
     final authVM = context.read<AutenticacionVM>();
 
-    final exito = await authVM.iniciarSesion(email, password);
+    try {
+      // Iniciar OAuth - esto abrirá el navegador y redirigirá la página
+      await authVM.iniciarSesionConGoogle();
 
-    if (!mounted) return;
-
-    if (exito) {
-      // Decidir según el rol
-      if (authVM.esAdmin) {
-        context.pushReplacement('/panel-admin');
-      } else {
-        context.pushReplacement('/inicio');
+      // NOTA: En web, el código no llegará aquí porque la página se redirige
+      // No intentar navegar manualmente
+    } catch (e) {
+      // Solo mostrar error si falla al iniciar el OAuth
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al iniciar sesión con Google'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authVM.error ?? 'Ocurrió un error inesperado.'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -62,117 +48,99 @@ class _LoginPaginaState extends State<LoginPagina> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Iniciar Sesión'),
+        title: const Text('Bienvenido a HAKU'),
         centerTitle: true,
-        surfaceTintColor: Colors.transparent, // Corrige problema de color con M3
+        surfaceTintColor: Colors.transparent,
       ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                Icon(Icons.explore, size: 80, color: colorPrimario),
-                const SizedBox(height: 16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Logo de la app
+              Icon(Icons.explore, size: 100, color: colorPrimario),
+              const SizedBox(height: 24),
 
-                Text(
-                  'Bienvenido a Xplora Cusco',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
+              Text(
+                'Explora Cusco',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 8),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
 
-                Text(
-                  'Ingresa a tu cuenta para continuar.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
+              Text(
+                'Descubre lugares increíbles y rutas turísticas',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
 
-                const SizedBox(height: 32),
+              const SizedBox(height: 48),
 
-                // EMAIL
-                TextFormField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Correo electrónico',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+              // Botón de Google Sign-In
+              OutlinedButton(
+                onPressed: authVM.estaCargando ? null : _submitGoogleLogin,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                  backgroundColor: Colors.white,
+                  side: BorderSide(color: Colors.grey[300]!),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty || !v.contains('@')) {
-                      return 'Ingresa un correo válido.';
-                    }
-                    return null;
-                  },
                 ),
-
-                const SizedBox(height: 16),
-
-                // PASSWORD
-                TextFormField(
-                  controller: _passwordCtrl,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons.visibility
+                child: authVM.estaCargando
+                    ? const CircularProgressIndicator()
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.network(
+                            'https://www.google.com/favicon.ico',
+                            height: 24,
+                            width: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Continuar con Google',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Términos y condiciones clickeable
+              GestureDetector(
+                onTap: () => TerminosCondicionesDialog.mostrar(context),
+                child: Text.rich(
+                  TextSpan(
+                    text: 'Al continuar, aceptas nuestros ',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                    children: [
+                      TextSpan(
+                        text: 'términos y condiciones',
+                        style: TextStyle(
+                          color: colorPrimario,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ],
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty || v.length < 6) {
-                      return 'La contraseña debe tener mínimo 6 caracteres.';
-                    }
-                    return null;
-                  },
+                  textAlign: TextAlign.center,
                 ),
-
-                const SizedBox(height: 24),
-
-                // BOTÓN DE LOGIN
-                ElevatedButton(
-                  onPressed: authVM.estaCargando ? null : _submitLogin,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    backgroundColor: colorPrimario,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: authVM.estaCargando
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Ingresar', style: TextStyle(fontSize: 16)),
-                ),
-
-                const SizedBox(height: 16),
-
-                TextButton(
-                  onPressed: () => context.push('/registro'),
-                  child: const Text('¿No tienes una cuenta? Regístrate'),
-                ),
-
-                TextButton(
-                  onPressed: () => context.push('/recuperar-contrasena'),
-                  child: const Text(
-                    '¿Olvidaste tu contraseña?',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

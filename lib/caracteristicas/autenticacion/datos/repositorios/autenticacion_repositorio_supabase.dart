@@ -210,4 +210,64 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
   Future<void> cambiarPassword(String nuevaPassword) async {
     await _supabase.auth.updateUser(UserAttributes(password: nuevaPassword));
   }
+
+  @override
+  Future<Usuario> iniciarSesionConGoogle() async {
+    try {
+      // 1. Iniciar sesión con Google usando Supabase OAuth
+      await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'https://fnedjdwdtidqspshovjn.supabase.co/auth/v1/callback',
+      );
+
+      // 2. Esperar a que el usuario complete el flujo de OAuth
+      // El navegador se abrirá automáticamente
+
+      // 3. Verificar si el usuario actual existe después del OAuth
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        throw Exception('Error al iniciar sesión con Google');
+      }
+
+      // 4. Buscar o crear perfil en la tabla perfiles
+      final perfilData = await _supabase
+          .from('perfiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (perfilData == null) {
+        // Crear perfil nuevo para usuario de Google
+        final nombreCompleto =
+            user.userMetadata?['full_name'] ??
+            user.userMetadata?['name'] ??
+            user.email?.split('@')[0] ??
+            'Usuario';
+
+        final nuevoPerfil = {
+          'id': user.id,
+          'nombre': nombreCompleto,
+          'email': user.email!,
+          'rol': 'turista',
+          'solicitud_estado': 'no_iniciado',
+          'url_foto_perfil':
+              user.userMetadata?['avatar_url'] ?? user.userMetadata?['picture'],
+        };
+
+        await _supabase.from('perfiles').insert(nuevoPerfil);
+        return _mapPerfilToUsuario(
+          nuevoPerfil,
+          _supabase.auth.currentSession?.accessToken ?? '',
+        );
+      }
+
+      // 5. Devolver usuario existente
+      return _mapPerfilToUsuario(
+        perfilData,
+        _supabase.auth.currentSession?.accessToken ?? '',
+      );
+    } catch (e) {
+      throw Exception('Error al iniciar sesión con Google: ${e.toString()}');
+    }
+  }
 }

@@ -279,4 +279,31 @@ class AutenticacionVM extends ChangeNotifier {
     _lugaresFavoritosIds = nuevosIds;
     notifyListeners();
   }
+
+  Future<bool> iniciarSesionConGoogle() async {
+    _estaCargando = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _usuarioActual = await _repositorio.iniciarSesionConGoogle();
+
+      _lugaresFavoritosIds = ['l2'];
+      _rutasInscritasIds = ['r2'];
+      _rutasFavoritasIds = ['r2'];
+
+      if (esAdmin) {
+        await cargarSolicitudesPendientes();
+      }
+
+      _estaCargando = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _estaCargando = false;
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
 }
