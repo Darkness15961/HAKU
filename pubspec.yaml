@@ -10,11 +10,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-    
+
   # Herramientas de sistema
   image_picker: ^1.0.7
   flutter_image_compress: ^2.1.0
-  path_provider: ^2.1.2 
+  path_provider: ^2.1.2
   path: ^1.9.0
   url_launcher: ^6.3.1
   flutter_cache_manager: ^3.3.1
@@ -24,24 +24,27 @@ dependencies:
   lottie: ^3.1.0
   flutter_staggered_animations: ^1.0.0
   cached_network_image: ^3.3.0
-  
+
   # Gestión de Estado y Rutas
   provider: ^6.1.1
   go_router: ^14.0.1
   get_it: ^8.0.0
-  
+
   # Datos y Red
   dio: ^5.4.0
   flutter_secure_storage: ^9.0.0
   shared_preferences: ^2.3.3
-  
+
   # Backend
   supabase_flutter: ^2.0.0
-  
+
+  #google
+  google_sign_in: ^6.2.1
+
   # Mapas y Geolocalización
   google_maps_flutter: ^2.5.0
   geolocator: ^11.0.0
-  
+
   # Firebase (Si aún lo usas, si no, puedes quitarlos)
   firebase_core: ^2.15.0
   firebase_storage: ^11.2.0
@@ -52,7 +55,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   # AQUÍ SOLO VA LA VERSIÓN DE LA LIBRERÍA
-  flutter_launcher_icons: ^0.13.1 
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -63,7 +66,7 @@ flutter:
     - assets/logoHaku1.png
     - assets/header.png
     - assets/imagenes/mapa_textura.png
-   # - assets/animaciones/viaje.json
+    # - assets/animaciones/viaje.json
 
 # --- CONFIGURACIONES DE PAQUETES (AL FINAL DEL ARCHIVO) ---
 

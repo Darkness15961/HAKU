@@ -24,7 +24,7 @@ class _LoginPaginaState extends State<LoginPagina> {
 
     try {
       // Iniciar OAuth - esto abrirá el navegador y redirigirá la página
-      await authVM.iniciarSesionConGoogle();
+      await authVM.iniciarSesionGoogle();
 
       // NOTA: En web, el código no llegará aquí porque la página se redirige
       // No intentar navegar manualmente
@@ -81,39 +81,56 @@ class _LoginPaginaState extends State<LoginPagina> {
 
               const SizedBox(height: 48),
 
-              // Botón de Google Sign-In
-              OutlinedButton(
-                onPressed: authVM.estaCargando ? null : _submitGoogleLogin,
+
+// ==========================================
+              // 👇 AQUÍ AGREGUÉ EL BOTÓN DE GOOGLE 👇
+              // ==========================================
+              OutlinedButton.icon(
+                onPressed: authVM.estaCargando ? null : () async {
+                  // Llamamos a la función que creaste en el VM
+                  final exito = await authVM.iniciarSesionGoogle();
+
+                  if (!mounted) return;
+
+                  if (exito) {
+                    // Usamos tu misma lógica de redirección
+                    if (authVM.esAdmin) {
+                      context.pushReplacement('/panel-admin');
+                    } else {
+                      context.pushReplacement('/inicio');
+                    }
+                  } else {
+                    // Mensaje simple si falla o cancela
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No se pudo iniciar sesión con Google')),
+                    );
+                  }
+                },
+                // Icono de Google (desde internet para que no instales nada extra por ahora)
+                icon: Image.network(
+                  'https://www.google.com/favicon.ico',
+                  height: 24,
+                  errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.public, color: Colors.red), // Icono respaldo si falla la imagen
+                ),
+                label: const Text(
+                  'Continuar con Google',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87
+                  ),
+                ),
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
+                  minimumSize: const Size.fromHeight(52),
                   backgroundColor: Colors.white,
-                  side: BorderSide(color: Colors.grey[300]!),
+                  side: const BorderSide(color: Colors.grey),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: authVM.estaCargando
-                    ? const CircularProgressIndicator()
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.network(
-                            'https://www.google.com/favicon.ico',
-                            height: 24,
-                            width: 24,
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Continuar con Google',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.black87,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
               ),
+              // ==========================================
 
               const SizedBox(height: 24),
 
