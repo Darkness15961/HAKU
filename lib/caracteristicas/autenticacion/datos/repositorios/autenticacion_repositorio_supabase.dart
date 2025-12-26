@@ -102,6 +102,9 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
           data['nombres'] ??
           data['nombre'] ??
           '', // Intenta 'seudonimo' primero
+      nombres: data['nombres'], // NUEVO - puede ser null
+      apellidoPaterno: data['apellido_paterno'], // NUEVO - puede ser null
+      apellidoMaterno: data['apellido_materno'], // NUEVO - puede ser null
       email: data['email'] ?? '',
       rol: data['rol'] ?? 'turista',
       dni: data['dni'],
