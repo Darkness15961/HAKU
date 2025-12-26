@@ -1,6 +1,9 @@
 class Usuario {
   final String id;
   final String seudonimo; // Cambiado de 'nombre'
+  final String? nombres; // NUEVO - se llenará con API RENIEC
+  final String? apellidoPaterno; // NUEVO - se llenará con API RENIEC
+  final String? apellidoMaterno; // NUEVO - se llenará con API RENIEC
   final String email;
   final String rol; // 'turista', 'guia_local', 'admin'
   final String? urlFotoPerfil;
@@ -16,6 +19,9 @@ class Usuario {
   Usuario({
     required this.id,
     required this.seudonimo, // Cambiado de 'nombre'
+    this.nombres, // NUEVO
+    this.apellidoPaterno, // NUEVO
+    this.apellidoMaterno, // NUEVO
     required this.email,
     required this.rol,
     this.urlFotoPerfil,
@@ -29,6 +35,9 @@ class Usuario {
   Usuario copyWith({
     String? id,
     String? seudonimo, // Cambiado de 'nombre'
+    String? nombres, // NUEVO
+    String? apellidoPaterno, // NUEVO
+    String? apellidoMaterno, // NUEVO
     String? email,
     String? rol,
     String? urlFotoPerfil,
@@ -41,6 +50,9 @@ class Usuario {
     return Usuario(
       id: id ?? this.id,
       seudonimo: seudonimo ?? this.seudonimo, // Cambiado de 'nombre'
+      nombres: nombres ?? this.nombres, // NUEVO
+      apellidoPaterno: apellidoPaterno ?? this.apellidoPaterno, // NUEVO
+      apellidoMaterno: apellidoMaterno ?? this.apellidoMaterno, // NUEVO
       email: email ?? this.email,
       rol: rol ?? this.rol,
       urlFotoPerfil: urlFotoPerfil ?? this.urlFotoPerfil,
