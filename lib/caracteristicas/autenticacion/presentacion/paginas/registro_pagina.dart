@@ -91,19 +91,16 @@ class _RegistroPaginaState extends State<RegistroPagina> {
       // en lugar de 'pushReplacement'.
       context.go('/inicio');
       // --- FIN DE LA CORRECCIÓN ---
-
     } else {
       // 6. ¡ERROR!
-      final errorMsg = context.read<AutenticacionVM>().error ??
+      final errorMsg =
+          context.read<AutenticacionVM>().error ??
           'Ocurrió un error desconocido.';
 
       // --- ¡CORREGIDO! ---
       // Usamos la referencia 'safe' al scaffoldMessenger
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(errorMsg),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
       );
       // --- FIN DE CORRECCIÓN ---
     }
@@ -151,11 +148,12 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                 ),
                 const SizedBox(height: 32),
 
-                // --- Campo de Nombre Completo ---
+                // --- Campo de Seudonimo ---
                 TextFormField(
                   controller: _nombreCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Nombre Completo',
+                    labelText: 'Seudonimo',
+                    hintText: 'Ej: Viajero123',
                     prefixIcon: const Icon(Icons.person_outline),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -163,7 +161,7 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty || value.length < 3) {
-                      return 'Por favor, ingresa tu nombre.';
+                      return 'Por favor, ingresa tu seudonimo.';
                     }
                     return null;
                   },
@@ -202,7 +200,9 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty || !value.contains('@')) {
+                    if (value == null ||
+                        value.isEmpty ||
+                        !value.contains('@')) {
                       return 'Por favor, ingresa un correo válido.';
                     }
                     return null;
@@ -221,13 +221,14 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
                       onPressed: () {
                         setState(() => _obscurePassword = !_obscurePassword);
                       },
-
                     ),
                   ),
                   validator: (value) {
@@ -250,12 +251,16 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscureConfirmPassword
-                          ? Icons.visibility_off
-                          : Icons.visibility),
+                      icon: Icon(
+                        _obscureConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
                       onPressed: () {
-                        setState(() => _obscureConfirmPassword =
-                        !_obscureConfirmPassword);
+                        setState(
+                          () => _obscureConfirmPassword =
+                              !_obscureConfirmPassword,
+                        );
                       },
                     ),
                   ),
@@ -283,7 +288,10 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                   ),
                   child: vmAuth.estaCargando
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Crear Cuenta', style: TextStyle(fontSize: 16)),
+                      : const Text(
+                          'Crear Cuenta',
+                          style: TextStyle(fontSize: 16),
+                        ),
                 ),
                 const SizedBox(height: 16),
 
