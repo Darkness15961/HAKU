@@ -15,7 +15,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       // Consulta base
       var query = _supabase.from('rutas').select('''
             *,
-            perfiles!guia_id (nombre, url_foto_perfil, rating),
+            perfiles!guia_id (nombres, url_foto_perfil, rating),
             ruta_detalles (
               orden_visita,
               lugares (id, nombre)
@@ -95,7 +95,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       // ... (código previo de guía y lugares igual) ...
       final perfilData = json['perfiles'];
       final guiaNombre = perfilData != null
-          ? (perfilData['nombre'] ?? 'Guía')
+          ? (perfilData['nombres'] ?? perfilData['nombre'] ?? 'Guía')
           : 'Desconocido';
       final guiaFoto = perfilData != null
           ? (perfilData['url_foto_perfil'] ?? '')

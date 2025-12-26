@@ -296,9 +296,11 @@ class _InicioPaginaState extends State<InicioPagina> {
                                         .urlFotoPerfil!
                                         .isEmpty))
                             ? Text(
-                                vmAuth.usuarioActual!.nombre
-                                    .substring(0, 1)
-                                    .toUpperCase(),
+                                vmAuth.usuarioActual!.nombre.isNotEmpty
+                                    ? vmAuth.usuarioActual!.nombre
+                                          .substring(0, 1)
+                                          .toUpperCase()
+                                    : '?',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 22,
