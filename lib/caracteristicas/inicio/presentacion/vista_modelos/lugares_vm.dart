@@ -316,7 +316,7 @@ class LugaresVM extends ChangeNotifier {
       lugarId,
       texto,
       rating,
-      usuario.nombre,
+      usuario.seudonimo,
       usuario.urlFotoPerfil,
       usuario.id,
     );

@@ -48,7 +48,7 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
     // 2. Crear registro en tabla 'perfiles' (Tu tabla personalizada)
     final nuevoPerfil = {
       'id': res.user!.id, // Vinculamos con el ID de Auth
-      'nombres': nombre, // Cambiado de 'nombre' a 'nombres'
+      'seudonimo': nombre, // Cambiado de 'nombres' a 'seudonimo'
       'email': email,
       'dni': dni,
       'rol': 'turista', // Por defecto
@@ -97,10 +97,11 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
   Usuario _mapPerfilToUsuario(Map<String, dynamic> data, String token) {
     return Usuario(
       id: data['id'],
-      nombre:
+      seudonimo:
+          data['seudonimo'] ??
           data['nombres'] ??
           data['nombre'] ??
-          '', // Intenta 'nombres' primero, luego 'nombre' como fallback
+          '', // Intenta 'seudonimo' primero
       email: data['email'] ?? '',
       rol: data['rol'] ?? 'turista',
       dni: data['dni'],

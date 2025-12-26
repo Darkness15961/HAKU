@@ -212,7 +212,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                       const SizedBox(height: 6),
                       Text(
                         vmAuth.estaLogueado
-                            ? vmAuth.usuarioActual!.nombre
+                            ? vmAuth.usuarioActual!.seudonimo
                             : 'Explorador',
                         style: TextStyle(
                           fontSize: 28,
@@ -296,8 +296,8 @@ class _InicioPaginaState extends State<InicioPagina> {
                                         .urlFotoPerfil!
                                         .isEmpty))
                             ? Text(
-                                vmAuth.usuarioActual!.nombre.isNotEmpty
-                                    ? vmAuth.usuarioActual!.nombre
+                                vmAuth.usuarioActual!.seudonimo.isNotEmpty
+                                    ? vmAuth.usuarioActual!.seudonimo
                                           .substring(0, 1)
                                           .toUpperCase()
                                     : '?',

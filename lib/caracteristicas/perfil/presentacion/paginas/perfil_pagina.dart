@@ -159,7 +159,7 @@ class PerfilPagina extends StatelessWidget {
                               (usuario.urlFotoPerfil == null ||
                                   usuario.urlFotoPerfil!.isEmpty)
                               ? Text(
-                                  usuario.nombre.substring(0, 1).toUpperCase(),
+                                  usuario.seudonimo.substring(0, 1).toUpperCase(),
                                   style: TextStyle(
                                     fontSize: 40,
                                     color: colorPrimario,
@@ -191,7 +191,7 @@ class PerfilPagina extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  usuario.nombre,
+                  usuario.seudonimo,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,

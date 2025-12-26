@@ -112,11 +112,11 @@ class AdminGestionGuiasPagina extends StatelessWidget {
               ? NetworkImage(usuario.urlFotoPerfil!)
               : null,
           child: (usuario.urlFotoPerfil == null || usuario.urlFotoPerfil!.isEmpty)
-              ? Text(usuario.nombre.substring(0, 1).toUpperCase(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))
+              ? Text(usuario.seudonimo.substring(0, 1).toUpperCase(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))
               : null,
         ),
         title: Text(
-          usuario.nombre,
+          usuario.seudonimo,
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         subtitle: Text(

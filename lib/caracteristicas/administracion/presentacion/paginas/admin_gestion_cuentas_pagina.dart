@@ -153,7 +153,7 @@ class _AdminGestionCuentasPaginaState extends State<AdminGestionCuentasPagina> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    usuario.nombre,
+                    usuario.seudonimo,
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                   Text(
@@ -194,7 +194,7 @@ class _AdminGestionCuentasPaginaState extends State<AdminGestionCuentasPagina> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('¿Eliminar Usuario?'),
-        content: Text('Estás a punto de eliminar permanentemente a "${usuario.nombre}". Esta acción no se puede deshacer.'),
+        content: Text('Estás a punto de eliminar permanentemente a "${usuario.seudonimo}". Esta acción no se puede deshacer.'),
         actions: [
           TextButton(
             child: const Text('Cancelar'),

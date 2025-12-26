@@ -122,7 +122,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
       // 2. Pasamos los datos REALES del guía al mapa
       'guiaId': vmAuth.usuarioActual!.id,
-      'guiaNombre': vmAuth.usuarioActual!.nombre,
+      'guiaNombre': vmAuth.usuarioActual!.seudonimo,
       'guiaFotoUrl': vmAuth.usuarioActual!.urlFotoPerfil ?? '',
       'url_imagen_principal': _urlImagenCtrl.text.isNotEmpty
           ? _urlImagenCtrl.text
@@ -215,7 +215,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
 
       // --- Datos del Guía (Leídos del VM) ---
       guiaId: vmAuth.usuarioActual!.id,
-      guiaNombre: vmAuth.usuarioActual!.nombre,
+      guiaNombre: vmAuth.usuarioActual!.seudonimo,
       guiaFotoUrl: vmAuth.usuarioActual!.urlFotoPerfil ?? '',
       guiaRating: widget.ruta?.guiaRating ?? 5.0, // Default para preview
       // --- Valores por Defecto para la Previsualización ---

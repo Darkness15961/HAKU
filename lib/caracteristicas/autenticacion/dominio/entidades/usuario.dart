@@ -1,6 +1,6 @@
 class Usuario {
   final String id;
-  final String nombre;
+  final String seudonimo; // Cambiado de 'nombre'
   final String email;
   final String rol; // 'turista', 'guia_local', 'admin'
   final String? urlFotoPerfil;
@@ -15,7 +15,7 @@ class Usuario {
 
   Usuario({
     required this.id,
-    required this.nombre,
+    required this.seudonimo, // Cambiado de 'nombre'
     required this.email,
     required this.rol,
     this.urlFotoPerfil,
@@ -28,7 +28,7 @@ class Usuario {
 
   Usuario copyWith({
     String? id,
-    String? nombre,
+    String? seudonimo, // Cambiado de 'nombre'
     String? email,
     String? rol,
     String? urlFotoPerfil,
@@ -40,14 +40,15 @@ class Usuario {
   }) {
     return Usuario(
       id: id ?? this.id,
-      nombre: nombre ?? this.nombre,
+      seudonimo: seudonimo ?? this.seudonimo, // Cambiado de 'nombre'
       email: email ?? this.email,
       rol: rol ?? this.rol,
       urlFotoPerfil: urlFotoPerfil ?? this.urlFotoPerfil,
       dni: dni ?? this.dni,
       solicitudEstado: solicitudEstado ?? this.solicitudEstado,
       solicitudExperiencia: solicitudExperiencia ?? this.solicitudExperiencia,
-      solicitudCertificadoUrl: solicitudCertificadoUrl ?? this.solicitudCertificadoUrl,
+      solicitudCertificadoUrl:
+          solicitudCertificadoUrl ?? this.solicitudCertificadoUrl,
       token: token ?? this.token,
     );
   }
