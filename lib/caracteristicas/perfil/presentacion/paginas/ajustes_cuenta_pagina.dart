@@ -137,10 +137,10 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
                   children: [
                     CircleAvatar(
                       radius: 60,
-                      backgroundImage: usuario.fotoUrl != null
-                          ? NetworkImage(usuario.fotoUrl!)
+                      backgroundImage: usuario.urlFotoPerfil != null
+                          ? NetworkImage(usuario.urlFotoPerfil!)
                           : null,
-                      child: usuario.fotoUrl == null
+                      child: usuario.urlFotoPerfil == null
                           ? const Icon(Icons.person, size: 60)
                           : null,
                     ),
