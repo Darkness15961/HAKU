@@ -64,17 +64,9 @@ class _RegistroPaginaState extends State<RegistroPagina> {
     super.dispose();
   }
 
-  // --- Validar con RENIEC ---
+  // --- Validar con RENIEC (auto-llamado) ---
   Future<void> _validarConReniec() async {
-    if (_documentoCtrl.text.length != 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('El DNI debe tener 8 dígitos'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    if (_documentoCtrl.text.length != 8) return;
 
     setState(() => _validandoReniec = true);
 
@@ -87,12 +79,19 @@ class _RegistroPaginaState extends State<RegistroPagina> {
         _nombresReniec = datos['nombre'];
         _apellidoPaternoReniec = datos['apellidoPaterno'];
         _apellidoMaternoReniec = datos['apellidoMaterno'];
-        _datosVerificados = false; // Resetear verificación
+        _datosVerificados = true;
+        // Auto-llenar campos internos
+        _nombresCtrl.text = _nombresReniec ?? '';
+        _apellidoPaternoCtrl.text = _apellidoPaternoReniec ?? '';
+        _apellidoMaternoCtrl.text = _apellidoMaternoReniec ?? '';
       });
-
-      // Mostrar diálogo de confirmación
-      _mostrarDialogoConfirmacion();
     } else {
+      setState(() {
+        _nombresReniec = null;
+        _apellidoPaternoReniec = null;
+        _apellidoMaternoReniec = null;
+        _datosVerificados = false;
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -239,7 +238,7 @@ class _RegistroPaginaState extends State<RegistroPagina> {
               children: [
                 // --- Título ---
                 Text(
-                  'Únete a Xplora Cusco',
+                  'Únete a HAKU',
                   style: Theme.of(context).textTheme.headlineSmall,
                   textAlign: TextAlign.center,
                 ),
@@ -316,27 +315,38 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                 TextFormField(
                   controller: _documentoCtrl,
                   keyboardType: TextInputType.number,
+                  onChanged: (value) {
+                    // Limpiar datos si cambia el DNI
+                    if (_tipoDocumento == 'DNI' && _datosVerificados) {
+                      setState(() {
+                        _datosVerificados = false;
+                        _nombresReniec = null;
+                        _apellidoPaternoReniec = null;
+                        _apellidoMaternoReniec = null;
+                      });
+                    }
+                  },
+                  onEditingComplete: () {
+                    // Auto-validar al salir del campo
+                    if (_tipoDocumento == 'DNI' &&
+                        _documentoCtrl.text.length == 8) {
+                      _validarConReniec();
+                    }
+                  },
                   decoration: InputDecoration(
                     labelText: 'Documento de Identidad',
                     prefixIcon: const Icon(Icons.badge_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    suffixIcon: _tipoDocumento == 'DNI'
-                        ? IconButton(
-                            icon: _validandoReniec
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.search),
-                            onPressed: _validandoReniec
-                                ? null
-                                : _validarConReniec,
-                            tooltip: 'Validar con RENIEC',
+                    suffixIcon: _validandoReniec
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: Padding(
+                              padding: EdgeInsets.all(12.0),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
                           )
                         : null,
                   ),
@@ -350,84 +360,89 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                     return null;
                   },
                 ),
+
+                // Mostrar nombre completo debajo del DNI
+                if (_tipoDocumento == 'DNI' &&
+                    _datosVerificados &&
+                    _nombresReniec != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        size: 16,
+                        color: Colors.green[700],
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '$_nombresReniec $_apellidoPaternoReniec $_apellidoMaternoReniec',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 16),
 
-                // --- Campos de Nombres y Apellidos (SIEMPRE VISIBLES) ---
-                TextFormField(
-                  controller: _nombresCtrl,
-                  readOnly: _tipoDocumento == 'DNI' && _datosVerificados,
-                  decoration: InputDecoration(
-                    labelText: 'Nombres',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                // --- Campos manuales SOLO para Carnet de Extranjería ---
+                if (_tipoDocumento == 'CE') ...[
+                  TextFormField(
+                    controller: _nombresCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Nombres',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    filled: _tipoDocumento == 'DNI' && _datosVerificados,
-                    fillColor: _tipoDocumento == 'DNI' && _datosVerificados
-                        ? Colors.green[50]
-                        : null,
-                    suffixIcon: _tipoDocumento == 'DNI' && _datosVerificados
-                        ? Icon(Icons.check_circle, color: Colors.green[700])
-                        : null,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Ingresa tus nombres';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ingresa tus nombres';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _apellidoPaternoCtrl,
-                  readOnly: _tipoDocumento == 'DNI' && _datosVerificados,
-                  decoration: InputDecoration(
-                    labelText: 'Apellido Paterno',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _apellidoPaternoCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Apellido Paterno',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    filled: _tipoDocumento == 'DNI' && _datosVerificados,
-                    fillColor: _tipoDocumento == 'DNI' && _datosVerificados
-                        ? Colors.green[50]
-                        : null,
-                    suffixIcon: _tipoDocumento == 'DNI' && _datosVerificados
-                        ? Icon(Icons.check_circle, color: Colors.green[700])
-                        : null,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Ingresa tu apellido paterno';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ingresa tu apellido paterno';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _apellidoMaternoCtrl,
-                  readOnly: _tipoDocumento == 'DNI' && _datosVerificados,
-                  decoration: InputDecoration(
-                    labelText: 'Apellido Materno',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _apellidoMaternoCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Apellido Materno',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    filled: _tipoDocumento == 'DNI' && _datosVerificados,
-                    fillColor: _tipoDocumento == 'DNI' && _datosVerificados
-                        ? Colors.green[50]
-                        : null,
-                    suffixIcon: _tipoDocumento == 'DNI' && _datosVerificados
-                        ? Icon(Icons.check_circle, color: Colors.green[700])
-                        : null,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Ingresa tu apellido materno';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ingresa tu apellido materno';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
 
                 // --- Campo de Usuario (antes Seudonimo) ---
                 TextFormField(
