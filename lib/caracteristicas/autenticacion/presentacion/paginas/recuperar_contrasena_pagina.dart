@@ -21,55 +21,51 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
     super.dispose();
   }
 
+
+
   Future<void> _enviarCorreoRecuperacion() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
+      // REEMPLAZO: Cambiamos xplore_cusco por haku
       await Supabase.instance.client.auth.resetPasswordForEmail(
         _emailController.text.trim(),
-        redirectTo:
-            'io.supabase.xplore_cusco://reset-password', // Deep link para la app
+        redirectTo: 'io.supabase.haku://reset-password',
       );
 
       if (!mounted) return;
 
-      // Mostrar mensaje de éxito
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            '✅ Correo enviado. Revisa tu bandeja de entrada.',
-            style: TextStyle(color: Colors.white),
-          ),
+          content: Text('✅ Correo enviado. Revisa tu bandeja de entrada.'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 4),
         ),
       );
 
-      // Volver a la pantalla anterior después de 2 segundos
       await Future.delayed(const Duration(seconds: 2));
-      if (mounted) context.pop();
+
+      // REEMPLAZO: Usamos go('/login') para una navegación más limpia
+      if (mounted) context.go('/login');
+
     } on AuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.message}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: ${e.message}'), backgroundColor: Colors.red),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al enviar el correo. Intenta de nuevo.'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Error inesperado. Intenta de nuevo.'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {

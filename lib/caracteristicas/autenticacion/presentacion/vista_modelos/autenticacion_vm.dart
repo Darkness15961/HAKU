@@ -3,7 +3,7 @@ import '../../dominio/repositorios/autenticacion_repositorio.dart';
 import '../../dominio/entidades/usuario.dart';
 import '../../../../locator.dart';
 
-// --- NUEVOS IMPORTS PARA GOOGLE (AGREGA ESTOS DOS) ---
+// --- IMPORTS PARA GOOGLE Y SUPABASE ---
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -23,6 +23,7 @@ class AutenticacionVM extends ChangeNotifier {
 
   List<Usuario> _usuariosTotales = [];
 
+  // Getters
   bool get estaCargando => _estaCargando;
   Usuario? get usuarioActual => _usuarioActual;
   String? get error => _error;
@@ -35,7 +36,6 @@ class AutenticacionVM extends ChangeNotifier {
 
   List<Usuario> get usuariosPendientes => _usuariosPendientes;
   bool get estaCargandoAdmin => _estaCargandoAdmin;
-
   List<Usuario> get usuariosTotales => _usuariosTotales;
 
   AutenticacionVM() {
@@ -49,6 +49,7 @@ class AutenticacionVM extends ChangeNotifier {
     _usuarioActual = await _repositorio.verificarEstadoSesion();
 
     if (_usuarioActual != null) {
+      // Valores iniciales de prueba (puedes cambiarlos por datos de DB)
       _lugaresFavoritosIds = ['l2'];
       _rutasInscritasIds = ['r2'];
       _rutasFavoritasIds = ['r2'];
@@ -108,6 +109,7 @@ class AutenticacionVM extends ChangeNotifier {
     _usuariosTotales = [];
   }
 
+  // --- FAVORITOS ---
   Future<void> toggleLugarFavorito(String lugarId) async {
     if (_lugaresFavoritosIds.contains(lugarId)) {
       _lugaresFavoritosIds.remove(lugarId);
@@ -135,8 +137,9 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- REGISTRO MANUAL (Mejorado para Producción) ---
   Future<bool> registrarUsuario(
-      String nombre,
+      String seudonimo,
       String email,
       String password,
       String dni,
@@ -146,51 +149,100 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _usuarioActual = await _repositorio.registrarUsuario(
-        nombre,
-        email,
-        password,
-        dni,
+      // 1. Registro en Supabase Auth con Metadata para el Trigger SQL
+      final AuthResponse res = await Supabase.instance.client.auth.signUp(
+        email: email,
+        password: password,
+        data: {'full_name': seudonimo},
       );
-      _limpiarDatosUsuario();
+
+      if (res.user != null) {
+        // 2. Intento de actualización de DNI con seguro ante latencia del Trigger
+        try {
+          await Supabase.instance.client
+              .from('perfiles')
+              .update({'dni': dni})
+              .eq('id', res.user!.id);
+        } catch (e) {
+          print("Aviso: El perfil se está creando vía Trigger SQL...");
+        }
+
+        // 3. Manejo de sesión: Si requiere confirmación de email, session será null
+        if (res.session != null) {
+          _usuarioActual = await _repositorio.verificarEstadoSesion();
+        } else {
+          _usuarioActual = null;
+          _limpiarDatosUsuario();
+        }
+      }
+
       _estaCargando = false;
       notifyListeners();
       return true;
 
     } on AuthException catch (e) {
-      // 1. Capturamos error oficial de Supabase
-      if (e.code == 'user_already_exists') {
-        _error = '⚠️ Este correo ya está registrado. Prueba iniciar sesión.';
+      // Captura específica para mostrar el SnackBar naranja en la vista
+      if (e.code == 'user_already_exists' || e.message.contains('already registered')) {
+        _error = 'user_already_exists';
       } else {
         _error = 'Error: ${e.message}';
       }
       _estaCargando = false;
       notifyListeners();
       return false;
-
     } catch (e) {
-      // 2. Capturamos error genérico "Blindado"
-      // Si por alguna razón el error llega como texto (String), lo revisamos también:
-      final mensajeError = e.toString().toLowerCase();
-
-      if (mensajeError.contains('user_already_exists') ||
-          mensajeError.contains('registered')) {
-        _error = '⚠️ Este correo ya tiene cuenta. Intenta iniciar sesión.';
-      } else {
-        _error = 'Ocurrió un error inesperado. Inténtalo de nuevo.';
-      }
-
-      print("❌ Error crudo: $e"); // Esto saldrá en tu consola para debug
+      _error = 'Ocurrió un error inesperado.';
       _estaCargando = false;
       notifyListeners();
       return false;
     }
   }
 
-  Future<bool> solicitarSerGuia(
-    String experiencia,
-    String rutaCertificado,
-  ) async {
+  // --- LOGIN CON GOOGLE (Mejorado para Fusión de Cuentas) ---
+  Future<bool> iniciarSesionGoogle() async {
+    _estaCargando = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      const webClientId = '229829788638-qu38q760qutvcaa1hmtg327mkthl7sng.apps.googleusercontent.com';
+      final GoogleSignIn googleSignIn = GoogleSignIn(serverClientId: webClientId);
+
+      await googleSignIn.signOut(); // Limpia caché para forzar selección de cuenta
+      final googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        _estaCargando = false;
+        notifyListeners();
+        return false;
+      }
+
+      final googleAuth = await googleUser.authentication;
+
+      final AuthResponse res = await Supabase.instance.client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: googleAuth.idToken!,
+        accessToken: googleAuth.accessToken,
+      );
+
+      if (res.user != null) {
+        await verificarEstadoSesion();
+      }
+
+      _estaCargando = false;
+      notifyListeners();
+      return true;
+
+    } catch (e) {
+      _estaCargando = false;
+      _error = "Error Google: $e";
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // --- LÓGICA DE ADMINISTRACIÓN (Se mantiene intacta) ---
+  Future<bool> solicitarSerGuia(String experiencia, String rutaCertificado) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
@@ -307,92 +359,4 @@ class AutenticacionVM extends ChangeNotifier {
     _lugaresFavoritosIds = nuevosIds;
     notifyListeners();
   }
-
-  // ===========================================================================
-  //  🔽 AQUÍ COMIENZA LO NUEVO: LÓGICA DE GOOGLE (COPIA DESDE AQUÍ HACIA ABAJO)
-  // ===========================================================================
-
-  Future<bool> iniciarSesionGoogle() async {
-    _estaCargando = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      // 1. Configuración: TU CLIENT ID DE WEB
-      // (Reemplaza esto con el que copiaste de Google Cloud Console)
-      const webClientId = '229829788638-qu38q760qutvcaa1hmtg327mkthl7sng.apps.googleusercontent.com';
-
-      // 2. Google Sign In nativo
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: webClientId,
-      );
-
-      await googleSignIn.signOut();
-      // 👆👆 Esto fuerza a que siempre te pregunte qué cuenta usar 👆👆
-
-
-      final googleUser = await googleSignIn.signIn();
-
-      // Si el usuario canceló el login en la ventanita
-      if (googleUser == null) {
-        _estaCargando = false;
-        notifyListeners();
-        return false;
-      }
-
-      final googleAuth = await googleUser.authentication;
-      final accessToken = googleAuth.accessToken;
-      final idToken = googleAuth.idToken;
-
-      if (idToken == null) {
-        throw 'No se encontró el ID Token de Google.';
-      }
-
-      // 3. Login en Supabase (Nivel 1: Auth)
-      final AuthResponse res = await Supabase.instance.client.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken,
-        accessToken: accessToken,
-      );
-
-      // 4. Sincronización Manual (Nivel 2: Tabla Perfiles)
-      if (res.user != null) {
-        await _sincronizarPerfilGoogle(res.user!);
-
-        // 5. ¡TRUCO! Reutilizamos tu lógica existente para cargar el usuario en la app
-        // Esto asegura que _usuarioActual se llene con el formato correcto de tu Entidad
-        await verificarEstadoSesion();
-      }
-
-      _estaCargando = false;
-      notifyListeners();
-      return true;
-
-    } catch (e) {
-      _estaCargando = false;
-      _error = "Error Google: $e";
-      print("❌ Error en Google Login: $e");
-      notifyListeners();
-      return false;
-    }
-  }
-
-  // Función privada para hacer el UPSERT (Mezcla de Insertar y Actualizar)
-  Future<void> _sincronizarPerfilGoogle(User supabaseUser) async {
-    final metadata = supabaseUser.userMetadata;
-
-    // Preparamos los datos
-    final datosPerfil = {
-      'id': supabaseUser.id,              // Vital para vincular
-      'email': supabaseUser.email,
-      'nombre': metadata?['full_name'] ?? 'Usuario Google',
-      'url_foto_perfil': metadata?['avatar_url'],
-      'rol': 'turista',                   // Rol por defecto
-      // 'dni': null,                     // Google no da DNI, lo dejamos tal cual
-    };
-
-    // Upsert: Si existe actualiza, si no existe crea.
-    await Supabase.instance.client.from('perfiles').upsert(datosPerfil);
-  }
-
 }
