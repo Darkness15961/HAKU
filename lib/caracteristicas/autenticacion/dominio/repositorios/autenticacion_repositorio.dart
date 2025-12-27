@@ -8,10 +8,14 @@ abstract class AutenticacionRepositorio {
 
   // ORDEN 2: "Intentar registrar un nuevo usuario"
   Future<Usuario> registrarUsuario(
-    String nombre,
+    String seudonimo,
     String email,
     String password,
-    String dni,
+    String documentoIdentidad,
+    String tipoDocumento,
+    String? nombres,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
   );
 
   // ORDEN 3: "Cerrar la sesión actual"

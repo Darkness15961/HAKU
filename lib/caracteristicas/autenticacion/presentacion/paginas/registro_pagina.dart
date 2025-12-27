@@ -1,18 +1,20 @@
-// --- PIEDRA 9 (AUTENTICACIÓN): EL "MENÚ" DE REGISTRO ---
+// --- PIEDRA 9 (AUTENTICACIÓN): EL "MENÚ" DE REGISTRO MEJORADO ---
 //
-// 1. (BUG NAVEGACIÓN CORREGIDO): Se cambió context.pushReplacement('/inicio')
-//    por context.go('/inicio') para evitar el "failed assertion" de
-//    navigator.dart al navegar entre stacks (root vs shell)
-//    después de un 'await'.
-// 2. (DISEÑO CORREGIDO): Se restauró el color del AppBar para
-//    que el título y la flecha de retroceso sean visibles.
+// NUEVO: Implementa validación con RENIEC y selector de tipo de documento
+// 1. Selector DNI / Carnet de Extranjería
+// 2. Validación automática con RENIEC para DNI
+// 3. Confirmación de datos antes de crear cuenta
+// 4. Ingreso manual para Carnet de Extranjería
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-// 1. Importamos el "Mesero de Seguridad" (ViewModel)
+// ViewModels
 import '../vista_modelos/autenticacion_vm.dart';
+
+// Servicios
+import '../../../../core/servicios/reniec_servicio.dart';
 
 class RegistroPagina extends StatefulWidget {
   const RegistroPagina({super.key});
@@ -23,114 +25,207 @@ class RegistroPagina extends StatefulWidget {
 
 class _RegistroPaginaState extends State<RegistroPagina> {
   // --- Estado Local de la UI ---
-
-  // Controladores para leer el texto de los campos
-  final TextEditingController _nombreCtrl = TextEditingController();
+  final TextEditingController _seudonimoCtrl = TextEditingController();
+  final TextEditingController _documentoCtrl = TextEditingController();
   final TextEditingController _emailCtrl = TextEditingController();
-  final TextEditingController _dniCtrl = TextEditingController();
   final TextEditingController _passwordCtrl = TextEditingController();
   final TextEditingController _confirmPasswordCtrl = TextEditingController();
 
-  // "Key" para validar el formulario
-  final _formKey = GlobalKey<FormState>();
+  // Controladores para ingreso manual (Carnet de Extranjería)
+  final TextEditingController _nombresCtrl = TextEditingController();
+  final TextEditingController _apellidoPaternoCtrl = TextEditingController();
+  final TextEditingController _apellidoMaternoCtrl = TextEditingController();
 
-  // Para ocultar/mostrar las contraseñas
+  final _formKey = GlobalKey<FormState>();
+  final ReniecServicio _reniecServicio = ReniecServicio();
+
+  // Estado
+  String _tipoDocumento = 'DNI'; // 'DNI' o 'CE'
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _validandoReniec = false;
+  bool _datosVerificados = false;
+
+  // Datos de RENIEC
+  String? _nombresReniec;
+  String? _apellidoPaternoReniec;
+  String? _apellidoMaternoReniec;
 
   @override
   void dispose() {
-    // "Limpiamos" los controladores
-    _nombreCtrl.dispose();
+    _seudonimoCtrl.dispose();
+    _documentoCtrl.dispose();
     _emailCtrl.dispose();
-    _dniCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
+    _nombresCtrl.dispose();
+    _apellidoPaternoCtrl.dispose();
+    _apellidoMaternoCtrl.dispose();
     super.dispose();
   }
 
-  // --- Lógica de Envío de Formulario ---
-  //
-  // Esta es la función que se llama al presionar el botón "Crear Cuenta"
-  Future<void> _submitRegister() async {
-    // 1. Validamos el formulario
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    // --- ¡ARREGLO PARA EL BUG DEL SNACKBAR! ---
-    // Guardamos la referencia al ScaffoldMessenger ANTES del 'await'.
-    // Esto evita un error si el 'context' se vuelve inválido.
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    // --- FIN DE ARREGLO ---
-
-    // 2. Obtenemos los textos de los campos
-    final nombre = _nombreCtrl.text;
-    final email = _emailCtrl.text;
-    final dni = _dniCtrl.text;
-    final password = _passwordCtrl.text;
-
-    // 3. --- MVVM: ORDEN AL "MESERO" ---
-    //    Le damos la "ORDEN 3" (ver el VM de Auth) al "Mesero de Seguridad"
-    final bool exito = await context.read<AutenticacionVM>().registrarUsuario(
-      nombre,
-      email,
-      password,
-      dni,
-    );
-
-    // 4. Verificamos la respuesta del "Mesero"
-    // ¡Aseguramos que el widget sigue montado ANTES de usar el context!
-    if (!mounted) return;
-
-    if (exito) {
-      // 5. ¡ÉXITO!
-      //    Usamos el "GPS" (GoRouter) para "reemplazar" esta pantalla
-      //    y la de Login, y llevar al usuario directo a la app.
-
-      // --- ¡CORREGIDO! ---
-      // Usamos 'go' para reiniciar el stack de navegación
-      // en lugar de 'pushReplacement'.
-      context.go('/inicio');
-      // --- FIN DE LA CORRECCIÓN ---
-    } else {
-      // 6. ¡ERROR!
-      final errorMsg =
-          context.read<AutenticacionVM>().error ??
-          'Ocurrió un error desconocido.';
-
-      // --- ¡CORREGIDO! ---
-      // Usamos la referencia 'safe' al scaffoldMessenger
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+  // --- Validar con RENIEC ---
+  Future<void> _validarConReniec() async {
+    if (_documentoCtrl.text.length != 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El DNI debe tener 8 dígitos'),
+          backgroundColor: Colors.red,
+        ),
       );
-      // --- FIN DE CORRECCIÓN ---
+      return;
+    }
+
+    setState(() => _validandoReniec = true);
+
+    final datos = await _reniecServicio.consultarDNI(_documentoCtrl.text);
+
+    setState(() => _validandoReniec = false);
+
+    if (datos != null) {
+      setState(() {
+        _nombresReniec = datos['nombre'];
+        _apellidoPaternoReniec = datos['apellidoPaterno'];
+        _apellidoMaternoReniec = datos['apellidoMaterno'];
+        _datosVerificados = false; // Resetear verificación
+      });
+
+      // Mostrar diálogo de confirmación
+      _mostrarDialogoConfirmacion();
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo consultar el DNI. Verifica el número.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  // --- Construcción del "Menú" (UI) ---
+  // --- Mostrar diálogo de confirmación ---
+  void _mostrarDialogoConfirmacion() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Son correctos estos datos?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nombres: $_nombresReniec'),
+            Text('Apellido Paterno: $_apellidoPaternoReniec'),
+            Text('Apellido Materno: $_apellidoMaternoReniec'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              setState(() {
+                _nombresReniec = null;
+                _apellidoPaternoReniec = null;
+                _apellidoMaternoReniec = null;
+              });
+            },
+            child: const Text('No, reintentar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              setState(() => _datosVerificados = true);
+            },
+            child: const Text('Sí, confirmar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Enviar formulario ---
+  Future<void> _submitRegister() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    // Validar datos según tipo de documento
+    if (_tipoDocumento == 'DNI' && !_datosVerificados) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes validar tu DNI con RENIEC primero'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_tipoDocumento == 'CE') {
+      if (_nombresCtrl.text.isEmpty ||
+          _apellidoPaternoCtrl.text.isEmpty ||
+          _apellidoMaternoCtrl.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Completa todos los campos de nombres y apellidos'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    // Obtener datos según tipo de documento
+    final String? nombres =
+        _tipoDocumento == 'DNI' ? _nombresReniec : _nombresCtrl.text;
+    final String? apellidoPaterno = _tipoDocumento == 'DNI'
+        ? _apellidoPaternoReniec
+        : _apellidoPaternoCtrl.text;
+    final String? apellidoMaterno = _tipoDocumento == 'DNI'
+        ? _apellidoMaternoReniec
+        : _apellidoMaternoCtrl.text;
+
+    final bool exito = await context.read<AutenticacionVM>().registrarUsuario(
+          _seudonimoCtrl.text,
+          _emailCtrl.text,
+          _passwordCtrl.text,
+          _documentoCtrl.text,
+          _tipoDocumento,
+          nombres,
+          apellidoPaterno,
+          apellidoMaterno,
+        );
+
+    if (!mounted) return;
+
+    if (exito) {
+      context.go('/inicio');
+    } else {
+      final errorMsg = context.read<AutenticacionVM>().error ??
+          'Ocurrió un error desconocido.';
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // "Escuchamos" (`watch`) al "Mesero" para saber
-    // si está "cargando" (para bloquear el botón).
     final vmAuth = context.watch<AutenticacionVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crear Cuenta'),
-        // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-        // Se quita la transparencia para que el AppBar sea visible
-        // backgroundColor: Colors.transparent, // <-- Eliminado
-        // elevation: 0, // <-- Eliminado
-
-        // Se añade 'surfaceTintColor' para un diseño limpio en Material 3
         surfaceTintColor: Colors.transparent,
-        // --- FIN DE LA CORRECCIÓN ---
       ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Form(
-            key: _formKey, // Conectamos la "llave" al formulario
+            key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -148,9 +243,196 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                 ),
                 const SizedBox(height: 32),
 
+                // --- Selector de Tipo de Documento ---
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Tipo de Documento',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: RadioListTile<String>(
+                              title: const Text('DNI'),
+                              value: 'DNI',
+                              groupValue: _tipoDocumento,
+                              onChanged: (value) {
+                                setState(() {
+                                  _tipoDocumento = value!;
+                                  _datosVerificados = false;
+                                  _nombresReniec = null;
+                                  _apellidoPaternoReniec = null;
+                                  _apellidoMaternoReniec = null;
+                                });
+                              },
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          Expanded(
+                            child: RadioListTile<String>(
+                              title: const Text('C. Extranjería'),
+                              value: 'CE',
+                              groupValue: _tipoDocumento,
+                              onChanged: (value) {
+                                setState(() {
+                                  _tipoDocumento = value!;
+                                  _datosVerificados = false;
+                                  _nombresReniec = null;
+                                  _apellidoPaternoReniec = null;
+                                  _apellidoMaternoReniec = null;
+                                });
+                              },
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // --- Campo de Documento ---
+                TextFormField(
+                  controller: _documentoCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Documento de Identidad',
+                    prefixIcon: const Icon(Icons.badge_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    suffixIcon: _tipoDocumento == 'DNI'
+                        ? IconButton(
+                            icon: _validandoReniec
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.search),
+                            onPressed:
+                                _validandoReniec ? null : _validarConReniec,
+                            tooltip: 'Validar con RENIEC',
+                          )
+                        : null,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Ingresa tu documento';
+                    }
+                    if (_tipoDocumento == 'DNI' && value.length != 8) {
+                      return 'DNI debe tener 8 dígitos';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // --- Mostrar datos de RENIEC (si están verificados) ---
+                if (_tipoDocumento == 'DNI' && _datosVerificados) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.green[700]),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Datos verificados con RENIEC',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Nombres: $_nombresReniec'),
+                        Text('Apellido Paterno: $_apellidoPaternoReniec'),
+                        Text('Apellido Materno: $_apellidoMaternoReniec'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // --- Campos manuales para Carnet de Extranjería ---
+                if (_tipoDocumento == 'CE') ...[
+                  TextFormField(
+                    controller: _nombresCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Nombres',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Ingresa tus nombres';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _apellidoPaternoCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Apellido Paterno',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Ingresa tu apellido paterno';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _apellidoMaternoCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Apellido Materno',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Ingresa tu apellido materno';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // --- Campo de Seudonimo ---
                 TextFormField(
-                  controller: _nombreCtrl,
+                  controller: _seudonimoCtrl,
                   decoration: InputDecoration(
                     labelText: 'Seudonimo',
                     hintText: 'Ej: Viajero123',
@@ -162,26 +444,6 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                   validator: (value) {
                     if (value == null || value.isEmpty || value.length < 3) {
                       return 'Por favor, ingresa tu seudonimo.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // --- Campo de DNI ---
-                TextFormField(
-                  controller: _dniCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'DNI',
-                    prefixIcon: const Icon(Icons.badge_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty || value.length != 8) {
-                      return 'Ingresa un DNI válido (8 dígitos).';
                     }
                     return null;
                   },
@@ -200,9 +462,7 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null ||
-                        value.isEmpty ||
-                        !value.contains('@')) {
+                    if (value == null || value.isEmpty || !value.contains('@')) {
                       return 'Por favor, ingresa un correo válido.';
                     }
                     return null;
@@ -265,7 +525,6 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                     ),
                   ),
                   validator: (value) {
-                    // Compara con el campo de contraseña
                     if (value != _passwordCtrl.text) {
                       return 'Las contraseñas no coinciden.';
                     }
@@ -276,7 +535,6 @@ class _RegistroPaginaState extends State<RegistroPagina> {
 
                 // --- Botón de Registrar ---
                 ElevatedButton(
-                  // Si el "Mesero" está "cargando", se deshabilita
                   onPressed: vmAuth.estaCargando ? null : _submitRegister,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
@@ -298,9 +556,6 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                 // --- Botón para ir a Login ---
                 TextButton(
                   onPressed: () {
-                    // --- MVVM: Navegación con "GPS" ---
-                    // Le decimos al "GPS" que nos "reemplace"
-                    // esta pantalla por la de login.
                     context.pushReplacement('/login');
                   },
                   child: const Text('¿Ya tienes una cuenta? Inicia Sesión'),

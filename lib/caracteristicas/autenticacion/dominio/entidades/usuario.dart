@@ -4,6 +4,7 @@ class Usuario {
   final String? nombres; // NUEVO - se llenará con API RENIEC
   final String? apellidoPaterno; // NUEVO - se llenará con API RENIEC
   final String? apellidoMaterno; // NUEVO - se llenará con API RENIEC
+  final String? tipoDocumento; // NUEVO - 'DNI' o 'CE'
   final String email;
   final String rol; // 'turista', 'guia_local', 'admin'
   final String? urlFotoPerfil;
@@ -22,6 +23,7 @@ class Usuario {
     this.nombres, // NUEVO
     this.apellidoPaterno, // NUEVO
     this.apellidoMaterno, // NUEVO
+    this.tipoDocumento, // NUEVO
     required this.email,
     required this.rol,
     this.urlFotoPerfil,
@@ -38,6 +40,7 @@ class Usuario {
     String? nombres, // NUEVO
     String? apellidoPaterno, // NUEVO
     String? apellidoMaterno, // NUEVO
+    String? tipoDocumento, // NUEVO
     String? email,
     String? rol,
     String? urlFotoPerfil,
@@ -53,6 +56,7 @@ class Usuario {
       nombres: nombres ?? this.nombres, // NUEVO
       apellidoPaterno: apellidoPaterno ?? this.apellidoPaterno, // NUEVO
       apellidoMaterno: apellidoMaterno ?? this.apellidoMaterno, // NUEVO
+      tipoDocumento: tipoDocumento ?? this.tipoDocumento, // NUEVO
       email: email ?? this.email,
       rol: rol ?? this.rol,
       urlFotoPerfil: urlFotoPerfil ?? this.urlFotoPerfil,

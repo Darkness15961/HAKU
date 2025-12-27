@@ -32,10 +32,14 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
 
   @override
   Future<Usuario> registrarUsuario(
-    String nombre,
+    String seudonimo,
     String email,
     String password,
-    String dni,
+    String documentoIdentidad,
+    String tipoDocumento,
+    String? nombres,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
   ) async {
     // 1. Crear usuario en Supabase Auth
     final AuthResponse res = await _supabase.auth.signUp(
@@ -48,9 +52,13 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
     // 2. Crear registro en tabla 'perfiles' (Tu tabla personalizada)
     final nuevoPerfil = {
       'id': res.user!.id, // Vinculamos con el ID de Auth
-      'seudonimo': nombre, // Cambiado de 'nombres' a 'seudonimo'
+      'seudonimo': seudonimo,
       'email': email,
-      'dni': dni,
+      'dni': documentoIdentidad,
+      'tipo_documento': tipoDocumento, // NUEVO
+      'nombres': nombres, // NUEVO
+      'apellido_paterno': apellidoPaterno, // NUEVO
+      'apellido_materno': apellidoMaterno, // NUEVO
       'rol': 'turista', // Por defecto
       'solicitud_estado': 'no_iniciado',
     };
@@ -105,6 +113,7 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
       nombres: data['nombres'], // NUEVO - puede ser null
       apellidoPaterno: data['apellido_paterno'], // NUEVO - puede ser null
       apellidoMaterno: data['apellido_materno'], // NUEVO - puede ser null
+      tipoDocumento: data['tipo_documento'], // NUEVO - puede ser null
       email: data['email'] ?? '',
       rol: data['rol'] ?? 'turista',
       dni: data['dni'],

@@ -136,27 +136,34 @@ class AutenticacionVM extends ChangeNotifier {
   }
 
   Future<bool> registrarUsuario(
-      String nombre,
-      String email,
-      String password,
-      String dni,
-      ) async {
+    String seudonimo,
+    String email,
+    String password,
+    String documentoIdentidad,
+    String tipoDocumento,
+    String? nombres,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
+  ) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
 
     try {
       _usuarioActual = await _repositorio.registrarUsuario(
-        nombre,
+        seudonimo,
         email,
         password,
-        dni,
+        documentoIdentidad,
+        tipoDocumento,
+        nombres,
+        apellidoPaterno,
+        apellidoMaterno,
       );
       _limpiarDatosUsuario();
       _estaCargando = false;
       notifyListeners();
       return true;
-
     } on AuthException catch (e) {
       // 1. Capturamos error oficial de Supabase
       if (e.code == 'user_already_exists') {
@@ -167,7 +174,6 @@ class AutenticacionVM extends ChangeNotifier {
       _estaCargando = false;
       notifyListeners();
       return false;
-
     } catch (e) {
       // 2. Capturamos error genérico "Blindado"
       // Si por alguna razón el error llega como texto (String), lo revisamos también:
@@ -320,7 +326,8 @@ class AutenticacionVM extends ChangeNotifier {
     try {
       // 1. Configuración: TU CLIENT ID DE WEB
       // (Reemplaza esto con el que copiaste de Google Cloud Console)
-      const webClientId = '229829788638-qu38q760qutvcaa1hmtg327mkthl7sng.apps.googleusercontent.com';
+      const webClientId =
+          '229829788638-qu38q760qutvcaa1hmtg327mkthl7sng.apps.googleusercontent.com';
 
       // 2. Google Sign In nativo
       final GoogleSignIn googleSignIn = GoogleSignIn(
@@ -329,7 +336,6 @@ class AutenticacionVM extends ChangeNotifier {
 
       await googleSignIn.signOut();
       // 👆👆 Esto fuerza a que siempre te pregunte qué cuenta usar 👆👆
-
 
       final googleUser = await googleSignIn.signIn();
 
@@ -349,11 +355,12 @@ class AutenticacionVM extends ChangeNotifier {
       }
 
       // 3. Login en Supabase (Nivel 1: Auth)
-      final AuthResponse res = await Supabase.instance.client.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken,
-        accessToken: accessToken,
-      );
+      final AuthResponse res = await Supabase.instance.client.auth
+          .signInWithIdToken(
+            provider: OAuthProvider.google,
+            idToken: idToken,
+            accessToken: accessToken,
+          );
 
       // 4. Sincronización Manual (Nivel 2: Tabla Perfiles)
       if (res.user != null) {
@@ -367,7 +374,6 @@ class AutenticacionVM extends ChangeNotifier {
       _estaCargando = false;
       notifyListeners();
       return true;
-
     } catch (e) {
       _estaCargando = false;
       _error = "Error Google: $e";
@@ -383,16 +389,15 @@ class AutenticacionVM extends ChangeNotifier {
 
     // Preparamos los datos
     final datosPerfil = {
-      'id': supabaseUser.id,              // Vital para vincular
+      'id': supabaseUser.id, // Vital para vincular
       'email': supabaseUser.email,
       'nombre': metadata?['full_name'] ?? 'Usuario Google',
       'url_foto_perfil': metadata?['avatar_url'],
-      'rol': 'turista',                   // Rol por defecto
+      'rol': 'turista', // Rol por defecto
       // 'dni': null,                     // Google no da DNI, lo dejamos tal cual
     };
 
     // Upsert: Si existe actualiza, si no existe crea.
     await Supabase.instance.client.from('perfiles').upsert(datosPerfil);
   }
-
 }
