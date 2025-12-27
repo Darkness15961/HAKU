@@ -127,6 +127,9 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                 _nombresReniec = null;
                 _apellidoPaternoReniec = null;
                 _apellidoMaternoReniec = null;
+                _nombresCtrl.clear();
+                _apellidoPaternoCtrl.clear();
+                _apellidoMaternoCtrl.clear();
               });
             },
             child: const Text('No, reintentar'),
@@ -134,7 +137,13 @@ class _RegistroPaginaState extends State<RegistroPagina> {
           FilledButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              setState(() => _datosVerificados = true);
+              setState(() {
+                _datosVerificados = true;
+                // Auto-llenar campos
+                _nombresCtrl.text = _nombresReniec ?? '';
+                _apellidoPaternoCtrl.text = _apellidoPaternoReniec ?? '';
+                _apellidoMaternoCtrl.text = _apellidoMaternoReniec ?? '';
+              });
             },
             child: const Text('Sí, confirmar'),
           ),
@@ -175,8 +184,9 @@ class _RegistroPaginaState extends State<RegistroPagina> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     // Obtener datos según tipo de documento
-    final String? nombres =
-        _tipoDocumento == 'DNI' ? _nombresReniec : _nombresCtrl.text;
+    final String? nombres = _tipoDocumento == 'DNI'
+        ? _nombresReniec
+        : _nombresCtrl.text;
     final String? apellidoPaterno = _tipoDocumento == 'DNI'
         ? _apellidoPaternoReniec
         : _apellidoPaternoCtrl.text;
@@ -185,28 +195,26 @@ class _RegistroPaginaState extends State<RegistroPagina> {
         : _apellidoMaternoCtrl.text;
 
     final bool exito = await context.read<AutenticacionVM>().registrarUsuario(
-          _seudonimoCtrl.text,
-          _emailCtrl.text,
-          _passwordCtrl.text,
-          _documentoCtrl.text,
-          _tipoDocumento,
-          nombres,
-          apellidoPaterno,
-          apellidoMaterno,
-        );
+      _seudonimoCtrl.text,
+      _emailCtrl.text,
+      _passwordCtrl.text,
+      _documentoCtrl.text,
+      _tipoDocumento,
+      nombres,
+      apellidoPaterno,
+      apellidoMaterno,
+    );
 
     if (!mounted) return;
 
     if (exito) {
       context.go('/inicio');
     } else {
-      final errorMsg = context.read<AutenticacionVM>().error ??
+      final errorMsg =
+          context.read<AutenticacionVM>().error ??
           'Ocurrió un error desconocido.';
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(errorMsg),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
       );
     }
   }
@@ -325,8 +333,9 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                                     ),
                                   )
                                 : const Icon(Icons.search),
-                            onPressed:
-                                _validandoReniec ? null : _validarConReniec,
+                            onPressed: _validandoReniec
+                                ? null
+                                : _validarConReniec,
                             tooltip: 'Validar con RENIEC',
                           )
                         : null,
@@ -343,98 +352,88 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                 ),
                 const SizedBox(height: 16),
 
-                // --- Mostrar datos de RENIEC (si están verificados) ---
-                if (_tipoDocumento == 'DNI' && _datosVerificados) ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
+                // --- Campos de Nombres y Apellidos (SIEMPRE VISIBLES) ---
+                TextFormField(
+                  controller: _nombresCtrl,
+                  readOnly: _tipoDocumento == 'DNI' && _datosVerificados,
+                  decoration: InputDecoration(
+                    labelText: 'Nombres',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.check_circle, color: Colors.green[700]),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Datos verificados con RENIEC',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text('Nombres: $_nombresReniec'),
-                        Text('Apellido Paterno: $_apellidoPaternoReniec'),
-                        Text('Apellido Materno: $_apellidoMaternoReniec'),
-                      ],
-                    ),
+                    filled: _tipoDocumento == 'DNI' && _datosVerificados,
+                    fillColor: _tipoDocumento == 'DNI' && _datosVerificados
+                        ? Colors.green[50]
+                        : null,
+                    suffixIcon: _tipoDocumento == 'DNI' && _datosVerificados
+                        ? Icon(Icons.check_circle, color: Colors.green[700])
+                        : null,
                   ),
-                  const SizedBox(height: 16),
-                ],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Ingresa tus nombres';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _apellidoPaternoCtrl,
+                  readOnly: _tipoDocumento == 'DNI' && _datosVerificados,
+                  decoration: InputDecoration(
+                    labelText: 'Apellido Paterno',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: _tipoDocumento == 'DNI' && _datosVerificados,
+                    fillColor: _tipoDocumento == 'DNI' && _datosVerificados
+                        ? Colors.green[50]
+                        : null,
+                    suffixIcon: _tipoDocumento == 'DNI' && _datosVerificados
+                        ? Icon(Icons.check_circle, color: Colors.green[700])
+                        : null,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Ingresa tu apellido paterno';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _apellidoMaternoCtrl,
+                  readOnly: _tipoDocumento == 'DNI' && _datosVerificados,
+                  decoration: InputDecoration(
+                    labelText: 'Apellido Materno',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: _tipoDocumento == 'DNI' && _datosVerificados,
+                    fillColor: _tipoDocumento == 'DNI' && _datosVerificados
+                        ? Colors.green[50]
+                        : null,
+                    suffixIcon: _tipoDocumento == 'DNI' && _datosVerificados
+                        ? Icon(Icons.check_circle, color: Colors.green[700])
+                        : null,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Ingresa tu apellido materno';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
 
-                // --- Campos manuales para Carnet de Extranjería ---
-                if (_tipoDocumento == 'CE') ...[
-                  TextFormField(
-                    controller: _nombresCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Nombres',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingresa tus nombres';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _apellidoPaternoCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Apellido Paterno',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingresa tu apellido paterno';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _apellidoMaternoCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Apellido Materno',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingresa tu apellido materno';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // --- Campo de Seudonimo ---
+                // --- Campo de Usuario (antes Seudonimo) ---
                 TextFormField(
                   controller: _seudonimoCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Seudonimo',
+                    labelText: 'Usuario',
                     hintText: 'Ej: Viajero123',
                     prefixIcon: const Icon(Icons.person_outline),
                     border: OutlineInputBorder(
@@ -443,7 +442,7 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty || value.length < 3) {
-                      return 'Por favor, ingresa tu seudonimo.';
+                      return 'Por favor, ingresa tu usuario.';
                     }
                     return null;
                   },
@@ -462,7 +461,9 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty || !value.contains('@')) {
+                    if (value == null ||
+                        value.isEmpty ||
+                        !value.contains('@')) {
                       return 'Por favor, ingresa un correo válido.';
                     }
                     return null;
