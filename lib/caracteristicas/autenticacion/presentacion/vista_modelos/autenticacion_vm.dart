@@ -314,10 +314,7 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ===========================================================================
-  //  🔽 AQUÍ COMIENZA LO NUEVO: LÓGICA DE GOOGLE (COPIA DESDE AQUÍ HACIA ABAJO)
-  // ===========================================================================
-
+  // --- LOGIN CON GOOGLE (Implementación de Jhon) ---
   Future<bool> iniciarSesionGoogle() async {
     _estaCargando = true;
     _error = null;
