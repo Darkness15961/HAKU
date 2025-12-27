@@ -569,6 +569,73 @@ class _RegistroPaginaState extends State<RegistroPagina> {
                 ),
                 const SizedBox(height: 16),
 
+                // Separador
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.grey[400])),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'o',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Colors.grey[400])),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Botón Google
+                OutlinedButton.icon(
+                  onPressed: vmAuth.estaCargando
+                      ? null
+                      : () async {
+                          final exito = await vmAuth.iniciarSesionGoogle();
+                          if (!mounted) return;
+
+                          if (exito) {
+                            if (vmAuth.esAdmin) {
+                              context.pushReplacement('/panel-admin');
+                            } else {
+                              context.pushReplacement('/inicio');
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'No se pudo registrar con Google',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  icon: Image.network(
+                    'https://www.google.com/favicon.ico',
+                    height: 24,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.public, color: Colors.red),
+                  ),
+                  label: const Text(
+                    'Continuar con Google',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    backgroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.grey),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
                 // --- Botón para ir a Login ---
                 TextButton(
                   onPressed: () {

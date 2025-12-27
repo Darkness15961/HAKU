@@ -286,4 +286,51 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
       throw Exception('Error al iniciar sesión con Google: ${e.toString()}');
     }
   }
+
+  // Actualizar seudonimo/usuario
+  @override
+  Future<void> actualizarSeudonimo(
+    String usuarioId,
+    String nuevoSeudonimo,
+  ) async {
+    await _supabase
+        .from('perfiles')
+        .update({'seudonimo': nuevoSeudonimo})
+        .eq('id', usuarioId);
+  }
+
+  // Completar perfil (solo si DNI es NULL)
+  @override
+  Future<void> completarPerfil({
+    required String usuarioId,
+    required String dni,
+    required String tipoDocumento,
+    String? nombres,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
+  }) async {
+    // Verificar que DNI sea NULL antes de actualizar
+    final perfilActual = await _supabase
+        .from('perfiles')
+        .select('dni')
+        .eq('id', usuarioId)
+        .single();
+
+    if (perfilActual['dni'] != null &&
+        perfilActual['dni'].toString().isNotEmpty) {
+      throw Exception('El DNI ya está registrado y no se puede modificar');
+    }
+
+    // Actualizar perfil
+    await _supabase
+        .from('perfiles')
+        .update({
+          'dni': dni,
+          'tipo_documento': tipoDocumento,
+          'nombres': nombres,
+          'apellido_paterno': apellidoPaterno,
+          'apellido_materno': apellidoMaterno,
+        })
+        .eq('id', usuarioId);
+  }
 }

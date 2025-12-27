@@ -56,4 +56,17 @@ abstract class AutenticacionRepositorio {
 
   // ORDEN 13: "Iniciar sesión con Google"
   Future<Usuario> iniciarSesionConGoogle();
+
+  // ORDEN 14: "Actualizar seudonimo/usuario"
+  Future<void> actualizarSeudonimo(String usuarioId, String nuevoSeudonimo);
+
+  // ORDEN 15: "Completar perfil (solo si DNI es NULL)"
+  Future<void> completarPerfil({
+    required String usuarioId,
+    required String dni,
+    required String tipoDocumento,
+    String? nombres,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
+  });
 }

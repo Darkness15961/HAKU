@@ -38,6 +38,7 @@ import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/perfil_
 import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/mis_lugares_favoritos_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/mis_rutas_inscritas_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/ajustes_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/ajustes_cuenta_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/mis_lugares_publicados_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/solicitar_guia_pagina.dart';
 
@@ -224,6 +225,10 @@ class AppRutas {
               GoRoute(
                 path: 'ajustes',
                 builder: (context, state) => const AjustesPagina(),
+              ),
+              GoRoute(
+                path: 'ajustes-cuenta',
+                builder: (context, state) => const AjustesCuentaPagina(),
               ),
               GoRoute(
                 path: 'mis-lugares-publicados',
