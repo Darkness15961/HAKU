@@ -1,11 +1,4 @@
-// --- PIEDRA 9 (AUTENTICACIÓN): EL "MENÚ" DE REGISTRO MEJORADO ---
-//
-// NUEVO: Implementa validación con RENIEC y selector de tipo de documento
-// 1. Selector DNI / Carnet de Extranjería
-// 2. Validación automática con RENIEC para DNI
-// 3. Confirmación de datos antes de crear cuenta
-// 4. Ingreso manual para Carnet de Extranjería
-
+// --- PIEDRA 9 (AUTENTICACIÓN): EL "MENÚ" DE REGISTRO MEJORADO (VERSIÓN PRO) ---
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -24,14 +17,14 @@ class RegistroPagina extends StatefulWidget {
 }
 
 class _RegistroPaginaState extends State<RegistroPagina> {
-  // --- Estado Local de la UI ---
+  // --- Controladores Principales ---
   final TextEditingController _seudonimoCtrl = TextEditingController();
   final TextEditingController _documentoCtrl = TextEditingController();
   final TextEditingController _emailCtrl = TextEditingController();
   final TextEditingController _passwordCtrl = TextEditingController();
   final TextEditingController _confirmPasswordCtrl = TextEditingController();
 
-  // Controladores para ingreso manual (Carnet de Extranjería)
+  // --- Controladores Manuales (Extranjeros) ---
   final TextEditingController _nombresCtrl = TextEditingController();
   final TextEditingController _apellidoPaternoCtrl = TextEditingController();
   final TextEditingController _apellidoMaternoCtrl = TextEditingController();
@@ -39,14 +32,14 @@ class _RegistroPaginaState extends State<RegistroPagina> {
   final _formKey = GlobalKey<FormState>();
   final ReniecServicio _reniecServicio = ReniecServicio();
 
-  // Estado
+  // --- Estado ---
   String _tipoDocumento = 'DNI'; // 'DNI' o 'CE'
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _validandoReniec = false;
   bool _datosVerificados = false;
 
-  // Datos de RENIEC
+  // Datos temporales de RENIEC
   String? _nombresReniec;
   String? _apellidoPaternoReniec;
   String? _apellidoMaternoReniec;
@@ -64,12 +57,12 @@ class _RegistroPaginaState extends State<RegistroPagina> {
     super.dispose();
   }
 
-  // --- Validar con RENIEC (auto-llamado) ---
+  // --- LÓGICA: Validar con RENIEC ---
   Future<void> _validarConReniec() async {
     if (_documentoCtrl.text.length != 8) return;
-
     setState(() => _validandoReniec = true);
 
+    // Simulamos o llamamos al servicio real
     final datos = await _reniecServicio.consultarDNI(_documentoCtrl.text);
 
     setState(() => _validandoReniec = false);
@@ -80,128 +73,62 @@ class _RegistroPaginaState extends State<RegistroPagina> {
         _apellidoPaternoReniec = datos['apellidoPaterno'];
         _apellidoMaternoReniec = datos['apellidoMaterno'];
         _datosVerificados = true;
-        // Auto-llenar campos internos
+
+        // Truco de UX: Llenamos los controladores ocultos por si acaso
         _nombresCtrl.text = _nombresReniec ?? '';
         _apellidoPaternoCtrl.text = _apellidoPaternoReniec ?? '';
         _apellidoMaternoCtrl.text = _apellidoMaternoReniec ?? '';
       });
     } else {
-      setState(() {
-        _nombresReniec = null;
-        _apellidoPaternoReniec = null;
-        _apellidoMaternoReniec = null;
-        _datosVerificados = false;
-      });
+      _resetearDatosReniec();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No se pudo consultar el DNI. Verifica el número.'),
-            backgroundColor: Colors.red,
+            content: Text('No se pudo validar el DNI. Inténtalo de nuevo.'),
+            backgroundColor: Colors.orange,
           ),
         );
       }
     }
   }
 
-  // --- Mostrar diálogo de confirmación ---
-  void _mostrarDialogoConfirmacion() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('¿Son correctos estos datos?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Nombres: $_nombresReniec'),
-            Text('Apellido Paterno: $_apellidoPaternoReniec'),
-            Text('Apellido Materno: $_apellidoMaternoReniec'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              setState(() {
-                _nombresReniec = null;
-                _apellidoPaternoReniec = null;
-                _apellidoMaternoReniec = null;
-                _nombresCtrl.clear();
-                _apellidoPaternoCtrl.clear();
-                _apellidoMaternoCtrl.clear();
-              });
-            },
-            child: const Text('No, reintentar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              setState(() {
-                _datosVerificados = true;
-                // Auto-llenar campos
-                _nombresCtrl.text = _nombresReniec ?? '';
-                _apellidoPaternoCtrl.text = _apellidoPaternoReniec ?? '';
-                _apellidoMaternoCtrl.text = _apellidoMaternoReniec ?? '';
-              });
-            },
-            child: const Text('Sí, confirmar'),
-          ),
-        ],
-      ),
-    );
+  void _resetearDatosReniec() {
+    setState(() {
+      _nombresReniec = null;
+      _apellidoPaternoReniec = null;
+      _apellidoMaternoReniec = null;
+      _datosVerificados = false;
+    });
   }
 
-  // --- Enviar formulario ---
+  // --- LÓGICA: Enviar Formulario ---
   Future<void> _submitRegister() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    // Validar datos según tipo de documento
+    // Validación extra para DNI
     if (_tipoDocumento == 'DNI' && !_datosVerificados) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Debes validar tu DNI con RENIEC primero'),
-          backgroundColor: Colors.orange,
-        ),
+        const SnackBar(content: Text('Por favor, valida tu DNI primero (escribe 8 dígitos).')),
       );
       return;
     }
 
-    if (_tipoDocumento == 'CE') {
-      if (_nombresCtrl.text.isEmpty ||
-          _apellidoPaternoCtrl.text.isEmpty ||
-          _apellidoMaternoCtrl.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Completa todos los campos de nombres y apellidos'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
-      }
-    }
+    final vmAuth = context.read<AutenticacionVM>(); // Referencia rápida
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    // Decisión inteligente: ¿Qué nombres enviamos?
+    final String? nombres = _tipoDocumento == 'DNI' ? _nombresReniec : _nombresCtrl.text;
+    final String? apPaterno = _tipoDocumento == 'DNI' ? _apellidoPaternoReniec : _apellidoPaternoCtrl.text;
+    final String? apMaterno = _tipoDocumento == 'DNI' ? _apellidoMaternoReniec : _apellidoMaternoCtrl.text;
 
-    // Obtener datos según tipo de documento
-    final String? nombres = _tipoDocumento == 'DNI'
-        ? _nombresReniec
-        : _nombresCtrl.text;
-    final String? apellidoPaterno = _tipoDocumento == 'DNI'
-        ? _apellidoPaternoReniec
-        : _apellidoPaternoCtrl.text;
-    final String? apellidoMaterno = _tipoDocumento == 'DNI'
-        ? _apellidoMaternoReniec
-        : _apellidoMaternoCtrl.text;
-
-    final bool exito = await context.read<AutenticacionVM>().registrarUsuario(
-      _seudonimoCtrl.text,
-      _emailCtrl.text,
-      _passwordCtrl.text,
-      _documentoCtrl.text,
+    final exito = await vmAuth.registrarUsuario(
+      _seudonimoCtrl.text.trim(),
+      _emailCtrl.text.trim(),
+      _passwordCtrl.text.trim(),
+      _documentoCtrl.text.trim(),
       _tipoDocumento,
       nombres,
-      apellidoPaterno,
-      apellidoMaterno,
+      apPaterno,
+      apMaterno,
     );
 
     if (!mounted) return;
@@ -209,13 +136,36 @@ class _RegistroPaginaState extends State<RegistroPagina> {
     if (exito) {
       context.go('/inicio');
     } else {
-      final errorMsg =
-          context.read<AutenticacionVM>().error ??
-          'Ocurrió un error desconocido.';
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+      // --- ULTIMA MODIFICACIÓN ---
+      final mensajeError = vmAuth.error ?? 'Error desconocido';
+
+      // Detectamos si el error es de cuenta duplicada (mirando el texto del ViewModel)
+      final esErrorDeCuenta = mensajeError.toLowerCase().contains('ya tiene cuenta') ||
+          mensajeError.toLowerCase().contains('registrado') ||
+          mensajeError.toLowerCase().contains('ya está en uso');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensajeError),
+          // Naranja para advertencia (ya existe), Rojo para error técnico (internet)
+          backgroundColor: esErrorDeCuenta ? Colors.orange.shade900 : Colors.red,
+          duration: const Duration(seconds: 8), // Un poco más de tiempo para leer
+
+          // EL BOTÓN MÁGICO
+          action: esErrorDeCuenta
+              ? SnackBarAction(
+            label: 'IR AL LOGIN',
+            textColor: Colors.white,
+            onPressed: () {
+              // Te lleva directo al login sin dar vueltas
+              context.pushReplacement('/login');
+            },
+          )
+              : null, // Si no es error de cuenta duplicada, no muestra botón
+        ),
       );
     }
+
   }
 
   @override
@@ -226,427 +176,233 @@ class _RegistroPaginaState extends State<RegistroPagina> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crear Cuenta'),
-        surfaceTintColor: Colors.transparent,
+        centerTitle: true,
       ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // --- Título ---
-                Text(
-                  'Únete a HAKU',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Crea tu cuenta para guardar favoritos y reservar rutas.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-
-                // --- Selector de Tipo de Documento ---
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Tipo de Documento',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: RadioListTile<String>(
-                              title: const Text('DNI'),
-                              value: 'DNI',
-                              groupValue: _tipoDocumento,
-                              onChanged: (value) {
-                                setState(() {
-                                  _tipoDocumento = value!;
-                                  _datosVerificados = false;
-                                  _nombresReniec = null;
-                                  _apellidoPaternoReniec = null;
-                                  _apellidoMaternoReniec = null;
-                                });
-                              },
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                          ),
-                          Expanded(
-                            child: RadioListTile<String>(
-                              title: const Text('C. Extranjería'),
-                              value: 'CE',
-                              groupValue: _tipoDocumento,
-                              onChanged: (value) {
-                                setState(() {
-                                  _tipoDocumento = value!;
-                                  _datosVerificados = false;
-                                  _nombresReniec = null;
-                                  _apellidoPaternoReniec = null;
-                                  _apellidoMaternoReniec = null;
-                                });
-                              },
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // --- Campo de Documento ---
-                TextFormField(
-                  controller: _documentoCtrl,
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    // Limpiar datos si cambia el DNI
-                    if (_tipoDocumento == 'DNI' && _datosVerificados) {
-                      setState(() {
-                        _datosVerificados = false;
-                        _nombresReniec = null;
-                        _apellidoPaternoReniec = null;
-                        _apellidoMaternoReniec = null;
-                      });
-                    }
-                  },
-                  onEditingComplete: () {
-                    // Auto-validar al salir del campo
-                    if (_tipoDocumento == 'DNI' &&
-                        _documentoCtrl.text.length == 8) {
-                      _validarConReniec();
-                    }
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Documento de Identidad',
-                    prefixIcon: const Icon(Icons.badge_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    suffixIcon: _validandoReniec
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : null,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ingresa tu documento';
-                    }
-                    if (_tipoDocumento == 'DNI' && value.length != 8) {
-                      return 'DNI debe tener 8 dígitos';
-                    }
-                    return null;
-                  },
-                ),
-
-                // Mostrar nombre completo debajo del DNI
-                if (_tipoDocumento == 'DNI' &&
-                    _datosVerificados &&
-                    _nombresReniec != null) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        size: 16,
-                        color: Colors.green[700],
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          '$_nombresReniec $_apellidoPaternoReniec $_apellidoMaternoReniec',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green[700],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 16),
-
-                // --- Campos manuales SOLO para Carnet de Extranjería ---
-                if (_tipoDocumento == 'CE') ...[
-                  TextFormField(
-                    controller: _nombresCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Nombres',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingresa tus nombres';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _apellidoPaternoCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Apellido Paterno',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingresa tu apellido paterno';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _apellidoMaternoCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Apellido Materno',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingresa tu apellido materno';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // --- Campo de Usuario (antes Seudonimo) ---
-                TextFormField(
-                  controller: _seudonimoCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Usuario',
-                    hintText: 'Ej: Viajero123',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty || value.length < 3) {
-                      return 'Por favor, ingresa tu usuario.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // --- Campo de Email ---
-                TextFormField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Correo Electrónico',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null ||
-                        value.isEmpty ||
-                        !value.contains('@')) {
-                      return 'Por favor, ingresa un correo válido.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // --- Campo de Contraseña ---
-                TextFormField(
-                  controller: _passwordCtrl,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty || value.length < 6) {
-                      return 'La contraseña debe tener al menos 6 caracteres.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // --- Campo de Confirmar Contraseña ---
-                TextFormField(
-                  controller: _confirmPasswordCtrl,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Confirmar Contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(
-                          () => _obscureConfirmPassword =
-                              !_obscureConfirmPassword,
-                        );
-                      },
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value != _passwordCtrl.text) {
-                      return 'Las contraseñas no coinciden.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // --- Botón de Registrar ---
-                ElevatedButton(
-                  onPressed: vmAuth.estaCargando ? null : _submitRegister,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                    backgroundColor: colorPrimario,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: vmAuth.estaCargando
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Crear Cuenta',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                ),
-                const SizedBox(height: 16),
-
-                // Separador
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.grey[400])),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'o',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey[400])),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Botón Google
-                OutlinedButton.icon(
-                  onPressed: vmAuth.estaCargando
-                      ? null
-                      : () async {
-                          final exito = await vmAuth.iniciarSesionGoogle();
-                          if (!mounted) return;
-
-                          if (exito) {
-                            if (vmAuth.esAdmin) {
-                              context.pushReplacement('/panel-admin');
-                            } else {
-                              context.pushReplacement('/inicio');
-                            }
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'No se pudo registrar con Google',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                  icon: Image.network(
-                    'https://www.google.com/favicon.ico',
-                    height: 24,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.public, color: Colors.red),
-                  ),
-                  label: const Text(
-                    'Continuar con Google',
-                    style: TextStyle(
-                      fontSize: 16,
+          child: ConstrainedBox( // MEJORA 1: Evita que se estire en Tablets/PC
+            constraints: const BoxConstraints(maxWidth: 450),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch, // Alineación prolija
+                children: [
+                  Text(
+                    'Únete a HAKU',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
+                    textAlign: TextAlign.center,
                   ),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    backgroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.grey),
-                    shape: RoundedRectangleBorder(
+                  const SizedBox(height: 8),
+                  Text(
+                    'Crea tu cuenta para conocer nuevos lugares, reservar rutas y mucho mas.',
+
+                    style: TextStyle(color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 30),
+
+                  // --- BLOQUE 1: DOCUMENTO ---
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: _buildRadioOption('DNI', 'DNI')),
+                            Expanded(child: _buildRadioOption('Carnet Ext.', 'CE')),
+                          ],
+                        ),
+                        const Divider(),
+                        TextFormField(
+                          controller: _documentoCtrl,
+                          keyboardType: TextInputType.number,
+                          maxLength: _tipoDocumento == 'DNI' ? 8 : 12,
+                          decoration: InputDecoration(
+                            labelText: 'Número de Documento',
+                            prefixIcon: const Icon(Icons.badge_outlined),
+                            border: InputBorder.none,
+                            counterText: "", // Oculta el contador pequeño
+                            suffixIcon: _validandoReniec
+                                ? const Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2))
+                                : (_datosVerificados && _tipoDocumento == 'DNI')
+                                ? const Icon(Icons.check_circle, color: Colors.green)
+                                : null,
+                          ),
+                          onChanged: (v) {
+                            if (_datosVerificados) _resetearDatosReniec();
+                            if (_tipoDocumento == 'DNI' && v.length == 8) _validarConReniec();
+                          },
+                        ),
+
+                        // Nombre detectado automáticamente
+                        if (_tipoDocumento == 'DNI' && _datosVerificados)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12, top: 4),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              width: double.infinity,
+                              decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                              child: Text(
+                                "$_nombresReniec $_apellidoPaternoReniec",
+                                style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold, fontSize: 13),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                ),
+                  const SizedBox(height: 20),
 
-                const SizedBox(height: 24),
+                  // --- BLOQUE 2: DATOS MANUALES (Solo Extranjeros) ---
+                  if (_tipoDocumento == 'CE') ...[
+                    _buildInput(_nombresCtrl, 'Nombres', Icons.person),
+                    const SizedBox(height: 12),
+                    _buildInput(_apellidoPaternoCtrl, 'Apellido Paterno', Icons.person_outline),
+                    const SizedBox(height: 12),
+                    _buildInput(_apellidoMaternoCtrl, 'Apellido Materno', Icons.person_outline),
+                    const SizedBox(height: 20),
+                  ],
 
-                // --- Botón para ir a Login ---
-                TextButton(
-                  onPressed: () {
-                    context.pushReplacement('/login');
-                  },
-                  child: const Text('¿Ya tienes una cuenta? Inicia Sesión'),
-                ),
-              ],
+                  // --- BLOQUE 3: CUENTA ---
+                  _buildInput(_seudonimoCtrl, 'Nombre de Usuario', Icons.person_outline,
+                      validator: (v) => (v!.length < 3) ? 'Mínimo 3 letras' : null),
+                  const SizedBox(height: 12),
+
+                  _buildInput(_emailCtrl, 'Correo Electrónico', Icons.email_outlined,
+                      type: TextInputType.emailAddress,
+                      validator: (v) => (!v!.contains('@')) ? 'Correo inválido' : null),
+                  const SizedBox(height: 12),
+
+                  _buildInput(_passwordCtrl, 'Contraseña', Icons.lock_outline,
+                      isPassword: true, showPass: !_obscurePassword,
+                      onClickEye: () => setState(()=> _obscurePassword = !_obscurePassword),
+                      validator: (v) => (v!.length < 6) ? 'Mínimo 6 caracteres' : null),
+                  const SizedBox(height: 12),
+
+                  _buildInput(_confirmPasswordCtrl, 'Confirmar Contraseña', Icons.lock_reset,
+                      isPassword: true, showPass: !_obscureConfirmPassword,
+                      onClickEye: () => setState(()=> _obscureConfirmPassword = !_obscureConfirmPassword),
+                      validator: (v) => (v != _passwordCtrl.text) ? 'No coinciden' : null),
+
+                  const SizedBox(height: 30),
+
+                  // --- BOTÓN PRINCIPAL ---
+                  ElevatedButton(
+                    onPressed: vmAuth.estaCargando ? null : _submitRegister,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorPrimario,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 2,
+                    ),
+                    child: vmAuth.estaCargando
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Crear Cuenta', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+
+                  const SizedBox(height: 24),
+                  const Row(children: [Expanded(child: Divider()), Padding(padding: EdgeInsets.all(8.0), child: Text("O")), Expanded(child: Divider())]),
+                  const SizedBox(height: 24),
+
+                  // --- BOTÓN GOOGLE (Tu versión corregida y bonita) ---
+                  OutlinedButton(
+                    onPressed: vmAuth.estaCargando ? null : () async {
+                      final exito = await vmAuth.iniciarSesionGoogle();
+                      if (!mounted) return;
+                      if (exito) {
+                        if (vmAuth.esAdmin) {
+                          context.pushReplacement('/panel-admin');
+                        } else {
+                          context.go('/inicio');
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error con Google'), backgroundColor: Colors.red));
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      backgroundColor: Colors.white,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.network('https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-512.png', height: 24),
+                        const SizedBox(width: 12),
+                        const Text('Continuar con Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () => context.pushReplacement('/login'),
+                    child: Text('¿Ya tienes cuenta? Inicia Sesión', style: TextStyle(color: colorPrimario, fontWeight: FontWeight.bold)),
+                  )
+                ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // --- HELPER 1: RADIO BUTTON (Más limpio) ---
+  Widget _buildRadioOption(String label, String val) {
+    return RadioListTile<String>(
+      title: Text(label, style: const TextStyle(fontSize: 14)),
+      value: val,
+      groupValue: _tipoDocumento,
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      onChanged: (v) => setState(() { _tipoDocumento = v!; _resetearDatosReniec(); }),
+    );
+  }
+
+  // --- HELPER 2: INPUT REUTILIZABLE (MEJORA PRO: Menos código repetido) ---
+  Widget _buildInput(
+      TextEditingController ctrl,
+      String label,
+      IconData icon,
+      {
+        TextInputType type = TextInputType.text,
+        bool isPassword = false,
+        bool showPass = false,
+        VoidCallback? onClickEye,
+        String? Function(String?)? validator
+      }
+      ) {
+    return TextFormField(
+      controller: ctrl,
+      keyboardType: type,
+      obscureText: isPassword && !showPass,
+      validator: validator ?? (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: Colors.grey[600], size: 22),
+        filled: true,
+        fillColor: Colors.grey[50],
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
+        suffixIcon: isPassword
+            ? IconButton(icon: Icon(showPass ? Icons.visibility_off : Icons.visibility), onPressed: onClickEye)
+            : null,
       ),
     );
   }

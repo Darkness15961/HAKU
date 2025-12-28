@@ -30,7 +30,7 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
       await Supabase.instance.client.auth.resetPasswordForEmail(
         _emailController.text.trim(),
         redirectTo:
-            'io.supabase.xplore_cusco://reset-password', // Deep link para la app
+        'io.supabase.xplore_cusco://reset-password', // Deep link para la app
       );
 
       if (!mounted) return;
@@ -73,7 +73,7 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colorPrimario = const Color(0xFF00BCD4);
+    const colorPrimario = Color(0xFF00BCD4);
 
     return Scaffold(
       appBar: AppBar(
@@ -126,6 +126,9 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  // MODIFICACIÓN: Acción del teclado
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _enviarCorreoRecuperacion(),
                   decoration: InputDecoration(
                     labelText: 'Correo Electrónico',
                     hintText: 'ejemplo@correo.com',
@@ -163,22 +166,22 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
                   ),
                   child: _isLoading
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.white,
+                      ),
+                    ),
+                  )
                       : const Text(
-                          'Enviar Correo de Recuperación',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    'Enviar Correo de Recuperación',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 16),
@@ -186,7 +189,7 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
                 // Botón de volver
                 TextButton(
                   onPressed: () => context.pop(),
-                  child: Text(
+                  child: const Text(
                     'Volver al inicio de sesión',
                     style: TextStyle(
                       color: colorPrimario,

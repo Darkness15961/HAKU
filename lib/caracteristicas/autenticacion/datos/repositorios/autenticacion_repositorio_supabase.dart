@@ -30,6 +30,54 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
     }
   }
 
+
+
+  @override
+  Future<Usuario> registrarUsuario(
+      String seudonimo,
+      String email,
+      String password,
+      String documentoIdentidad,
+      String tipoDocumento,
+      String? nombres,
+      String? apellidoPaterno,
+      String? apellidoMaterno,
+      ) async {
+    // 1. Crear usuario en Supabase Auth
+    // AQUÍ ESTÁ EL CAMBIO IMPORTANTE 👇
+    final AuthResponse res = await _supabase.auth.signUp(
+      email: email,
+      password: password,
+      data: {
+        'seudonimo': seudonimo, // <--- ESTO ES LO QUE NECESITABA EL TRIGGER
+        'full_name': seudonimo, // Opcional, para compatibilidad
+      },
+    );
+
+    if (res.user == null) throw Exception('Error al registrarse');
+
+    // 2. Crear registro en tabla 'perfiles'
+    // (Este código de abajo sigue siendo útil por si falla el Trigger, déjalo ahí)
+    final nuevoPerfil = {
+      'id': res.user!.id,
+      'seudonimo': seudonimo,
+      'email': email,
+      'dni': documentoIdentidad,
+      'tipo_documento': tipoDocumento,
+      'nombres': nombres,
+      'apellido_paterno': apellidoPaterno,
+      'apellido_materno': apellidoMaterno,
+      'rol': 'turista',
+      'solicitud_estado': 'no_iniciado',
+    };
+
+    // Usamos 'upsert' en lugar de 'insert' para evitar errores si el Trigger ya creó la fila
+    await _supabase.from('perfiles').upsert(nuevoPerfil);
+
+    return _mapPerfilToUsuario(nuevoPerfil, res.session?.accessToken ?? '');
+  }
+
+  /*
   @override
   Future<Usuario> registrarUsuario(
     String seudonimo,
@@ -68,6 +116,47 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
     return _mapPerfilToUsuario(nuevoPerfil, res.session?.accessToken ?? '');
   }
 
+
+
+*/
+
+  // Helper mejorado para traducir errores
+  String _traducirErrorAuth(String errorOriginal) {
+    final errorLower = errorOriginal.toLowerCase();
+
+    // 1. MEJORA: Mensaje más claro y con instrucciones
+    if (errorLower.contains('email not confirmed')) {
+      return '⚠️ Debes confirmar tu correo para entrar. Revisa tu bandeja de entrada (y spam).';
+    }
+
+    if (errorLower.contains('invalid login credentials') ||
+        errorLower.contains('invalid_credentials')) {
+      return 'Contraseña o correo incorrectos. Inténtalo de nuevo.';
+    }
+
+    if (errorLower.contains('user not found')) {
+      return 'No existe una cuenta con este correo.';
+    }
+
+    if (errorLower.contains('invalid email')) {
+      return 'El formato del correo no es válido.';
+    }
+
+    if (errorLower.contains('network') || errorLower.contains('connection')) {
+      return 'Sin conexión. Verifica tu internet.';
+    }
+
+    if (errorLower.contains('too many requests')) {
+      return 'Muchos intentos fallidos. Espera unos minutos.';
+    }
+
+    // Si es un error raro, mostramos algo genérico pero no técnico
+    return 'No pudimos iniciar sesión. Verifica tus datos.';
+  }
+
+
+/*
+*
   // Helper para traducir errores de autenticación al español
   String _traducirErrorAuth(String errorOriginal) {
     final errorLower = errorOriginal.toLowerCase();
@@ -100,6 +189,9 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
     // Si no coincide con ningún error conocido, devolver mensaje genérico
     return 'Error al iniciar sesión. Verifica tus credenciales';
   }
+* */
+
+
 
   // Helper para convertir JSON de BD a Entidad Usuario
   Usuario _mapPerfilToUsuario(Map<String, dynamic> data, String token) {
