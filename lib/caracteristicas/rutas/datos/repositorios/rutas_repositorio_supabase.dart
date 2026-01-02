@@ -186,6 +186,8 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         lugaresIncluidosIds: ids,
         esFavorita: false,
         estaInscrito: estaInscrito,
+        esPrivada: json['es_privada'] ?? false,
+        codigoAcceso: json['codigo_acceso'],
       );
 
       print('✅ [MAP] Ruta mapeada: ${ruta.nombre}');
@@ -209,8 +211,11 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         'cupos_totales': datosRuta['cupos'],
         'dias': datosRuta['dias'],
         'categoria': datosRuta['categoria'],
-        'visible': datosRuta['visible'],
-        'guia_id': datosRuta['guiaId'],
+        'visible': datosRuta['visible'] ?? true,
+        'es_privada': datosRuta['es_privada'] ?? false,
+        'guia_id':
+            datosRuta['guia_id'] ??
+            datosRuta['guiaId'], // Aceptamos ambos por compatibilidad
         'url_imagen_principal': datosRuta['url_imagen_principal'],
         'enlace_grupo_whatsapp': datosRuta['enlace_grupo_whatsapp'],
         'estado': 'convocatoria', // Por defecto al crear
@@ -219,8 +224,12 @@ class RutasRepositorioSupabase implements RutasRepositorio {
             datosRuta['fechaCierreInscripcion'], // Debe venir como String ISO8601
         'equipamiento_ruta': datosRuta['equipamientoRuta'], // List<String>
         'fecha_evento':
-            datosRuta['fechaEvento'], // DateTime como String ISO8601
-        'punto_encuentro': datosRuta['puntoEncuentro'], // String
+            datosRuta['fecha_evento'] ??
+            datosRuta['fechaEvento'], // Compatibilidad de nombres
+        'punto_encuentro':
+            datosRuta['punto_encuentro'] ??
+            datosRuta['puntoEncuentro'], // Compatibilidad
+        'codigo_acceso': datosRuta['codigo_acceso'], // Para rutas privadas
       };
 
       final response = await _supabase
@@ -254,6 +263,8 @@ class RutasRepositorioSupabase implements RutasRepositorio {
             'dias': datosRuta['dias'],
             'categoria': datosRuta['categoria'],
             'visible': datosRuta['visible'],
+            'es_privada': datosRuta['es_privada'],
+            'codigo_acceso': datosRuta['codigo_acceso'],
             'url_imagen_principal': datosRuta['url_imagen_principal'],
             'enlace_grupo_whatsapp': datosRuta['enlace_grupo_whatsapp'],
 
@@ -339,6 +350,55 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       'ruta_id': rutaId,
       'usuario_id': userId,
       'estado_pago': 'pendiente',
+    });
+  }
+
+  @override
+  Future<void> unirseARutaPorCodigo(String codigo) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('Debes iniciar sesión');
+
+    // 1. Buscar la ruta por código
+    final rutaResponse = await _supabase
+        .from('rutas')
+        .select('id, cupos_totales')
+        .eq('codigo_acceso', codigo)
+        .maybeSingle();
+
+    if (rutaResponse == null) {
+      throw Exception('Código de ruta inválido');
+    }
+
+    final rutaId = rutaResponse['id'];
+    final cuposTotales = rutaResponse['cupos_totales'] as int;
+
+    // 2. Validar si ya está inscrito
+    final inscripciones = await _supabase
+        .from('inscripciones')
+        .count(CountOption.exact)
+        .eq('ruta_id', rutaId)
+        .eq('usuario_id', userId);
+
+    if (inscripciones > 0) {
+      throw Exception('Ya estás inscrito en esta ruta');
+    }
+
+    // 3. Validar cupos disponibles
+    final totalInscritos = await _supabase
+        .from('inscripciones')
+        .count(CountOption.exact)
+        .eq('ruta_id', rutaId);
+
+    if (totalInscritos >= cuposTotales) {
+      throw Exception('La ruta está llena');
+    }
+
+    // 4. Inscribir
+    await _supabase.from('inscripciones').insert({
+      'ruta_id': rutaId,
+      'usuario_id': userId,
+      'estado_pago': 'pendiente',
+      'asistio': false,
     });
   }
 

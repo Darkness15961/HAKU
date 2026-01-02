@@ -30,19 +30,17 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
     }
   }
 
-
-
   @override
   Future<Usuario> registrarUsuario(
-      String seudonimo,
-      String email,
-      String password,
-      String documentoIdentidad,
-      String tipoDocumento,
-      String? nombres,
-      String? apellidoPaterno,
-      String? apellidoMaterno,
-      ) async {
+    String seudonimo,
+    String email,
+    String password,
+    String documentoIdentidad,
+    String tipoDocumento,
+    String? nombres,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
+  ) async {
     // 1. Crear usuario en Supabase Auth
     // AQUÍ ESTÁ EL CAMBIO IMPORTANTE 👇
     final AuthResponse res = await _supabase.auth.signUp(
@@ -154,8 +152,7 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
     return 'No pudimos iniciar sesión. Verifica tus datos.';
   }
 
-
-/*
+  /*
 *
   // Helper para traducir errores de autenticación al español
   String _traducirErrorAuth(String errorOriginal) {
@@ -190,8 +187,6 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
     return 'Error al iniciar sesión. Verifica tus credenciales';
   }
 * */
-
-
 
   // Helper para convertir JSON de BD a Entidad Usuario
   Usuario _mapPerfilToUsuario(Map<String, dynamic> data, String token) {
@@ -410,7 +405,10 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
 
     if (perfilActual['dni'] != null &&
         perfilActual['dni'].toString().isNotEmpty) {
-      throw Exception('El DNI ya está registrado y no se puede modificar');
+      // FIX: Si el DNI es el mismo, permitimos actualizar (para guardar nombres)
+      if (perfilActual['dni'].toString() != dni) {
+        throw Exception('El DNI ya está registrado y no se puede modificar');
+      }
     }
 
     // Actualizar perfil

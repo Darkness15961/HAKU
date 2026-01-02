@@ -28,6 +28,7 @@ import 'package:xplore_cusco/caracteristicas/inicio/presentacion/paginas/comenta
 import 'package:xplore_cusco/caracteristicas/rutas/presentacion/paginas/rutas_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/rutas/presentacion/paginas/detalle_ruta_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/rutas/presentacion/paginas/crear_ruta_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/rutas/presentacion/paginas/crear_ruta_sin_guia_pagina.dart';
 
 // Páginas de Mapa
 import 'package:xplore_cusco/caracteristicas/mapa/presentacion/paginas/mapa_pagina.dart';
@@ -44,6 +45,11 @@ import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/
 
 // Páginas de Notificaciones
 import 'package:xplore_cusco/caracteristicas/notificaciones/presentacion/paginas/notificaciones_pagina.dart';
+
+// Páginas de Solicitudes
+import 'package:xplore_cusco/caracteristicas/solicitudes/presentacion/paginas/turista/mis_solicitudes_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/solicitudes/presentacion/paginas/guia/solicitudes_disponibles_pagina.dart';
+import 'package:xplore_cusco/caracteristicas/solicitudes/presentacion/paginas/guia/mis_postulaciones_pagina.dart';
 
 // Páginas de Admin
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_dashboard_pagina.dart';
@@ -196,6 +202,10 @@ class AppRutas {
                   return CrearRutaPagina(ruta: ruta);
                 },
               ),
+              GoRoute(
+                path: 'crear-sin-guia',
+                builder: (context, state) => const CrearRutaSinGuiaPagina(),
+              ),
             ],
           ),
 
@@ -233,6 +243,19 @@ class AppRutas {
               GoRoute(
                 path: 'mis-lugares-publicados',
                 builder: (context, state) => const MisLugaresPublicadosPagina(),
+              ),
+              GoRoute(
+                path: 'mis-solicitudes',
+                builder: (context, state) => const MisSolicitudesPagina(),
+              ),
+              GoRoute(
+                path: 'solicitudes-disponibles',
+                builder: (context, state) =>
+                    const SolicitudesDisponiblesPagina(),
+              ),
+              GoRoute(
+                path: 'mis-postulaciones',
+                builder: (context, state) => const MisPostulacionesPagina(),
               ),
             ],
           ),

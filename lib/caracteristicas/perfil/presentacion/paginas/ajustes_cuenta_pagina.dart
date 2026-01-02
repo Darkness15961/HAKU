@@ -40,6 +40,15 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
     final usuario = context.read<AutenticacionVM>().usuarioActual;
     if (usuario != null) {
       _seudonimoCtrl.text = usuario.seudonimo ?? '';
+      if (usuario.dni != null) {
+        _documentoCtrl.text = usuario.dni!;
+        // Si tiene DNI pero no nombres, intentamos validar automáticamente
+        if (usuario.nombres == null || usuario.nombres!.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _validarConReniec();
+          });
+        }
+      }
     }
   }
 

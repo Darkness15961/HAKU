@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
+import 'dart:math'; // Random
 
 // --- MVVM: IMPORTACIONES ---
 import '../vista_modelos/rutas_vm.dart';
@@ -65,7 +66,9 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   final _formKey = GlobalKey<FormState>();
 
   String _selectedDifficulty = 'Familiar';
-  String _visibility = 'Privada';
+  String _visibility = 'Publicada';
+  bool _esPrivada = false;
+  String? _codigoAccesoGenerado;
   bool _estaGuardando = false;
   bool _subiendoImagen = false; // <--- Nuevo
 
@@ -84,12 +87,6 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       return;
     }
 
-    setState(() {
-      _estaGuardando = true;
-    });
-
-    // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-    // 1. Leemos el VM de Autenticación para obtener los datos del guía
     final vmAuth = context.read<AutenticacionVM>();
     if (vmAuth.usuarioActual == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -133,26 +130,42 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     final String diasText = _diasCtrl.text.isEmpty ? '1' : _diasCtrl.text;
     final String cuposText = _cuposCtrl.text.isEmpty ? '10' : _cuposCtrl.text;
 
+    // Generar código provisional si es privada
+    String? codigoFinal;
+    if (_esPrivada) {
+      if (widget.ruta != null &&
+          widget.ruta!.esPrivada &&
+          widget.ruta!.codigoAcceso != null) {
+        codigoFinal = widget.ruta!.codigoAcceso;
+        _codigoAccesoGenerado = codigoFinal;
+      } else {
+        if (_codigoAccesoGenerado == null) {
+          _codigoAccesoGenerado = _generarCodigoAcceso();
+        }
+        codigoFinal = _codigoAccesoGenerado;
+      }
+    } else {
+      _codigoAccesoGenerado = null;
+    }
+
     final Map<String, dynamic> datosRuta = {
       'nombre': _nombreCtrl.text,
       'descripcion': _descripcionCtrl.text,
       'precio': double.tryParse(_precioCtrl.text) ?? 0.0,
       'cupos': int.tryParse(cuposText) ?? 10,
       'categoria': _selectedDifficulty,
-      'visible': _visibility == 'Pública',
+      'visible': _visibility == 'Publicada',
+      'es_privada': _esPrivada,
+      'codigo_acceso': codigoFinal,
       'dias': int.tryParse(diasText) ?? 1,
       'lugaresIds': _locations.map((loc) => loc.lugar.id).toList(),
       'lugaresNombres': _locations.map((loc) => loc.lugar.nombre).toList(),
-
-      // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-      // 2. Pasamos los datos REALES del guía al mapa
       'guiaId': vmAuth.usuarioActual!.id,
       'guiaNombre': vmAuth.usuarioActual!.seudonimo,
       'guiaFotoUrl': vmAuth.usuarioActual!.urlFotoPerfil ?? '',
       'url_imagen_principal': _urlImagenCtrl.text.isNotEmpty
           ? _urlImagenCtrl.text
           : (_locations.isNotEmpty ? _locations.first.lugar.urlImagen : ''),
-      // --- FIN DE CORRECCIÓN ---
     };
 
     print('DEBUG: Creando ruta con datos: $datosRuta');
@@ -185,6 +198,14 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(mensajeExito), backgroundColor: Colors.green),
         );
+
+        if (_esPrivada &&
+            _codigoAccesoGenerado != null &&
+            (widget.ruta == null || !widget.ruta!.esPrivada)) {
+          await _mostrarDialogoCodigoAcceso(_codigoAccesoGenerado!);
+        }
+
+        if (!mounted) return;
         context.pop(); // Sale de la pág. de edición
         if (widget.ruta != null) {
           context.pop(); // Sale también de la pág. de detalle
@@ -389,16 +410,45 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       _precioCtrl.text = widget.ruta!.precio.toString();
       _diasCtrl.text = widget.ruta!.dias.toString();
       _cuposCtrl.text = widget.ruta!.cuposTotales.toString();
-      _selectedDifficulty = widget.ruta!.categoria;
-      _selectedDifficulty = widget.ruta!.categoria;
-      _visibility = widget.ruta!.visible ? 'Pública' : 'Privada';
-      _urlImagenCtrl.text =
-          widget.ruta!.urlImagenPrincipal; // <--- Cargar imagen existente
+
+      // FIX: Normalizar categoría para evitar error de Dropdown (red screen)
+      const opcionesValidas = [
+        'Familiar',
+        'Cultural',
+        'Aventura',
+        '+18',
+        'Naturaleza',
+        'Extrema',
+      ];
+      final categoriaGuardada = widget.ruta!.categoria;
+
+      _selectedDifficulty = opcionesValidas.firstWhere(
+        (op) => op.toLowerCase() == categoriaGuardada.toLowerCase(),
+        orElse: () => 'Familiar',
+      );
+
+      _visibility = widget.ruta!.visible ? 'Publicada' : 'Borrador';
+      _esPrivada = widget.ruta!.esPrivada;
+      _urlImagenCtrl.text = widget.ruta!.urlImagenPrincipal;
 
       // (Pre-cargamos los lugares si estamos editando)
       // (Necesitamos el LugaresVM para esto)
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         final vmLugares = context.read<LugaresVM>();
+
+        // Si el VM no tiene lugares cargados (ej. navegación directa), forzamos carga.
+        if (vmLugares.lugaresTotales.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cargando datos de lugares...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          await vmLugares.cargarTodosLosLugares();
+        }
+
+        if (!mounted) return;
+
         // --- ¡LÓGICA CORREGIDA! ---
         // Asumimos que 'lugaresIncluidosIds' SÍ son IDs.
         _locations = widget.ruta!.lugaresIncluidosIds
@@ -986,87 +1036,86 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     );
   }
 
-  // --- WIDGET DE VISIBILIDAD (¡CORREGIDO CON LÓGICA DE NEGOCIO!) ---
+  // --- WIDGET DE VISIBILIDAD Y ACCESO ---
   Widget _buildVisibilityTools(BuildContext context, bool hayInscritos) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildInputLabel('Visibilidad de la Ruta'),
+        // 1. ESTADO DE PUBLICACIÓN (Borrador vs Publicada)
+        _buildInputLabel('Estado de Publicación'),
         const SizedBox(height: 8),
-        // Absorbe los toques si hay inscritos
         AbsorbPointer(
           absorbing: hayInscritos,
           child: Container(
-            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: hayInscritos ? Colors.grey.shade300 : Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(8),
+              color: hayInscritos ? Colors.grey.shade300 : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
             ),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: _buildVisibilityButton('Privada', hayInscritos),
+                RadioListTile<String>(
+                  title: const Text('Borrador'),
+                  subtitle: const Text('Solo tú puedes verla (en desarrollo)'),
+                  value: 'Borrador',
+                  groupValue: _visibility,
+                  onChanged: (val) => setState(() => _visibility = val!),
                 ),
-                Expanded(
-                  child: _buildVisibilityButton('Pública', hayInscritos),
+                RadioListTile<String>(
+                  title: const Text('Publicada'),
+                  subtitle: const Text('Visible en el marketplace'),
+                  value: 'Publicada',
+                  groupValue: _visibility,
+                  onChanged: (val) => setState(() => _visibility = val!),
                 ),
               ],
             ),
           ),
         ),
+
+        const SizedBox(height: 20),
+
+        // 2. TIPO DE ACCESO (Libre vs Privada)
+        _buildInputLabel('Tipo de Ruta (Acceso)'),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            children: [
+              RadioListTile<bool>(
+                title: const Text('Acceso Libre'),
+                subtitle: const Text('Cualquier turista puede inscribirse'),
+                value: false,
+                groupValue: _esPrivada,
+                onChanged: (val) => setState(() => _esPrivada = val!),
+              ),
+              RadioListTile<bool>(
+                title: const Text('Privada con Código'),
+                subtitle: const Text('Solo con código de invitación'),
+                value: true,
+                groupValue: _esPrivada,
+                onChanged: (val) => setState(() => _esPrivada = val!),
+              ),
+            ],
+          ),
+        ),
+
         const SizedBox(height: 8),
 
-        // --- ¡NUEVO TEXTO DE AYUDA! ---
         if (hayInscritos)
           Text(
-            'No puedes cambiar la visibilidad mientras haya turistas inscritos. Debes "Cancelar la Ruta" primero.',
+            'No puedes cambiar el estado mientras haya turistas inscritos.',
             style: TextStyle(
               fontSize: 12,
               color: Colors.red.shade700,
               fontWeight: FontWeight.bold,
             ),
-          )
-        else
-          Text(
-            _visibility == 'Pública'
-                ? 'Las rutas públicas estan listas para recibir a los turistas.'
-                : 'Solo tú puedes ver esta ruta.',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
       ],
-    );
-  }
-
-  Widget _buildVisibilityButton(String label, bool isDisabled) {
-    final bool isSelected = _visibility == label;
-
-    // Define el color del texto cuando está deshabilitado
-    Color disabledForegroundColor = isSelected
-        ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
-        : Colors.grey.shade500;
-
-    return Expanded(
-      child: ElevatedButton(
-        onPressed: () {
-          // El AbsorbPointer se encarga de deshabilitar
-          setState(() {
-            _visibility = label;
-          });
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isSelected ? Colors.white : Colors.transparent,
-          // Color del texto (delante)
-          foregroundColor: isSelected
-              ? Theme.of(context).colorScheme.primary
-              : Colors.grey.shade600,
-          // Color cuando está deshabilitado (por el AbsorbPointer)
-          disabledForegroundColor: disabledForegroundColor,
-          elevation: isSelected ? 2 : 0,
-          shadowColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        ),
-        child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-      ),
     );
   }
 
@@ -1408,6 +1457,57 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       default:
         return Icons.help_outline;
     }
+  }
+
+  // --- HELPERS ---
+  String _generarCodigoAcceso() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rnd = Random();
+    return String.fromCharCodes(
+      Iterable.generate(6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))),
+    );
+  }
+
+  Future<void> _mostrarDialogoCodigoAcceso(String codigo) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¡Ruta Privada Creada!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_person, size: 48, color: Colors.purple),
+            const SizedBox(height: 16),
+            const Text(
+              'Esta ruta requiere un código de acceso. Compártelo con los participantes:',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            SelectableText(
+              codigo,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+                color: Colors.purple,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '(Cópialo ahora, podrás verlo después en el detalle)',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            child: const Text('Entendido'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+        ],
+      ),
+    );
   }
 }
 

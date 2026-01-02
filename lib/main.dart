@@ -14,6 +14,7 @@ import 'caracteristicas/autenticacion/presentacion/vista_modelos/autenticacion_v
 import 'caracteristicas/rutas/presentacion/vista_modelos/rutas_vm.dart';
 import 'caracteristicas/mapa/presentacion/vista_modelos/mapa_vm.dart';
 import 'caracteristicas/notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
+import 'caracteristicas/solicitudes/presentacion/vista_modelos/solicitudes_vm.dart';
 
 // Notificaciones (Repositorios y Casos de Uso)
 import 'caracteristicas/notificaciones/dominio/repositorios/notificacion_repositorio.dart';
@@ -23,7 +24,7 @@ import 'caracteristicas/notificaciones/dominio/casos_uso/marcar_notificacion_lei
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
@@ -33,17 +34,23 @@ Future<void> main() async {
       authFlowType: AuthFlowType.pkce,
     ),
   );
-  
+
   setupLocator();
-  
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LugaresVM()),
         ChangeNotifierProvider(create: (_) => AutenticacionVM()),
         ChangeNotifierProvider(create: (context) => RutasVM()),
-        
-        ChangeNotifierProxyProvider3<LugaresVM, AutenticacionVM, RutasVM, MapaVM>(
+        ChangeNotifierProvider(create: (_) => SolicitudesVM()),
+
+        ChangeNotifierProxyProvider3<
+          LugaresVM,
+          AutenticacionVM,
+          RutasVM,
+          MapaVM
+        >(
           create: (context) => MapaVM(),
           update: (context, lugaresVM, authVM, rutasVM, previousMapaVM) {
             return (previousMapaVM ?? MapaVM())
@@ -56,14 +63,12 @@ Future<void> main() async {
           create: (_) => NotificacionRepositorioMock(),
         ),
         Provider<ObtenerNotificaciones>(
-          create: (context) => ObtenerNotificaciones(
-            context.read<NotificacionRepositorio>(),
-          ),
+          create: (context) =>
+              ObtenerNotificaciones(context.read<NotificacionRepositorio>()),
         ),
         Provider<MarcarNotificacionLeida>(
-          create: (context) => MarcarNotificacionLeida(
-            context.read<NotificacionRepositorio>(),
-          ),
+          create: (context) =>
+              MarcarNotificacionLeida(context.read<NotificacionRepositorio>()),
         ),
         ChangeNotifierProvider<NotificacionesVM>(
           create: (context) => NotificacionesVM(

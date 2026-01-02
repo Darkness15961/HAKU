@@ -162,6 +162,34 @@ class RutasVM extends ChangeNotifier {
     await _authVM?.toggleRutaInscrita(rutaId);
   }
 
+  // --- ¡NUEVO! INGRESO POR CÓDIGO ---
+  Future<void> unirseARutaPorCodigo(String codigo) async {
+    _estaCargando = true;
+    _error = null;
+    notifyListeners();
+    try {
+      if (_repositorio is RutasRepositorioSupabase) {
+        // Asumimos que está implementado en la clase concreta o interfaz
+        await _repositorio.unirseARutaPorCodigo(codigo);
+      } else {
+        // Fallback si la interfaz ya lo tiene (que es lo ideal)
+        await _repositorio.unirseARutaPorCodigo(codigo);
+      }
+
+      _estaCargando = false;
+      notifyListeners();
+      await cargarRutas();
+      // Refrescamos también el AuthVM para que salga en "Mis Inscripciones"
+      // (Esto sería mejor si el repo devolviera el ID de la ruta,
+      //  pero por ahora recargamos todo)
+    } catch (e) {
+      _estaCargando = false;
+      _error = e.toString();
+      notifyListeners();
+      throw Exception(e.toString().replaceFirst("Exception: ", ""));
+    }
+  }
+
   // --- ¡MÉTODO CORREGIDO! ---
   Future<void> salirDeRuta(String rutaId) async {
     // 1. Llama al repositorio para actualizar la BD (Mock)

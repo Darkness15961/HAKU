@@ -36,4 +36,7 @@ abstract class RutasRepositorio {
 
   // ORDEN 8: "Eliminar una ruta" (Solo si no tiene inscritos)
   Future<void> eliminarRuta(String rutaId);
+
+  // ORDEN 9: "Unirse por código"
+  Future<void> unirseARutaPorCodigo(String codigo);
 }

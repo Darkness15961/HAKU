@@ -338,6 +338,24 @@ class PerfilPagina extends StatelessWidget {
                           },
                         ),
                         _buildDivider(),
+                        _buildListTile(
+                          icon: Icons.work,
+                          color: Colors.blue,
+                          title: 'Solicitudes Disponibles',
+                          subtitle: 'Ver oportunidades de trabajo',
+                          onTap: () =>
+                              context.push('/perfil/solicitudes-disponibles'),
+                        ),
+                        _buildDivider(),
+                        _buildListTile(
+                          icon: Icons.mail,
+                          color: Colors.orange,
+                          title: 'Mis Postulaciones',
+                          subtitle: 'Ver propuestas enviadas',
+                          onTap: () =>
+                              context.push('/perfil/mis-postulaciones'),
+                        ),
+                        _buildDivider(),
                       ],
 
                       if (usuario.rol == 'turista') ...[
@@ -347,6 +365,14 @@ class PerfilPagina extends StatelessWidget {
                           title: 'Solicitar ser Guía',
                           subtitle: 'Envía tu solicitud para crear rutas',
                           onTap: () => context.push('/perfil/solicitar-guia'),
+                        ),
+                        _buildDivider(),
+                        _buildListTile(
+                          icon: Icons.request_page,
+                          color: Colors.purple,
+                          title: 'Mis Solicitudes',
+                          subtitle: 'Gestionar solicitudes de rutas',
+                          onTap: () => context.push('/perfil/mis-solicitudes'),
                         ),
                         _buildDivider(),
                       ],

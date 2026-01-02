@@ -23,6 +23,8 @@ class Ruta {
   // --- NUEVOS CAMPOS FASE 4: INFORMACIÓN DEL EVENTO ---
   final DateTime? fechaEvento; // Fecha y hora del evento
   final String? puntoEncuentro; // Ubicación del punto de encuentro
+  final bool esPrivada; // ¡NUEVO!
+  final String? codigoAcceso; // ¡NUEVO! Código de acceso para rutas privadas
 
   // Campos Calculados
   final String guiaId;
@@ -61,6 +63,8 @@ class Ruta {
     this.asistio = false,
     this.fechaEvento,
     this.puntoEncuentro,
+    this.esPrivada = false, // Por defecto false
+    this.codigoAcceso,
 
     required this.guiaId,
     required this.guiaNombre,

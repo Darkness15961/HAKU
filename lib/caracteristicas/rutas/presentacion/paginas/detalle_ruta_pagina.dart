@@ -596,7 +596,7 @@ class DetalleRutaPagina extends StatelessWidget {
               ],
 
               const SizedBox(height: 20),
-              _buildSectionTitle('Tu Guía'),
+              _buildSectionTitle('Organizador'),
               _buildGuideProfile(context, ruta),
 
               // --- SECCIÓN EQUIPAMIENTO (NUEVO) ---
@@ -926,13 +926,12 @@ class DetalleRutaPagina extends StatelessWidget {
         ),
         subtitle: Row(
           children: [
-            Icon(
-              Icons.verified,
-              size: 14,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            Icon(Icons.person, size: 14, color: Colors.grey[600]),
             const SizedBox(width: 4),
-            const Text('Guía Certificado Haku'),
+            Text(
+              'Organizador de la ruta',
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
           ],
         ),
         trailing: IconButton(

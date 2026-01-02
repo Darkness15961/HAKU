@@ -44,16 +44,11 @@ class _RutasPaginaState extends State<RutasPagina> {
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
     // Lógica de pestañas dinámicas
-    final rol = vmAuth.usuarioActual?.rol;
     List<String> pestanasVisibles = ['Recomendadas'];
     if (vmAuth.estaLogueado) {
       pestanasVisibles.add('Mis Inscripciones');
-      if (rol == 'guia_aprobado' ||
-          rol == 'guia' ||
-          rol == 'guia_local' ||
-          rol == 'admin') {
-        pestanasVisibles.add('Creadas por mí');
-      }
+      // Mostrar "Creadas por mí" para todos los usuarios logueados
+      pestanasVisibles.add('Creadas por mí');
     }
 
     if (vmRutas.estaCargando && !vmRutas.cargaInicialRealizada) {
@@ -145,6 +140,9 @@ class _RutasPaginaState extends State<RutasPagina> {
         ),
         body: Column(
           children: [
+            // Botón para ingresar código (Solo si está logueado)
+            if (vmAuth.estaLogueado) _buildBotonIngresarCodigo(context),
+
             // Puedes agregar _buildDifficultyChips(context, vmRutas) aquí si lo deseas
             // _buildDifficultyChips(context, vmRutas),
             Expanded(
@@ -172,32 +170,258 @@ class _RutasPaginaState extends State<RutasPagina> {
     AutenticacionVM vmAuth,
     Color colorPrimario,
   ) {
-    final bool puedeCrearRutas =
-        vmAuth.estaLogueado &&
-        (vmAuth.usuarioActual?.rol == 'guia_aprobado' ||
-            vmAuth.usuarioActual?.rol == 'guia' ||
-            vmAuth.usuarioActual?.rol == 'guia_local' ||
-            vmAuth.usuarioActual?.rol == 'admin');
-
-    if (!puedeCrearRutas) return const SizedBox.shrink();
+    // Si no está logueado, no mostrar nada
+    if (!vmAuth.estaLogueado) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: ElevatedButton.icon(
-        onPressed: () => context.push('/rutas/crear-ruta'),
+        onPressed: () {
+          // Lógica Diferenciada por Rol
+          if (vmAuth.usuarioActual?.rol == 'guia_local' ||
+              vmAuth.usuarioActual?.rol == 'admin') {
+            // GUÍA: Va directo a crear su oferta de ruta
+            context.push('/rutas/crear-ruta');
+          } else {
+            // TURISTA: Muestra el diálogo para elegir (Con guía vs Sin guía)
+            _mostrarDialogoCrearRuta(context, vmAuth);
+          }
+        },
         icon: const Icon(Icons.add, color: Colors.white, size: 20),
         label: const Text(
           'Crear Ruta',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white.withValues(alpha: 0.4),
+          backgroundColor: Colors.white.withOpacity(0.3),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(25),
           ),
           elevation: 2,
-          shadowColor: Colors.black.withValues(alpha: 0.3),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shadowColor: Colors.black.withOpacity(0.3),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBotonIngresarCodigo(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Theme.of(context).primaryColor.withOpacity(0.05),
+      child: TextButton.icon(
+        onPressed: () => _mostrarDialogoIngresarCodigo(context),
+        icon: const Icon(Icons.vpn_key),
+        label: const Text('Ingresar Código de Ruta Privada'),
+        style: TextButton.styleFrom(
+          backgroundColor: Colors.white,
+          padding: const EdgeInsets.all(12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: Theme.of(context).primaryColor),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDialogoIngresarCodigo(BuildContext context) {
+    final controller = TextEditingController();
+    bool uniendo = false;
+    String? error;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Unirse a Ruta Privada'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Ingresa el código que te compartió el organizador:'),
+              const SizedBox(height: 15),
+              TextField(
+                controller: controller,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'CÓDIGO',
+                  border: const OutlineInputBorder(),
+                  errorText: error,
+                  filled: true,
+                ),
+                onChanged: (_) {
+                  if (error != null) setState(() => error = null);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: uniendo
+                  ? null
+                  : () async {
+                      if (controller.text.isEmpty) return;
+                      setState(() {
+                        uniendo = true;
+                        error = null;
+                      });
+
+                      try {
+                        final vmRutas = context.read<RutasVM>();
+                        await vmRutas.unirseARutaPorCodigo(
+                          controller.text.trim().toUpperCase(),
+                        );
+                        if (context.mounted) {
+                          Navigator.pop(context); // Cerrar diálogo
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('✅ ¡Te uniste a la ruta!'),
+                            ),
+                          );
+                          // Cambiar a pestaña "Mis Inscripciones"
+                          vmRutas.cambiarPestana('Mis Inscripciones');
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          setState(() {
+                            uniendo = false;
+                            error = e.toString().replaceAll('Exception: ', '');
+                          });
+                        }
+                      }
+                    },
+              child: uniendo
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Unirse'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDialogoCrearRuta(BuildContext context, AutenticacionVM vmAuth) {
+    final colorPrimario = Theme.of(context).colorScheme.primary;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.add_road, color: colorPrimario, size: 28),
+            const SizedBox(width: 10),
+            const Text('Crear Ruta'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '¿Quieres un guía local para tu ruta?',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            _buildOpcionDialogo(
+              context: context,
+              icon: Icons.person,
+              color: Colors.blue,
+              titulo: 'Sí, quiero un guía',
+              descripcion: 'Solicita guías y recibe propuestas',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/perfil/mis-solicitudes');
+              },
+            ),
+            const SizedBox(height: 15),
+            _buildOpcionDialogo(
+              context: context,
+              icon: Icons.explore,
+              color: Colors.green,
+              titulo: 'No, crear yo mismo',
+              descripcion: 'Crea tu ruta personalizada',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/rutas/crear-sin-guia');
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOpcionDialogo({
+    required BuildContext context,
+    required IconData icon,
+    required Color color,
+    required String titulo,
+    required String descripcion,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          border: Border.all(color: color.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(12),
+          color: color.withOpacity(0.05),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titulo,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    descripcion,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 16, color: color),
+          ],
         ),
       ),
     );
@@ -286,13 +510,17 @@ class _RutasPaginaState extends State<RutasPagina> {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: ruta.visible
-                          ? Colors.black.withOpacity(0.6)
-                          : Colors.amber.shade700,
+                      color: ruta.esPrivada
+                          ? Colors.purple
+                          : (ruta.visible
+                                ? Colors.black.withOpacity(0.6)
+                                : Colors.amber.shade700),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      ruta.visible ? 'PÚBLICA' : 'BORRADOR',
+                      ruta.esPrivada
+                          ? 'PRIVADA'
+                          : (ruta.visible ? 'PÚBLICA' : 'BORRADOR'),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
