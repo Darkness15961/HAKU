@@ -103,6 +103,31 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       });
       return;
     }
+
+    // --- VALIDACIÓN DNI: Verificar que el usuario tenga DNI validado ---
+    if (!vmAuth.tieneNombreCompleto) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            '⚠️ Debes validar tu nombre completo en Ajustes de Cuenta para crear rutas',
+          ),
+          backgroundColor: Colors.orange[900],
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Ir a Ajustes',
+            textColor: Colors.white,
+            onPressed: () {
+              context.push('/perfil/ajustes-cuenta');
+            },
+          ),
+        ),
+      );
+      setState(() {
+        _estaGuardando = false;
+      });
+      return;
+    }
+    // --- FIN VALIDACIÓN DNI ---
     // --- FIN DE CORRECCIÓN ---
 
     final String diasText = _diasCtrl.text.isEmpty ? '1' : _diasCtrl.text;

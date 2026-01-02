@@ -75,6 +75,45 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
         _apellidoPaternoCtrl.text = _apellidoPaternoReniec ?? '';
         _apellidoMaternoCtrl.text = _apellidoMaternoReniec ?? '';
       });
+
+      // AUTO-GUARDAR: Guardar automáticamente en la base de datos
+      if (mounted) {
+        final authVM = context.read<AutenticacionVM>();
+        final usuario = authVM.usuarioActual;
+
+        if (usuario != null &&
+            (usuario.nombres == null || usuario.nombres!.isEmpty)) {
+          // Solo guardar si el usuario aún no tiene nombres validados
+          setState(() => _validandoReniec = true);
+
+          final exitoPerfil = await authVM.completarPerfil(
+            dni: _documentoCtrl.text.trim(),
+            tipoDocumento: _tipoDocumento,
+            nombres: _nombresReniec,
+            apellidoPaterno: _apellidoPaternoReniec,
+            apellidoMaterno: _apellidoMaternoReniec,
+          );
+
+          setState(() => _validandoReniec = false);
+
+          if (exitoPerfil && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ DNI validado y guardado exitosamente'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(authVM.error ?? 'Error al guardar DNI'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
     } else {
       setState(() {
         _nombresReniec = null;
@@ -101,13 +140,129 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
 
     if (usuario == null) return;
 
-    // TODO: Implementar actualización en repositorio
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Cambios guardados exitosamente'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    setState(() => _validandoReniec = true);
+
+    try {
+      // 1. Actualizar seudonimo si cambió
+      if (_seudonimoCtrl.text != usuario.seudonimo) {
+        final exitoSeudonimo = await authVM.actualizarSeudonimo(
+          _seudonimoCtrl.text.trim(),
+        );
+        if (!exitoSeudonimo) {
+          throw Exception('Error al actualizar usuario');
+        }
+      }
+
+      // 2. Completar perfil solo si NO tiene DNI validado aún
+      // (El DNI se guarda automáticamente al validar con RENIEC)
+      if (usuario.nombres == null || usuario.nombres!.isEmpty) {
+        if (_tipoDocumento == 'DNI' && !_datosVerificados) {
+          throw Exception('Debes validar tu DNI primero');
+        }
+
+        if (_tipoDocumento == 'CE') {
+          // Para Carnet de Extranjería, guardar manualmente
+          final exitoPerfil = await authVM.completarPerfil(
+            dni: _documentoCtrl.text.trim(),
+            tipoDocumento: _tipoDocumento,
+            nombres: _nombresCtrl.text,
+            apellidoPaterno: _apellidoPaternoCtrl.text,
+            apellidoMaterno: _apellidoMaternoCtrl.text,
+          );
+
+          if (!exitoPerfil) {
+            throw Exception(authVM.error ?? 'Error al completar perfil');
+          }
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Cambios guardados exitosamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _validandoReniec = false);
+      }
+    }
+  }
+
+  Future<void> _cambiarPassword() async {
+    if (_passwordNuevaCtrl.text.isEmpty ||
+        _passwordActualCtrl.text.isEmpty ||
+        _passwordConfirmarCtrl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Completa todos los campos de contraseña'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_passwordNuevaCtrl.text != _passwordConfirmarCtrl.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Las contraseñas nuevas no coinciden'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_passwordNuevaCtrl.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La contraseña debe tener al menos 6 caracteres'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final authVM = context.read<AutenticacionVM>();
+
+    try {
+      await authVM.cambiarPasswordConValidacion(
+        _passwordActualCtrl.text,
+        _passwordNuevaCtrl.text,
+      );
+
+      if (mounted) {
+        _passwordActualCtrl.clear();
+        _passwordNuevaCtrl.clear();
+        _passwordConfirmarCtrl.clear();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Contraseña actualizada correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authVM.error ?? 'Error al cambiar contraseña'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -119,8 +274,18 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
       return const Scaffold(body: Center(child: Text('No hay usuario')));
     }
 
-    final tieneDNI = usuario.dni != null && usuario.dni!.isNotEmpty;
+    // DNI está validado solo si tiene nombres (validación RENIEC)
+    final dniValidado = usuario.nombres != null && usuario.nombres!.isNotEmpty;
     final esGoogle = usuario.email?.contains('@') == true; // Simplificado
+
+    // DEBUG: Ver qué datos tiene el usuario
+    debugPrint('=== DEBUG AJUSTES CUENTA ===');
+    debugPrint('DNI: ${usuario.dni}');
+    debugPrint('Nombres: ${usuario.nombres}');
+    debugPrint('Apellido Paterno: ${usuario.apellidoPaterno}');
+    debugPrint('Apellido Materno: ${usuario.apellidoMaterno}');
+    debugPrint('dniValidado: $dniValidado');
+    debugPrint('===========================');
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ajustes de Cuenta'), centerTitle: true),
@@ -206,23 +371,9 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
               ),
               const SizedBox(height: 16),
 
-              // Nombre completo (solo lectura si ya existe)
-              if (tieneDNI) ...[
-                TextFormField(
-                  initialValue:
-                      '${usuario.nombres ?? ''} ${usuario.apellidoPaterno ?? ''} ${usuario.apellidoMaterno ?? ''}',
-                  readOnly: true,
-                  decoration: InputDecoration(
-                    labelText: 'Nombre Completo',
-                    prefixIcon: const Icon(Icons.badge_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                  ),
-                ),
-                const SizedBox(height: 16),
+              // DNI y Nombre Completo - DNI PRIMERO
+              if (dniValidado) ...[
+                // DNI ya validado con RENIEC - solo lectura (PRIMERO)
                 TextFormField(
                   initialValue: usuario.dni,
                   readOnly: true,
@@ -235,6 +386,22 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
                     filled: true,
                     fillColor: Colors.grey[100],
                     suffixIcon: Icon(Icons.lock, color: Colors.grey[600]),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Nombre completo (DESPUÉS, solo lectura)
+                TextFormField(
+                  initialValue:
+                      '${usuario.nombres ?? ''} ${usuario.apellidoPaterno ?? ''} ${usuario.apellidoMaterno ?? ''}',
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Nombre Completo',
+                    prefixIcon: const Icon(Icons.badge_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[100],
                   ),
                 ),
               ] else ...[
@@ -266,7 +433,7 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Para inscribirte a rutas, necesitas completar tu información personal.',
+                        'Para crear rutas, publicar lugares e inscribirte a rutas, necesitas validar tu DNI.',
                         style: TextStyle(color: Colors.orange[900]),
                       ),
                     ],
@@ -325,19 +492,18 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
                         _nombresReniec = null;
                       });
                     }
-                  },
-                  onEditingComplete: () {
-                    if (_tipoDocumento == 'DNI' &&
-                        _documentoCtrl.text.length == 8) {
+                    // AUTO-VALIDACIÓN: Al completar 8 dígitos
+                    if (_tipoDocumento == 'DNI' && value.length == 8) {
                       _validarConReniec();
                     }
                   },
                   decoration: InputDecoration(
-                    labelText: 'Documento de Identidad',
+                    labelText: 'Número de Documento',
                     prefixIcon: const Icon(Icons.badge_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    counterText: "",
                     suffixIcon: _validandoReniec
                         ? const SizedBox(
                             width: 20,
@@ -360,30 +526,53 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
                   },
                 ),
 
-                // Mostrar nombre completo si DNI verificado
+                // Mostrar nombre completo si DNI verificado - MEJORADO
                 if (_tipoDocumento == 'DNI' &&
                     _datosVerificados &&
                     _nombresReniec != null) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        size: 16,
-                        color: Colors.green[700],
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          '$_nombresReniec $_apellidoPaternoReniec $_apellidoMaternoReniec',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green[700],
-                            fontWeight: FontWeight.w500,
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          size: 20,
+                          color: Colors.green[700],
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Nombre Completo:',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.green[900],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$_nombresReniec $_apellidoPaternoReniec $_apellidoMaternoReniec',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.green[900],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -445,34 +634,10 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
 
               const SizedBox(height: 32),
 
-              // Información del sistema (solo lectura)
-              Text(
-                'Información',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-
-              ListTile(
-                leading: const Icon(Icons.badge),
-                title: const Text('Rol de Usuario'),
-                subtitle: Text(usuario.rol ?? 'USUARIO'),
-                contentPadding: EdgeInsets.zero,
-              ),
-              ListTile(
-                leading: const Icon(Icons.fingerprint),
-                title: const Text('ID de Usuario'),
-                subtitle: Text(usuario.id),
-                contentPadding: EdgeInsets.zero,
-              ),
-
-              const SizedBox(height: 32),
-
-              // Seguridad (solo si no es Google)
+              // Cambiar Contraseña (solo si no es Google)
               if (!esGoogle) ...[
                 Text(
-                  'Seguridad',
+                  'Cambiar Contraseña',
                   style: Theme.of(
                     context,
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -526,12 +691,7 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
                 const SizedBox(height: 16),
 
                 FilledButton(
-                  onPressed: () {
-                    // TODO: Cambiar contraseña
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Función próximamente')),
-                    );
-                  },
+                  onPressed: _cambiarPassword,
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
                   ),
@@ -539,6 +699,41 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
                 ),
                 const SizedBox(height: 32),
               ],
+
+              // Información del sistema (solo lectura)
+              Text(
+                'Información',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+
+              // Mostrar nombre completo si está validado
+              if (dniValidado) ...[
+                ListTile(
+                  leading: const Icon(Icons.person),
+                  title: const Text('Nombre Completo'),
+                  subtitle: Text(
+                    '${usuario.nombres ?? ''} ${usuario.apellidoPaterno ?? ''} ${usuario.apellidoMaterno ?? ''}'
+                        .trim(),
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+
+              ListTile(
+                leading: const Icon(Icons.badge),
+                title: const Text('Rol de Usuario'),
+                subtitle: Text(usuario.rol ?? 'USUARIO'),
+                contentPadding: EdgeInsets.zero,
+              ),
+              ListTile(
+                leading: const Icon(Icons.fingerprint),
+                title: const Text('ID de Usuario'),
+                subtitle: Text(usuario.id),
+                contentPadding: EdgeInsets.zero,
+              ),
 
               // Botón guardar cambios
               FilledButton(
