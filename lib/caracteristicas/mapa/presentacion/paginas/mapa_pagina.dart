@@ -1,14 +1,21 @@
-import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 
-// --- MVVM: IMPORTACIONES ---
+
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart'; // Para navegar al login
+
+// ViewModel
 import '../vista_modelos/mapa_vm.dart';
-import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
+import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../../rutas/presentacion/vista_modelos/rutas_vm.dart';
-import '../../../inicio/dominio/entidades/lugar.dart';
+
+// WIDGETS
+import '../widgets/tarjeta_polaroid.dart';
+import '../widgets/filtro_chip.dart';
+import '../widgets/cached_tile_provider.dart';
 
 class MapaPagina extends StatefulWidget {
   const MapaPagina({super.key});
@@ -17,347 +24,295 @@ class MapaPagina extends StatefulWidget {
   State<MapaPagina> createState() => _MapaPaginaState();
 }
 
-class _MapaPaginaState extends State<MapaPagina> {
-  final CameraPosition _posicionInicial = const CameraPosition(
-    target: LatLng(-13.52264, -71.96734), // Cusco
-    zoom: 13,
-  );
+class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
+  late AnimationController _cardAnimController;
+  late Animation<double> _cardScaleAnimation;
+  bool _verRelieve = false;
 
   @override
   void initState() {
     super.initState();
+    _cardAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _cardScaleAnimation = CurvedAnimation(
+      parent: _cardAnimController,
+      curve: Curves.easeOutBack,
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final vmMapa = context.read<MapaVM>();
-        final vmLugares = context.read<LugaresVM>();
-        final vmAuth = context.read<AutenticacionVM>();
-        final vmRutas = context.read<RutasVM>();
-        vmMapa.actualizarDependencias(vmLugares, vmAuth, vmRutas);
+        vmMapa.actualizarDependencias(
+            context.read<LugaresVM>(),
+            context.read<AutenticacionVM>(),
+            context.read<RutasVM>()
+        );
       }
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    final vmMapa = context.watch<MapaVM>();
-    final double topPadding = MediaQuery.of(context).padding.top;
+  void dispose() {
+    _cardAnimController.dispose();
+    super.dispose();
+  }
 
-    // Marcadores + Mi Ubicación
-    final Set<Marker> allMarkers = {
-      ...vmMapa.markers,
-      if (vmMapa.currentLocation != null)
-        Marker(
-          markerId: const MarkerId("user_position"),
-          position: vmMapa.currentLocation!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          zIndex: 2,
-          infoWindow: const InfoWindow(title: "Yo"),
+  void _alternarTipoMapa() {
+    setState(() => _verRelieve = !_verRelieve);
+  }  String _obtenerUrlMapa() {
+    return _verRelieve
+        ? 'https://tile.opentopomap.org/{z}/{x}/{y}.png'
+        : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  }
+
+
+
+  // --- NUEVA FUNCIÓN: DIÁLOGO DE BLOQUEO ---
+  // Muestra la ventana idéntica a tu captura de pantalla
+  void _mostrarDialogoBloqueo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 1. Ícono del Candado
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F7FA), // Cian clarito
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.lock_outline, color: Color(0xFF00BCD4), size: 32),
+              ),
+              const SizedBox(height: 16),
+
+              // 2. Título
+              const Text(
+                "Acción Requerida",
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF00BCD4)
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // 3. Texto descriptivo
+              const Text(
+                "Necesitas iniciar sesión o crear una cuenta para acceder a tus recuerdos y favoritos.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black54, fontSize: 15),
+              ),
+              const SizedBox(height: 24),
+
+              // 4. Botones
+              Column(
+                children: [
+                  // Botón "Seguir Explorando" (Cierra el diálogo)
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text(
+                      "Seguir Explorando",
+                      style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Botón "Iniciar Sesión" (Te lleva al login)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx); // Cierra diálogo
+                        context.push('/login'); // Navega al login
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00BCD4),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text("Iniciar Sesión", style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              )
+            ],
+          ),
         ),
-    };
+      ),
+    );
+  }
+
+  // Función auxiliar para verificar login antes de cambiar filtro
+  void _intentarCambiarFiltro(int indice) {
+    final mapaVM = context.read<MapaVM>();
+    final authVM = context.read<AutenticacionVM>();
+
+    if (indice == 0) {
+      // "Explorar" siempre es público
+      mapaVM.cambiarFiltro(0);
+    } else {
+      // "Recuerdos" (1) y "Favoritos" (2) requieren Login
+      if (authVM.usuarioActual != null) {
+        mapaVM.cambiarFiltro(indice);
+      } else {
+        _mostrarDialogoBloqueo(context);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mapaVM = context.watch<MapaVM>();
+    final theme = Theme.of(context);
+
+    if (mapaVM.lugarSeleccionado != null && !_cardAnimController.isCompleted) {
+      _cardAnimController.forward();
+    } else if (mapaVM.lugarSeleccionado == null && _cardAnimController.isCompleted) {
+      _cardAnimController.reverse();
+    }
 
     return Scaffold(
       body: Stack(
         children: [
-          // 1. EL MAPA DE FONDO
-          GoogleMap(
-            initialCameraPosition: _posicionInicial,
-            markers: allMarkers,
-            polylines: vmMapa.polylines,
-            mapType: vmMapa.currentMapType,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            zoomGesturesEnabled: true, // Habilitar zoom con gestos y botones
-            compassEnabled: false,
-            onMapCreated: (GoogleMapController controller) {
-              if (mounted) vmMapa.setNewMapController(controller);
-            },
-            onTap: (_) => vmMapa.cerrarDetalle(),
+          // 1. MAPA
+          FlutterMap(
+            mapController: mapaVM.mapController,
+            options: MapOptions(
+              initialCenter: const LatLng(-13.5167, -71.9781),
+              initialZoom: 13.0,
+              onTap: (_, __) {
+                if (mapaVM.lugarSeleccionado != null) {
+                  _cardAnimController.reverse().then((_) => mapaVM.cerrarDetalle());
+                }
+              },
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              ),
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: _obtenerUrlMapa(),
+                userAgentPackageName: 'com.xplorecusco.app',
+                subdomains: const ['a', 'b', 'c'],
+                tileProvider: CachedTileProvider(),
+              ),
+              if (mapaVM.polylines.isNotEmpty) PolylineLayer(polylines: mapaVM.polylines),
+              MarkerLayer(markers: mapaVM.markers),
+              const RichAttributionWidget(
+                attributions: [TextSourceAttribution('OpenStreetMap | OpenTopoMap')],
+              ),
+            ],
           ),
 
-          // 2. SPINNER DE CARGA
-          if (vmMapa.estaCargando)
+          // 2. CARGA
+          if (mapaVM.estaCargando)
             Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const Center(child: CircularProgressIndicator()),
+              color: Colors.black12,
+              child: const Center(child: CircularProgressIndicator(color: Colors.white)),
             ),
 
-          // 3. FILTROS FLOTANTES (Superior)
+          // 3. BARRA FILTROS (CON VERIFICACIÓN DE LOGIN)
           Positioned(
-            top: topPadding + 10,
-            left: 0,
-            right: 0,
+            top: 50, left: 0, right: 0,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildFilterChip(context, 'Explorar Todo', 0, vmMapa),
+                  // Filtro 0: Explorar (Público)
+                  FiltroChip(
+                      label: "Explorar",
+                      icon: Icons.map,
+                      isSelected: mapaVM.filtroActual == 0,
+                      onTap: () => _intentarCambiarFiltro(0) // <--- Cambio aquí
+                  ),
                   const SizedBox(width: 8),
-                  _buildFilterChip(context, '📸 Mis Recuerdos', 1, vmMapa),
+
+                  // Filtro 1: Recuerdos (Privado)
+                  FiltroChip(
+                      label: "Recuerdos",
+                      icon: Icons.photo_camera,
+                      isSelected: mapaVM.filtroActual == 1,
+                      onTap: () => _intentarCambiarFiltro(1) // <--- Cambio aquí
+                  ),
                   const SizedBox(width: 8),
-                  _buildFilterChip(context, '❤️ Por Visitar', 2, vmMapa),
+
+                  // Filtro 2: Favoritos (Privado)
+                  FiltroChip(
+                      label: "Por Visitar",
+                      icon: Icons.favorite,
+                      isSelected: mapaVM.filtroActual == 2,
+                      onTap: () => _intentarCambiarFiltro(2) // <--- Cambio aquí
+                  ),
                 ],
               ),
             ),
           ),
 
-          // 4. BOTONES LATERALES (Derecha)
+          // 4. BOTONES FLOTANTES
           Positioned(
-            top: topPadding + 80,
             right: 16,
+            bottom: mapaVM.lugarSeleccionado != null ? 350 : 120,
             child: Column(
               children: [
                 FloatingActionButton.small(
-                  heroTag: 'map_type',
+                  heroTag: "btn_layers",
+                  onPressed: _alternarTipoMapa,
                   backgroundColor: Colors.white,
-                  child: Icon(
-                    vmMapa.currentMapType == MapType.normal
-                        ? Icons.satellite_alt
-                        : Icons.map_outlined,
-                    color: Colors.black87,
-                  ),
-                  onPressed: vmMapa.toggleMapType,
+                  child: Icon(_verRelieve ? Icons.landscape : Icons.layers, color: Colors.black87),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 FloatingActionButton.small(
-                  heroTag: 'gps',
+                  heroTag: "btn_gps",
+                  onPressed: () => mapaVM.enfocarMiUbicacion(),
                   backgroundColor: Colors.white,
-                  child: const Icon(Icons.my_location, color: Colors.black87),
-                  onPressed: vmMapa.enfocarMiUbicacion,
+                  child: Icon(Icons.my_location, color: theme.colorScheme.primary),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 8),
                 FloatingActionButton.small(
-                  heroTag: 'zoom_in',
+                  heroTag: "btn_zoom_in",
+                  onPressed: () => mapaVM.zoomIn(),
                   backgroundColor: Colors.white,
                   child: const Icon(Icons.add, color: Colors.black87),
-                  onPressed: vmMapa.zoomIn,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 FloatingActionButton.small(
-                  heroTag: 'zoom_out',
+                  heroTag: "btn_zoom_out",
+                  onPressed: () => mapaVM.zoomOut(),
                   backgroundColor: Colors.white,
                   child: const Icon(Icons.remove, color: Colors.black87),
-                  onPressed: vmMapa.zoomOut,
                 ),
               ],
             ),
           ),
 
-          // 5. CAPA DE FONDO OSCURO (Animación FADE)
-          // Esta capa solo oscurece, no contiene la foto
-          Positioned.fill(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: vmMapa.lugarSeleccionado != null
-                  ? GestureDetector(
-                      onTap: () => vmMapa.cerrarDetalle(),
-                      child: Container(
-                        key: const ValueKey('background_overlay'),
-                        color: Colors.black.withOpacity(0.6),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
-
-          // 6. CAPA DE LA POLAROID (Animación SCALE/CRECER)
-          Positioned.fill(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              reverseDuration: const Duration(milliseconds: 300),
-              // Curva "Rebote" para que se sienta que crece con energía
-              switchInCurve: Curves.easeOutBack,
-              switchOutCurve: Curves.easeInBack,
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return ScaleTransition(
-                  scale: animation,
-                  child: FadeTransition(opacity: animation, child: child),
-                );
-              },
-              child: vmMapa.lugarSeleccionado != null
-                  ? _buildPolaroidCard(
-                      context,
-                      vmMapa.lugarSeleccionado!,
-                      vmMapa,
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- WIDGETS AUXILIARES ---
-
-  Widget _buildFilterChip(
-    BuildContext context,
-    String label,
-    int index,
-    MapaVM vm,
-  ) {
-    final bool isSelected = vm.filtroActual == index;
-    final colorPrimario = Theme.of(context).colorScheme.primary;
-
-    return GestureDetector(
-      onTap: () => vm.cambiarFiltro(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? colorPrimario : Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- DISEÑO POLAROID FINAL (Centrado) ---
-  Widget _buildPolaroidCard(BuildContext context, Lugar lugar, MapaVM vm) {
-    // Usamos Key para que AnimatedSwitcher sepa que es el mismo widget
-    return Center(
-      key: ValueKey(lugar.id),
-      child: Transform.rotate(
-        angle: -0.05, // Inclinación "casual"
-        child: Stack(
-          clipBehavior: Clip
-              .none, // Para que el botón de cerrar pueda salirse si queremos
-          children: [
-            Container(
-              width:
-                  MediaQuery.of(context).size.width *
-                  0.80, // Ancho de la Polaroid
-              // Padding asimétrico: Mucho espacio abajo para "escribir"
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(
-                  4,
-                ), // Bordes casi rectos (papel)
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    blurRadius: 25,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 1. LA FOTO (Cuadrada)
-                  AspectRatio(
-                    aspectRatio: 1.0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        border: Border.all(
-                          color: Colors.grey.shade300,
-                          width: 1,
-                        ),
-                      ),
-                      child: Image.network(
-                        lugar.urlImagen,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.broken_image,
-                          color: Colors.grey,
-                          size: 50,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 2. TEXTO MANUSCRITO (Nombre)
-                  Text(
-                    lugar.nombre,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Serif', // Fuente clásica
-                      fontStyle: FontStyle.italic, // Simula escritura
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // 3. DETALLES PEQUEÑOS
-                  Text(
-                    " • ${lugar.rating} ★",
-                    style: TextStyle(
-                      fontFamily: 'Serif',
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // 4. BOTÓN "VER DETALLES" (Discreto)
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        // Navegar al detalle real
-                        context.push('/inicio/detalle-lugar', extra: lugar);
-                        // Opcional: Cerrar el popup después de navegar
-                        // vm.cerrarDetalle();
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black87,
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text("Ver Detalles del Recuerdo"),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Botón de cerrar (X) flotando en la esquina
+          // 5. TARJETA POLAROID
+          if (mapaVM.lugarSeleccionado != null)
             Positioned(
-              top: -10,
-              right: -10,
-              child: GestureDetector(
-                onTap: () => vm.cerrarDetalle(),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: Colors.black87,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close, color: Colors.white, size: 20),
+              bottom: 30, left: 20, right: 20,
+              child: ScaleTransition(
+                scale: _cardScaleAnimation,
+                child: TarjetaPolaroid(
+                  lugar: mapaVM.lugarSeleccionado!,
+                  onCerrar: () {
+                    _cardAnimController.reverse().then((_) => mapaVM.cerrarDetalle());
+                  },
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

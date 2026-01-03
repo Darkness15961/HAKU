@@ -18,12 +18,14 @@ dependencies:
   path: ^1.9.0
   url_launcher: ^6.3.1
   flutter_cache_manager: ^3.3.1
+
   # UI y Diseño
   flutter_native_splash: ^2.4.0
   cupertino_icons: ^1.0.8
   lottie: ^3.1.0
   flutter_staggered_animations: ^1.0.0
   cached_network_image: ^3.3.0
+  intl: ^0.19.0
 
   # Gestión de Estado y Rutas
   provider: ^6.1.1
@@ -34,27 +36,23 @@ dependencies:
   dio: ^5.4.0
   flutter_secure_storage: ^9.0.0
   shared_preferences: ^2.3.3
+  http: ^1.2.0
 
   # Backend
   supabase_flutter: ^2.0.0
-
-  #google
   google_sign_in: ^6.2.1
 
-  # Mapas y Geolocalización
-  google_maps_flutter: ^2.5.0
+  # Mapas y Geolocalización (OSM)
   geolocator: ^11.0.0
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
 
-  # Firebase (Si aún lo usas, si no, puedes quitarlos)
-  firebase_core: ^2.15.0
-  firebase_storage: ^11.2.0
-  intl: ^0.19.0
+
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  # AQUÍ SOLO VA LA VERSIÓN DE LA LIBRERÍA
   flutter_launcher_icons: ^0.13.1
 
 flutter:
@@ -68,16 +66,14 @@ flutter:
     - assets/imagenes/mapa_textura.png
     # - assets/animaciones/viaje.json
 
-# --- CONFIGURACIONES DE PAQUETES (AL FINAL DEL ARCHIVO) ---
+# --- CONFIGURACIONES ---
 
-# 1. Configuración del Icono de la App (Launcher Icon)
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/logoHaku1.png"
   min_sdk_android: 21
 
-# 2. Configuración de la Pantalla de Carga (Splash Screen)
 flutter_native_splash:
   color: "#121212"
   image: assets/logoAppconvertido.jpeg

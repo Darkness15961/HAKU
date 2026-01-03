@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+/* import 'package:google_maps_flutter/google_maps_flutter.dart';  */
+
+import 'package:latlong2/latlong.dart';
+
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/lugar.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/presentacion/vista_modelos/lugares_vm.dart';
