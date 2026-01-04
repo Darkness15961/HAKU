@@ -1,29 +1,32 @@
 class Usuario {
   final String id;
-  final String seudonimo; // Cambiado de 'nombre'
-  final String? nombres; // NUEVO - se llenará con API RENIEC
-  final String? apellidoPaterno; // NUEVO - se llenará con API RENIEC
-  final String? apellidoMaterno; // NUEVO - se llenará con API RENIEC
-  final String? tipoDocumento; // NUEVO - 'DNI' o 'CE'
+  final String seudonimo;
+  final String? nombres;
+  final String? apellidoPaterno;
+  final String? apellidoMaterno;
+  final String? tipoDocumento;
   final String email;
-  final String rol; // 'turista', 'guia_local', 'admin'
+  final String rol;
   final String? urlFotoPerfil;
-  final String? dni; // Nuevo
+  final String? dni;
 
   // Gestión de Guías
-  final String? solicitudEstado; // 'pendiente', 'aprobado', 'rechazado'
+  final String? solicitudEstado;
   final String? solicitudExperiencia;
   final String? solicitudCertificadoUrl;
 
-  final String token; // Token de sesión de Supabase
+  final String token;
+
+  // NUEVO: Aquí guardamos los IDs de las rutas donde está inscrito
+  final List<String> rutasInscritas;
 
   Usuario({
     required this.id,
-    required this.seudonimo, // Cambiado de 'nombre'
-    this.nombres, // NUEVO
-    this.apellidoPaterno, // NUEVO
-    this.apellidoMaterno, // NUEVO
-    this.tipoDocumento, // NUEVO
+    required this.seudonimo,
+    this.nombres,
+    this.apellidoPaterno,
+    this.apellidoMaterno,
+    this.tipoDocumento,
     required this.email,
     required this.rol,
     this.urlFotoPerfil,
@@ -32,15 +35,16 @@ class Usuario {
     this.solicitudExperiencia,
     this.solicitudCertificadoUrl,
     required this.token,
+    this.rutasInscritas = const [], // Por defecto inicia vacía
   });
 
   Usuario copyWith({
     String? id,
-    String? seudonimo, // Cambiado de 'nombre'
-    String? nombres, // NUEVO
-    String? apellidoPaterno, // NUEVO
-    String? apellidoMaterno, // NUEVO
-    String? tipoDocumento, // NUEVO
+    String? seudonimo,
+    String? nombres,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
+    String? tipoDocumento,
     String? email,
     String? rol,
     String? urlFotoPerfil,
@@ -49,23 +53,24 @@ class Usuario {
     String? solicitudExperiencia,
     String? solicitudCertificadoUrl,
     String? token,
+    List<String>? rutasInscritas, // Para poder actualizar la lista
   }) {
     return Usuario(
       id: id ?? this.id,
-      seudonimo: seudonimo ?? this.seudonimo, // Cambiado de 'nombre'
-      nombres: nombres ?? this.nombres, // NUEVO
-      apellidoPaterno: apellidoPaterno ?? this.apellidoPaterno, // NUEVO
-      apellidoMaterno: apellidoMaterno ?? this.apellidoMaterno, // NUEVO
-      tipoDocumento: tipoDocumento ?? this.tipoDocumento, // NUEVO
+      seudonimo: seudonimo ?? this.seudonimo,
+      nombres: nombres ?? this.nombres,
+      apellidoPaterno: apellidoPaterno ?? this.apellidoPaterno,
+      apellidoMaterno: apellidoMaterno ?? this.apellidoMaterno,
+      tipoDocumento: tipoDocumento ?? this.tipoDocumento,
       email: email ?? this.email,
       rol: rol ?? this.rol,
       urlFotoPerfil: urlFotoPerfil ?? this.urlFotoPerfil,
       dni: dni ?? this.dni,
       solicitudEstado: solicitudEstado ?? this.solicitudEstado,
       solicitudExperiencia: solicitudExperiencia ?? this.solicitudExperiencia,
-      solicitudCertificadoUrl:
-          solicitudCertificadoUrl ?? this.solicitudCertificadoUrl,
+      solicitudCertificadoUrl: solicitudCertificadoUrl ?? this.solicitudCertificadoUrl,
       token: token ?? this.token,
+      rutasInscritas: rutasInscritas ?? this.rutasInscritas,
     );
   }
 }

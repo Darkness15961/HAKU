@@ -3,7 +3,6 @@ import '../../dominio/repositorios/autenticacion_repositorio.dart';
 import '../../dominio/entidades/usuario.dart';
 import '../../../../locator.dart';
 
-// --- NUEVOS IMPORTS PARA GOOGLE (AGREGA ESTOS DOS) ---
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -38,7 +37,6 @@ class AutenticacionVM extends ChangeNotifier {
 
   List<Usuario> get usuariosTotales => _usuariosTotales;
 
-  // Getter para verificar si el usuario tiene nombre completo validado
   bool get tieneNombreCompleto {
     if (_usuarioActual == null) return false;
     return _usuarioActual!.nombres != null &&
@@ -60,9 +58,12 @@ class AutenticacionVM extends ChangeNotifier {
     _usuarioActual = await _repositorio.verificarEstadoSesion();
 
     if (_usuarioActual != null) {
-      _lugaresFavoritosIds = ['l2'];
-      _rutasInscritasIds = ['r2'];
-      _rutasFavoritasIds = ['r2'];
+      // CORRECCIÓN: Usamos los datos REALES del usuario, no listas inventadas ['r2']
+      _rutasInscritasIds = List.from(_usuarioActual!.rutasInscritas);
+
+      // Favoritos los dejamos vacíos por ahora (hasta que implementes su backend)
+      _lugaresFavoritosIds = [];
+      _rutasFavoritasIds = [];
 
       if (esAdmin) {
         await cargarSolicitudesPendientes();
@@ -82,9 +83,12 @@ class AutenticacionVM extends ChangeNotifier {
     try {
       _usuarioActual = await _repositorio.iniciarSesion(email, password);
 
-      _lugaresFavoritosIds = ['l2'];
-      _rutasInscritasIds = ['r2'];
-      _rutasFavoritasIds = ['r2'];
+      // CORRECCIÓN: Aquí también cargamos los datos reales al loguearse
+      if (_usuarioActual != null) {
+        _rutasInscritasIds = List.from(_usuarioActual!.rutasInscritas);
+      }
+      _lugaresFavoritosIds = [];
+      _rutasFavoritasIds = [];
 
       if (esAdmin) {
         await cargarSolicitudesPendientes();
@@ -119,6 +123,7 @@ class AutenticacionVM extends ChangeNotifier {
     _usuariosTotales = [];
   }
 
+  // Métodos Toggle: Actualizan la lista en memoria para que la UI reaccione rápido
   Future<void> toggleLugarFavorito(String lugarId) async {
     if (_lugaresFavoritosIds.contains(lugarId)) {
       _lugaresFavoritosIds.remove(lugarId);
@@ -147,15 +152,15 @@ class AutenticacionVM extends ChangeNotifier {
   }
 
   Future<bool> registrarUsuario(
-    String seudonimo,
-    String email,
-    String password,
-    String documentoIdentidad,
-    String tipoDocumento,
-    String? nombres,
-    String? apellidoPaterno,
-    String? apellidoMaterno,
-  ) async {
+      String seudonimo,
+      String email,
+      String password,
+      String documentoIdentidad,
+      String tipoDocumento,
+      String? nombres,
+      String? apellidoPaterno,
+      String? apellidoMaterno,
+      ) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
@@ -171,53 +176,32 @@ class AutenticacionVM extends ChangeNotifier {
         apellidoPaterno,
         apellidoMaterno,
       );
-      _limpiarDatosUsuario();
+      _limpiarDatosUsuario(); // Un usuario nuevo empieza limpio
       _estaCargando = false;
       notifyListeners();
       return true;
     } on AuthException catch (e) {
-      // 1. Captura OFICIAL de Supabase
-      // A veces el error no viene en el 'code', sino en el 'message'
       final mensaje = e.message.toLowerCase();
-
       if (e.code == 'user_already_exists' ||
           mensaje.contains('already registered') ||
           mensaje.contains('ya esta registrado')) {
-        // MENSAJE PRO: Damos la pista de Google
-        _error =
-            '⚠️ Este correo ya tiene cuenta (quizás usaste Google). Intenta iniciar sesión(o la opción: olvidaste contraseña).';
+        _error = '⚠️ Este correo ya tiene cuenta. Intenta iniciar sesión.';
       } else {
         _error = 'Error de registro: ${e.message}';
       }
-
       _estaCargando = false;
       notifyListeners();
       return false;
     } catch (e) {
-      // 2. Captura GENÉRICA "DETECTIVA" 🕵️‍♂️
       final mensajeError = e.toString().toLowerCase();
-
-      // Imprimimos el error para que tú lo veas (opcional)
-      print("❌ Error detectado: $mensajeError");
-
       if (mensajeError.contains('already') ||
           mensajeError.contains('exists') ||
-          mensajeError.contains('registrado') ||
-          mensajeError.contains('duplicate') ||
           mensajeError.contains('unique') ||
-          mensajeError.contains('violation') ||
-          mensajeError.contains('pk_users') ||
-          // --- AQUÍ ESTÁN LAS NUEVAS VACUNAS CONTRA EL ERROR 23503 ---
-          mensajeError.contains('foreign key') ||
-          mensajeError.contains('constraint') ||
-          mensajeError.contains('23503')) {
-        _error =
-            '⚠️ Este correo ya tiene cuenta (quizás usaste Google). Intenta iniciar sesión(o la opción: olvidaste contraseña).';
+          mensajeError.contains('constraint')) {
+        _error = '⚠️ Este correo ya tiene cuenta. Intenta iniciar sesión.';
       } else {
-        // Si sale algo que NO es lo anterior, mostramos el error técnico
         _error = 'Ocurrió un error inesperado. Inténtalo de nuevo.';
       }
-
       _estaCargando = false;
       notifyListeners();
       return false;
@@ -225,9 +209,9 @@ class AutenticacionVM extends ChangeNotifier {
   }
 
   Future<bool> solicitarSerGuia(
-    String experiencia,
-    String rutaCertificado,
-  ) async {
+      String experiencia,
+      String rutaCertificado,
+      ) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
@@ -345,7 +329,6 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- COMPLETAR PERFIL (DNI) ---
   Future<bool> completarPerfil({
     required String dni,
     required String tipoDocumento,
@@ -369,7 +352,6 @@ class AutenticacionVM extends ChangeNotifier {
         apellidoMaterno: apellidoMaterno,
       );
 
-      // Actualizar usuario actual
       _usuarioActual = _usuarioActual!.copyWith(
         dni: dni,
         nombres: nombres,
@@ -388,7 +370,6 @@ class AutenticacionVM extends ChangeNotifier {
     }
   }
 
-  // --- ACTUALIZAR SEUDONIMO ---
   Future<bool> actualizarSeudonimo(String nuevoSeudonimo) async {
     if (_usuarioActual == null) return false;
 
@@ -415,11 +396,10 @@ class AutenticacionVM extends ChangeNotifier {
     }
   }
 
-  // --- CAMBIAR PASSWORD CON VALIDACIÓN ---
   Future<void> cambiarPasswordConValidacion(
-    String passwordActual,
-    String passwordNueva,
-  ) async {
+      String passwordActual,
+      String passwordNueva,
+      ) async {
     if (_usuarioActual == null) {
       throw Exception('No hay usuario autenticado');
     }
@@ -429,10 +409,7 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Primero verificar que la contraseña actual sea correcta
-      // intentando iniciar sesión con ella
       final email = _usuarioActual!.email;
-
       try {
         await Supabase.instance.client.auth.signInWithPassword(
           email: email,
@@ -442,7 +419,6 @@ class AutenticacionVM extends ChangeNotifier {
         throw Exception('La contraseña actual es incorrecta');
       }
 
-      // Si llegamos aquí, la contraseña actual es correcta
       await _repositorio.cambiarPassword(passwordNueva);
 
       _estaCargando = false;
@@ -455,29 +431,23 @@ class AutenticacionVM extends ChangeNotifier {
     }
   }
 
-  // --- LOGIN CON GOOGLE (Implementación de Jhon) ---
   Future<bool> iniciarSesionGoogle() async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
 
     try {
-      // 1. Configuración: TU CLIENT ID DE WEB
-      // (Reemplaza esto con el que copiaste de Google Cloud Console)
       const webClientId =
           '229829788638-qu38q760qutvcaa1hmtg327mkthl7sng.apps.googleusercontent.com';
 
-      // 2. Google Sign In nativo
       final GoogleSignIn googleSignIn = GoogleSignIn(
         serverClientId: webClientId,
       );
 
       await googleSignIn.signOut();
-      // 👆👆 Esto fuerza a que siempre te pregunte qué cuenta usar 👆👆
 
       final googleUser = await googleSignIn.signIn();
 
-      // Si el usuario canceló el login en la ventanita
       if (googleUser == null) {
         _estaCargando = false;
         notifyListeners();
@@ -492,21 +462,16 @@ class AutenticacionVM extends ChangeNotifier {
         throw 'No se encontró el ID Token de Google.';
       }
 
-      // 3. Login en Supabase (Nivel 1: Auth)
       final AuthResponse res = await Supabase.instance.client.auth
           .signInWithIdToken(
-            provider: OAuthProvider.google,
-            idToken: idToken,
-            accessToken: accessToken,
-          );
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
 
-      // 4. Sincronización Manual (Nivel 2: Tabla Perfiles)
       if (res.user != null) {
         await _sincronizarPerfilGoogle(res.user!);
-
-        // 5. ¡TRUCO! Reutilizamos tu lógica existente para cargar el usuario en la app
-        // Esto asegura que _usuarioActual se llene con el formato correcto de tu Entidad
-        await verificarEstadoSesion();
+        await verificarEstadoSesion(); // Esto carga también las rutas inscritas
       }
 
       _estaCargando = false;
@@ -515,15 +480,12 @@ class AutenticacionVM extends ChangeNotifier {
     } catch (e) {
       _estaCargando = false;
       _error = "Error Google: $e";
-      print("❌ Error en Google Login: $e");
       notifyListeners();
       return false;
     }
   }
 
-  // Función privada INTELIGENTE (Respeta tus datos antiguos)
   Future<void> _sincronizarPerfilGoogle(User supabaseUser) async {
-    // 1. CONSULTA: ¿Ya existe este usuario en mi base de datos?
     final datosExistentes = await Supabase.instance.client
         .from('perfiles')
         .select()
@@ -532,55 +494,22 @@ class AutenticacionVM extends ChangeNotifier {
 
     final metadata = supabaseUser.userMetadata;
 
-    // 2. PREPARACIÓN: Usamos tus datos viejos si existen
     final datosPerfil = {
       'id': supabaseUser.id,
       'email': supabaseUser.email,
-
-      // AQUÍ ESTÁ EL TRUCO:
-      // Si ya tienes seudónimo (datosExistentes), ÚSALO. Si no, usa el de Google.
       'seudonimo':
-          datosExistentes?['seudonimo'] ??
+      datosExistentes?['seudonimo'] ??
           metadata?['full_name'] ??
           'Usuario Google',
-
-      // Lo mismo con la foto
       'url_foto_perfil':
-          datosExistentes?['url_foto_perfil'] ?? metadata?['avatar_url'],
-
-      // Si ya eras Admin o Guía, no te baja de rango
+      datosExistentes?['url_foto_perfil'] ?? metadata?['avatar_url'],
       'rol': datosExistentes?['rol'] ?? 'turista',
-
-      // Mantenemos otros datos personales para que no se borren
       'dni': datosExistentes?['dni'],
       'nombres': datosExistentes?['nombres'],
       'apellido_paterno': datosExistentes?['apellido_paterno'],
       'apellido_materno': datosExistentes?['apellido_materno'],
     };
 
-    // 3. ACTUALIZACIÓN: Ahora sí guardamos sin miedo
     await Supabase.instance.client.from('perfiles').upsert(datosPerfil);
   }
-
-  /*
-    // Función privada para hacer el UPSERT (Mezcla de Insertar y Actualizar)
-    Future<void> _sincronizarPerfilGoogle(User supabaseUser) async {
-      final metadata = supabaseUser.userMetadata;
-
-      // Preparamos los datos
-      final datosPerfil = {
-        'id': supabaseUser.id, // Vital para vincular
-        'email': supabaseUser.email,
-        'seudonimo': metadata?['full_name'] ?? 'Usuario Google',
-        'url_foto_perfil': metadata?['avatar_url'],
-        'rol': 'turista', // Rol por defecto
-        // 'dni': null,                     // Google no da DNI, lo dejamos tal cual
-      };
-
-      // Upsert: Si existe actualiza, si no existe crea.
-
-      await Supabase.instance.client.from('perfiles').upsert(datosPerfil);
-    }
-
-     */
 }

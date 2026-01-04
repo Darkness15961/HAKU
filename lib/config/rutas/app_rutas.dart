@@ -1,16 +1,9 @@
+// ... imports ... (los mismos de siempre)
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-
-// VMs
 import 'package:xplore_cusco/caracteristicas/mapa/presentacion/vista_modelos/mapa_vm.dart' as mapa_vm;
-
-// Entidades
-import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';
-import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/lugar.dart';
-import 'package:xplore_cusco/caracteristicas/rutas/dominio/entidades/ruta.dart';
-
-// Páginas
+// ... imports de entidades y paginas ...
 import 'package:xplore_cusco/caracteristicas/splash/presentacion/paginas/splash_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/login_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/registro_pagina.dart';
@@ -45,9 +38,12 @@ import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_crear_lugar_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_gestion_provincias_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/admin_crear_provincia_pagina.dart';
-
-// EL IMPORT CRÍTICO CORREGIDO:
 import 'package:xplore_cusco/caracteristicas/administracion/presentacion/paginas/selector_ubicacion_pagina.dart';
+
+import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/lugar.dart';
+import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';
+import 'package:xplore_cusco/caracteristicas/rutas/dominio/entidades/ruta.dart';
+
 
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'ShellKey');
 
@@ -56,52 +52,24 @@ class AppRutas {
     navigatorKey: mapa_vm.navigatorKey,
     initialLocation: '/',
     routes: [
+      // ... RUTAS SIMPLES (Splash, Login, etc) ...
       GoRoute(path: '/', builder: (context, state) => SplashPagina()),
       GoRoute(path: '/login', builder: (context, state) => const LoginPagina()),
       GoRoute(path: '/registro', builder: (context, state) => const RegistroPagina()),
       GoRoute(path: '/recuperar-contrasena', builder: (context, state) => const RecuperarContrasenaPage()),
-
-      // Admin
       GoRoute(path: '/panel-admin', builder: (context, state) => const AdminDashboardPagina()),
       GoRoute(path: '/admin/gestion-guias', builder: (context, state) => const AdminGestionGuiasPagina()),
       GoRoute(path: '/admin/gestion-cuentas', builder: (context, state) => const AdminGestionCuentasPagina()),
       GoRoute(path: '/admin/gestion-contenido', builder: (context, state) => const AdminGestionContenidoPagina()),
       GoRoute(path: '/admin/gestion-lugares', builder: (context, state) => const AdminGestionLugaresPagina()),
-      GoRoute(
-        path: '/admin/crear-lugar',
-        builder: (context, state) {
-          final lugar = state.extra as Lugar?;
-          return AdminCrearLugarPagina(lugar: lugar);
-        },
-      ),
+      GoRoute(path: '/admin/crear-lugar', builder: (context, state) { final lugar = state.extra as Lugar?; return AdminCrearLugarPagina(lugar: lugar); }),
       GoRoute(path: '/admin/gestion-provincias', builder: (context, state) => const AdminGestionProvinciasPagina()),
-      GoRoute(
-        path: '/admin/crear-provincia',
-        builder: (context, state) {
-          final provincia = state.extra as Provincia?;
-          return AdminCrearProvinciaPagina(provincia: provincia);
-        },
-      ),
-      // RUTA DEL SELECTOR
-      GoRoute(
-        path: '/admin/selector-ubicacion',
-        builder: (context, state) {
-          final LatLng? ubicacionInicial = state.extra as LatLng?;
-          return SelectorUbicacionPagina(ubicacionInicial: ubicacionInicial);
-        },
-      ),
-
-      // Extras
-      GoRoute(
-        path: '/mapa-lugar',
-        builder: (context, state) {
-          final lugar = state.extra as Lugar;
-          return MapaSimplePagina(lugar: lugar);
-        },
-      ),
+      GoRoute(path: '/admin/crear-provincia', builder: (context, state) { final provincia = state.extra as Provincia?; return AdminCrearProvinciaPagina(provincia: provincia); }),
+      GoRoute(path: '/admin/selector-ubicacion', builder: (context, state) { final LatLng? ubicacionInicial = state.extra as LatLng?; return SelectorUbicacionPagina(ubicacionInicial: ubicacionInicial); }),
+      GoRoute(path: '/mapa-lugar', builder: (context, state) { final lugar = state.extra as Lugar; return MapaSimplePagina(lugar: lugar); }),
       GoRoute(path: '/notificaciones', builder: (context, state) => const NotificacionesPagina()),
 
-      // Shell (Barra Inferior)
+      // SHELL (BARRA INFERIOR)
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) {
@@ -112,38 +80,40 @@ class AppRutas {
             path: '/inicio',
             builder: (context, state) => const InicioPagina(),
             routes: [
-              GoRoute(
-                path: 'provincia',
-                builder: (context, state) => ProvinciaLugaresPagina(provincia: state.extra as Provincia),
-              ),
-              GoRoute(
-                path: 'detalle-lugar',
-                builder: (context, state) => DetalleLugarPagina(lugar: state.extra as Lugar),
-              ),
-              GoRoute(
-                path: 'comentarios',
-                builder: (context, state) => ComentariosPagina(lugar: state.extra as Lugar),
-              ),
+              GoRoute(path: 'provincia', builder: (context, state) => ProvinciaLugaresPagina(provincia: state.extra as Provincia)),
+              GoRoute(path: 'detalle-lugar', builder: (context, state) => DetalleLugarPagina(lugar: state.extra as Lugar)),
+              GoRoute(path: 'comentarios', builder: (context, state) => ComentariosPagina(lugar: state.extra as Lugar)),
             ],
           ),
           GoRoute(
             path: '/rutas',
             builder: (context, state) => const RutasPagina(),
             routes: [
+              GoRoute(path: 'detalle-ruta', builder: (context, state) => DetalleRutaPagina(ruta: state.extra as Ruta)),
+              GoRoute(path: 'crear-ruta', builder: (context, state) => CrearRutaPagina(ruta: state.extra as Ruta?)),
+              GoRoute(path: 'crear-sin-guia', builder: (context, state) => const CrearRutaSinGuiaPagina()),
+            ],
+          ),
+
+          // ESTA ES LA RUTA MÁGICA QUE FALTABA
+          GoRoute(
+            path: '/lugares',
+            builder: (context, state) => const SizedBox.shrink(),
+            routes: [
               GoRoute(
-                path: 'detalle-ruta',
-                builder: (context, state) => DetalleRutaPagina(ruta: state.extra as Ruta),
-              ),
-              GoRoute(
-                path: 'crear-ruta',
-                builder: (context, state) => CrearRutaPagina(ruta: state.extra as Ruta?),
-              ),
-              GoRoute(
-                path: 'crear-sin-guia',
-                builder: (context, state) => const CrearRutaSinGuiaPagina(),
+                path: 'detalle-lugar',
+                builder: (context, state) {
+                  if (state.extra is Lugar) {
+                    return DetalleLugarPagina(lugar: state.extra as Lugar);
+                  } else {
+                    // Ahora esto es válido porque DetalleLugarPagina tiene 'lugarId'
+                    return DetalleLugarPagina(lugarId: state.extra as String);
+                  }
+                },
               ),
             ],
           ),
+
           GoRoute(path: '/mapa', builder: (context, state) => const MapaPagina()),
           GoRoute(
             path: '/perfil',

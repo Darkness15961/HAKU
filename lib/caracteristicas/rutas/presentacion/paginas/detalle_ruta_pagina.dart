@@ -5,11 +5,6 @@ import 'package:go_router/go_router.dart';
 // --- MVVM ---
 import '../vista_modelos/rutas_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
-import 'package:geolocator/geolocator.dart';
-import '../../../../core/servicios/imagen_servicio.dart';
-import '../../../inicio/dominio/repositorios/lugares_repositorio.dart';
-import '../../../inicio/datos/repositorios/lugares_repositorio_supabase.dart';
-import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
 import '../../dominio/entidades/ruta.dart';
 
 class DetalleRutaPagina extends StatelessWidget {
@@ -27,15 +22,13 @@ class DetalleRutaPagina extends StatelessWidget {
     return true;
   }
 
-  // --- LÓGICA DE INSCRIPCIÓN CORREGIDA (AHORA ES REAL) ---
+  // --- LÓGICA DE INSCRIPCIÓN ---
   Future<void> _handleRegistration(BuildContext context) async {
-    // 1. Verificamos Login
     if (!_checkAndRedirect(context, 'inscribirte en esta ruta')) return;
 
     final vmAuth = context.read<AutenticacionVM>();
-    final vmRutas = context.read<RutasVM>(); // Leemos el VM de Rutas
+    final vmRutas = context.read<RutasVM>();
 
-    // 2. Validación DNI
     if (!vmAuth.tieneNombreCompleto) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -60,23 +53,15 @@ class DetalleRutaPagina extends StatelessWidget {
 
     try {
       if (estaInscrito) {
-        // --- CASO: CANCELAR RESERVA ---
-        // Usamos 'await' para esperar a que la BD termine
         await vmRutas.salirDeRuta(ruta.id);
-
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Has cancelado tu reserva correctamente.')),
           );
         }
       } else {
-        // --- CASO: INSCRIBIRSE ---
-        // Usamos 'await' para esperar a la BD
         await vmRutas.inscribirseEnRuta(ruta.id);
-
-        // Forzamos una recarga para que el mapa sepa que te uniste
         await vmRutas.cargarRutas();
-
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -87,7 +72,6 @@ class DetalleRutaPagina extends StatelessWidget {
         }
       }
     } catch (e) {
-      // Manejo de errores real
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -99,44 +83,36 @@ class DetalleRutaPagina extends StatelessWidget {
     }
   }
 
-  // --- Helper de Colores (El mismo de la lista para mantener consistencia) ---
+  // --- Helper de Colores y Textos ---
   Color _getColorCategoria(String categoria) {
     final categoriaLower = categoria.toLowerCase().trim();
-
     if (categoriaLower.contains('familiar')) return const Color(0xFF4CAF50);
     if (categoriaLower.contains('cultural')) return const Color(0xFF3F51B5);
     if (categoriaLower.contains('aventura')) return const Color(0xFFFF9800);
     if (categoriaLower.contains('+18')) return const Color(0xFF212121);
     if (categoriaLower.contains('naturaleza')) return const Color(0xFF9C27B0);
     if (categoriaLower.contains('extrema')) return const Color(0xFFD32F2F);
-
     return Colors.grey;
   }
 
   IconData _getIconForCategory(String categoria) {
     final categoriaLower = categoria.toLowerCase().trim();
-
     if (categoriaLower.contains('familiar')) return Icons.family_restroom;
     if (categoriaLower.contains('cultural')) return Icons.museum;
     if (categoriaLower.contains('aventura')) return Icons.hiking;
     if (categoriaLower.contains('+18')) return Icons.local_bar;
     if (categoriaLower.contains('naturaleza')) return Icons.self_improvement;
     if (categoriaLower.contains('extrema')) return Icons.volcano;
-
     return Icons.info_outline;
   }
 
   String _getDescripcionCategoria(String categoria) {
     final categoriaLower = categoria.toLowerCase().trim();
-
-    if (categoriaLower.contains('arqueología')) return 'Exploración de sitios arqueológicos';
     if (categoriaLower.contains('naturaleza')) return 'Experiencias enfocadas en paisajes naturales';
     if (categoriaLower.contains('aventura')) return 'Rutas con actividades dinámicas';
     if (categoriaLower.contains('familiar')) return 'Actividades ideales para todas las edades';
     if (categoriaLower.contains('cultural')) return 'Historia, tradiciones y patrimonio';
-    if (categoriaLower.contains('+18')) return 'Actividades solo para adultos';
     if (categoriaLower.contains('extrema')) return 'Rutas de alta exigencia física';
-
     return 'Experiencia turística única en Cusco';
   }
 
@@ -155,11 +131,11 @@ class DetalleRutaPagina extends StatelessWidget {
 
     final String? usuarioIdActual = vmAuth.usuarioActual?.id;
     final bool esPropietario =
-        esModoPreview ||
-            (vmAuth.estaLogueado && usuarioIdActual == ruta.guiaId);
+        esModoPreview || (vmAuth.estaLogueado && usuarioIdActual == ruta.guiaId);
     final bool esGuia = vmAuth.usuarioActual?.id == ruta.guiaId;
 
     final int cuposDisponibles = ruta.cuposTotales - ruta.inscritosCount;
+    final colorTema = _getColorCategoria(ruta.categoria);
 
     return Scaffold(
       body: CustomScrollView(
@@ -173,10 +149,7 @@ class DetalleRutaPagina extends StatelessWidget {
             leading: IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.black26,
-                  shape: BoxShape.circle,
-                ),
+                decoration: const BoxDecoration(color: Colors.black26, shape: BoxShape.circle),
                 child: const Icon(Icons.arrow_back, color: Colors.white),
               ),
               onPressed: () => context.pop(),
@@ -189,10 +162,7 @@ class DetalleRutaPagina extends StatelessWidget {
                   },
                   icon: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Colors.black26,
-                      shape: BoxShape.circle,
-                    ),
+                    decoration: const BoxDecoration(color: Colors.black26, shape: BoxShape.circle),
                     child: const Icon(Icons.edit, color: Colors.white),
                   ),
                 ),
@@ -208,10 +178,7 @@ class DetalleRutaPagina extends StatelessWidget {
                 },
                 icon: Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: Colors.black26,
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: const BoxDecoration(color: Colors.black26, shape: BoxShape.circle),
                   child: Icon(
                     esFavorita ? Icons.favorite : Icons.favorite_border,
                     color: esFavorita ? Colors.red : Colors.white,
@@ -257,15 +224,11 @@ class DetalleRutaPagina extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.6),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: _getColorCategoria(ruta.categoria), width: 1),
+                                border: Border.all(color: colorTema, width: 1),
                               ),
                               child: Text(
                                 ruta.categoria.toUpperCase(),
-                                style: TextStyle(
-                                  color: _getColorCategoria(ruta.categoria),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
-                                ),
+                                style: TextStyle(color: colorTema, fontWeight: FontWeight.bold, fontSize: 11),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -279,10 +242,7 @@ class DetalleRutaPagina extends StatelessWidget {
                                 children: [
                                   const Icon(Icons.group, color: Colors.white, size: 14),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    '$cuposDisponibles cupos',
-                                    style: const TextStyle(color: Colors.white, fontSize: 11),
-                                  ),
+                                  Text('$cuposDisponibles cupos', style: const TextStyle(color: Colors.white, fontSize: 11)),
                                 ],
                               ),
                             ),
@@ -291,12 +251,7 @@ class DetalleRutaPagina extends StatelessWidget {
                         const SizedBox(height: 10),
                         Text(
                           ruta.nombre,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26.0,
-                            fontWeight: FontWeight.bold,
-                            height: 1.1,
-                          ),
+                          style: const TextStyle(color: Colors.white, fontSize: 26.0, fontWeight: FontWeight.bold, height: 1.1),
                         ),
                         const SizedBox(height: 8),
                         Row(
@@ -324,32 +279,22 @@ class DetalleRutaPagina extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _getColorCategoria(ruta.categoria).withOpacity(0.1),
+                  color: colorTema.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _getColorCategoria(ruta.categoria).withOpacity(0.3)),
+                  border: Border.all(color: colorTema.withOpacity(0.3)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(_getIconForCategory(ruta.categoria), color: _getColorCategoria(ruta.categoria), size: 24),
+                    Icon(_getIconForCategory(ruta.categoria), color: colorTema, size: 24),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            ruta.categoria.toUpperCase(),
-                            style: TextStyle(
-                              color: _getColorCategoria(ruta.categoria),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
+                          Text(ruta.categoria.toUpperCase(), style: TextStyle(color: colorTema, fontWeight: FontWeight.bold, fontSize: 12)),
                           const SizedBox(height: 4),
-                          Text(
-                            _getDescripcionCategoria(ruta.categoria),
-                            style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                          ),
+                          Text(_getDescripcionCategoria(ruta.categoria), style: TextStyle(color: Colors.grey[700], fontSize: 13)),
                         ],
                       ),
                     ),
@@ -462,7 +407,7 @@ class DetalleRutaPagina extends StatelessWidget {
 
               const SizedBox(height: 20),
               _buildSectionTitle('Itinerario'),
-              _buildTimelineItinerary(ruta.lugaresIncluidos),
+              _buildTimelineItinerary(ruta.lugaresIncluidos, ruta.lugaresIncluidosIds, colorTema),
               const SizedBox(height: 120),
             ]),
           ),
@@ -472,7 +417,7 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // --- BOTONES INFERIORES ---
+  // --- WIDGETS AUXILIARES ---
   Widget _buildSmartBottomBar(BuildContext context, Ruta ruta, bool esGuia, bool estaInscrito) {
     final vmRutas = context.read<RutasVM>();
 
@@ -487,17 +432,14 @@ class DetalleRutaPagina extends StatelessWidget {
     }
 
     if (estaInscrito) {
-      // Si ya está inscrito, mostramos opciones de inscrito (Cancelar o Asistencia)
       if (ruta.estado == 'en_curso') {
         return _buildBottomBtn("📍 MARCAR ASISTENCIA", Colors.orange, Icons.location_on, () { vmRutas.marcarAsistencia(ruta.id); });
       } else {
-        // Si es convocatoria, puede cancelar
-        // OJO: Aquí reutilizamos el botón con un estilo diferente o el método buildRegister
         return _buildRegisterButton(
             context,
             context.read<AutenticacionVM>(),
             ruta,
-            estaInscrito: true, // Esto hará que salga "CANCELAR RESERVA"
+            estaInscrito: true,
             cuposDisponibles: 10,
             esPropietario: false,
             esModoPreview: false
@@ -570,11 +512,7 @@ class DetalleRutaPagina extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
+      decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[200]!)),
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: CircleAvatar(
@@ -588,44 +526,84 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  Widget _buildTimelineItinerary(List<String> lugares) {
+  Widget _buildTimelineItinerary(List<String> lugares, List<String> ids, Color colorTema) {
+    if (lugares.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Center(
+          child: Text("La ruta aún no tiene paradas definidas.", style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic)),
+        ),
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Column(
-        children: List.generate(lugares.length, (index) {
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: lugares.length,
+        itemBuilder: (context, index) {
           final isLast = index == lugares.length - 1;
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    width: 12, height: 12,
-                    decoration: BoxDecoration(
-                      color: Colors.black, shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)],
+          final isFirst = index == 0;
+          final String? lugarId = (ids.length > index) ? ids[index] : null;
+
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 40,
+                  child: Column(
+                    children: [
+                      Container(width: 2, height: 20, color: isFirst ? Colors.transparent : colorTema.withOpacity(0.3)),
+                      Container(
+                        width: 32, height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: colorTema, width: 2),
+                          boxShadow: [BoxShadow(color: colorTema.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))],
+                        ),
+                        child: Center(child: Text('${index + 1}', style: TextStyle(color: colorTema, fontWeight: FontWeight.bold, fontSize: 14))),
+                      ),
+                      Expanded(child: Container(width: 2, color: isLast ? Colors.transparent : colorTema.withOpacity(0.3))),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 24.0),
+                    child: InkWell(
+                      // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+                      // Ya descomentamos el código y usamos 'lugarId' para navegar
+                      onTap: () {
+                        if (lugarId != null) {
+                          context.push('/lugares/detalle-lugar', extra: lugarId);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4))],
+                          border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          title: Text(lugares[index], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+                          subtitle: Text(isFirst ? '📍 Punto de Partida' : (isLast ? '🏁 Destino Final' : '✨ Parada de visita'), style: TextStyle(color: isFirst || isLast ? colorTema : Colors.grey[500], fontWeight: isFirst || isLast ? FontWeight.w600 : FontWeight.normal, fontSize: 13)),
+                          trailing: Icon(Icons.arrow_forward_ios_rounded, color: Colors.grey[300], size: 16),
+                        ),
+                      ),
                     ),
                   ),
-                  if (!isLast) Container(width: 2, height: 50, color: Colors.grey[300]),
-                ],
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(lugares[index], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(height: 4),
-                    Text('Parada ${index + 1}', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-                    const SizedBox(height: 30),
-                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           );
-        }),
+        },
       ),
     );
   }
@@ -637,15 +615,7 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  Widget _buildRegisterButton(
-      BuildContext context,
-      AutenticacionVM vmAuth,
-      Ruta ruta, {
-        required bool estaInscrito,
-        required int cuposDisponibles,
-        required bool esPropietario,
-        required bool esModoPreview,
-      }) {
+  Widget _buildRegisterButton(BuildContext context, AutenticacionVM vmAuth, Ruta ruta, {required bool estaInscrito, required int cuposDisponibles, required bool esPropietario, required bool esModoPreview}) {
     final bool isRouteFull = cuposDisponibles <= 0;
     final bool isUserLoggedIn = vmAuth.estaLogueado;
 
@@ -666,7 +636,6 @@ class DetalleRutaPagina extends StatelessWidget {
       buttonText = 'CANCELAR RESERVA';
       buttonColor = Colors.white;
       textColor = Colors.red;
-      // Usamos el handler corregido
       onPressed = () => _handleRegistration(context);
     } else if (isRouteFull) {
       buttonText = 'AGOTADO';
@@ -684,10 +653,7 @@ class DetalleRutaPagina extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
-      ),
+      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]),
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
@@ -704,20 +670,17 @@ class DetalleRutaPagina extends StatelessWidget {
   }
 
   void _showLoginRequiredModal(BuildContext context, String action) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Únete a Haku'),
-          content: Text('Necesitas iniciar sesión para $action.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-            ElevatedButton(onPressed: () { Navigator.pop(context); context.push('/login'); }, child: const Text('Iniciar Sesión')),
-          ],
-        );
-      },
-    );
+    showDialog(context: context, builder: (BuildContext context) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Únete a Haku'),
+        content: Text('Necesitas iniciar sesión para $action.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () { Navigator.pop(context); context.push('/login'); }, child: const Text('Iniciar Sesión')),
+        ],
+      );
+    });
   }
 
   void _showPreviewModeWarning(BuildContext context) {
