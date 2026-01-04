@@ -1,5 +1,5 @@
 // --- CARACTERISTICAS/MAPA/PRESENTACION/VISTA_MODELOS/MAPA_VM.DART ---
-// Versión: CORREGIDA (Sin errores rojos ni amarillos)
+// Versión: DEFINITIVA (Con limpiarRutaPintada y lógica OSRM)
 
 import 'dart:ui' as ui;
 import 'dart:async';
@@ -27,13 +27,11 @@ class MapaVM extends ChangeNotifier {
   // --- A. DEPENDENCIAS ---
   LugaresVM? _lugaresVM;
   AutenticacionVM? _authVM;
-  // Eliminamos _rutasVM porque no lo estábamos usando y daba warning
 
   // --- B. ESTADO ---
   bool _estaCargando = false;
-  // CORRECCIÓN AMARILLA: Agregamos 'final'
   final List<Marker> _markers = [];
-  final List<Polyline> _polylines = [];
+  final List<Polyline> _polylines = []; // Lista para la línea azul
 
   String? _error;
   bool _cargaInicialRealizada = false;
@@ -102,9 +100,13 @@ class MapaVM extends ChangeNotifier {
     iniciarSeguimientoUbicacion();
   }
 
-  // --- LÓGICA DE MARCADORES ---
+  // --- LÓGICA DE MARCADORES (Pines normales) ---
   void _actualizarListasYMarcadores() {
     if (!_cargaInicialRealizada || _lugaresVM == null || _authVM == null) return;
+
+    // Si estamos viendo una ruta específica (OSRM), no sobreescribimos con pines normales
+    if (_carruselActual == TipoCarrusel.rutas) return;
+
     _estaCargando = true;
     notifyListeners();
 
@@ -113,8 +115,10 @@ class MapaVM extends ChangeNotifier {
       final idsFavoritos = _authVM!.lugaresFavoritosIds;
 
       if (_filtroActual == 0) {
+        // Explorar: Todos los lugares
         _lugaresFiltrados = todosLosLugares;
       } else if (_filtroActual == 1) {
+        // Recuerdos
         final recuerdos = _lugaresVM!.misRecuerdos;
         _lugaresFiltrados = recuerdos.map((r) => Lugar(
           id: 'recuerdo_${r.id}',
@@ -131,18 +135,23 @@ class MapaVM extends ChangeNotifier {
           videoTiktokUrl: '',
         )).toList();
       } else if (_filtroActual == 2) {
+        // Favoritos
         _lugaresFiltrados = todosLosLugares.where((l) => idsFavoritos.contains(l.id)).toList();
+      } else if (_filtroActual == 3) {
+        // Mis Rutas: Aquí queremos el mapa LIMPIO por defecto, hasta que toquen una nube.
+        _lugaresFiltrados = [];
       }
 
-      if (_carruselActual != TipoCarrusel.rutas) {
-        _markers.clear();
-        _polylines.clear();
-        for (var lugar in _lugaresFiltrados) {
-          if (lugar.latitud != 0 && lugar.longitud != 0) {
-            _markers.add(_crearWidgetMarcador(lugar));
-          }
+      // Limpiamos y repintamos pines normales
+      _markers.clear();
+      _polylines.clear(); // Limpiamos líneas viejas si cambiamos de filtro
+
+      for (var lugar in _lugaresFiltrados) {
+        if (lugar.latitud != 0 && lugar.longitud != 0) {
+          _markers.add(_crearWidgetMarcador(lugar));
         }
       }
+
       _estaCargando = false;
       notifyListeners();
     } catch (e) {
@@ -176,7 +185,7 @@ class MapaVM extends ChangeNotifier {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(4),
-          boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(2, 2))],
+          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(2, 2))],
         ),
         padding: const EdgeInsets.all(3),
         child: Column(
@@ -203,7 +212,7 @@ class MapaVM extends ChangeNotifier {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(color: esFavorito ? Colors.red : const Color(0xFF00BCD4), width: 3),
-            boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2))],
+            boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2))],
             image: DecorationImage(image: NetworkImage(lugar.urlImagen), fit: BoxFit.cover),
           ),
         ),
@@ -216,10 +225,14 @@ class MapaVM extends ChangeNotifier {
   }
 
   void _manejarTapMarcador(Lugar lugar) {
-    if (_filtroActual == 0) {
+    // Si estamos en modo Rutas, tocar un pin debería mostrar info o nada,
+    // pero por ahora mantenemos el comportamiento de abrir detalle.
+    if (_filtroActual == 0 || _filtroActual == 2) {
+      // Navegar al detalle
       final context = navigatorKey.currentContext;
       if (context != null) context.push('/inicio/detalle-lugar', extra: lugar);
     } else {
+      // En otros modos (Recuerdos, Rutas) mostramos la Polaroid
       _lugarSeleccionado = lugar;
       notifyListeners();
     }
@@ -242,48 +255,77 @@ class MapaVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- LÓGICA DE VISUALIZACIÓN OSRM ---
+  // --- LÓGICA DE VISUALIZACIÓN OSRM (Rutas) ---
+
+  // 1. ESTA ES LA FUNCIÓN QUE FALTABA Y CAUSABA ERROR
+  void limpiarRutaPintada() {
+    _polylines.clear();
+    _markers.clear();
+    _lugarSeleccionado = null;
+    _carruselActual = TipoCarrusel.ninguno;
+
+    // Si estamos en filtro Mis Rutas, dejamos el mapa limpio
+    if (_filtroActual != 3) {
+      // Si estamos en otro filtro, restauramos los pines normales
+      _actualizarListasYMarcadores();
+    } else {
+      notifyListeners();
+    }
+  }
+
+  // 2. Función para pintar la ruta al tocar la nube
   void enfocarRutaEnMapa(Ruta ruta, List<Lugar> todosLosLugares) {
+    _estaCargando = true; // Feedback visual rápido
+    notifyListeners();
+
     _markers.clear();
     _polylines.clear();
 
+    // Filtramos los lugares que pertenecen a esta ruta
     final lugaresRuta = todosLosLugares.where((l) => ruta.lugaresIncluidosIds.contains(l.id)).toList();
 
+    // Ordenamos según el orden en la ruta
     lugaresRuta.sort((a, b) {
       final indexA = ruta.lugaresIncluidosIds.indexOf(a.id);
       final indexB = ruta.lugaresIncluidosIds.indexOf(b.id);
       return indexA.compareTo(indexB);
     });
 
-    if (lugaresRuta.isEmpty) return;
+    if (lugaresRuta.isEmpty) {
+      _estaCargando = false;
+      notifyListeners();
+      return;
+    }
 
+    // A) Creamos marcadores para los puntos de la ruta
     for (var lugar in lugaresRuta) {
       _markers.add(_crearWidgetMarcador(lugar));
     }
 
+    // B) Pintamos la línea (OSRM)
     if (ruta.polilinea.isNotEmpty) {
-      // CASO A: Tenemos datos de OSRM
       _polylines.add(
         Polyline(
           points: ruta.polilinea,
           strokeWidth: 5.0,
-          color: const Color(0xFF00BCD4),
+          color: const Color(0xFF00BCD4), // Azul Cyan
           borderColor: Colors.white,
           borderStrokeWidth: 2.0,
         ),
       );
     } else {
-      // CASO B: Fallback (CORREGIDO: Sin isDotted)
+      // Fallback: Línea recta gris si no hay datos de camino
       final points = lugaresRuta.map((l) => LatLng(l.latitud, l.longitud)).toList();
       _polylines.add(
         Polyline(
           points: points,
           strokeWidth: 4.0,
-          color: Colors.grey, // Línea gris sólida
+          color: Colors.grey,
         ),
       );
     }
 
+    // C) Movemos la cámara
     if (ruta.polilinea.isNotEmpty) {
       final centro = _calcularCentro(ruta.polilinea);
       mapController.move(centro, 12.0);
@@ -294,6 +336,7 @@ class MapaVM extends ChangeNotifier {
     }
 
     _carruselActual = TipoCarrusel.rutas;
+    _estaCargando = false;
     notifyListeners();
   }
 
@@ -308,6 +351,7 @@ class MapaVM extends ChangeNotifier {
     return LatLng(sumLat / puntos.length, sumLng / puntos.length);
   }
 
+  // --- GPS ---
   Future<void> enfocarMiUbicacion() async {
     if (_currentLocation != null) {
       mapController.move(_currentLocation!, 16.0);

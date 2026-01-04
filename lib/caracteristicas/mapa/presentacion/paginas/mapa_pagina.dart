@@ -1,22 +1,19 @@
-// --- CARACTERISTICAS/MAPA/PRESENTACION/PAGINAS/MAPA_PAGINA.DART ---
-// Versión: FINAL (Con Filtro de Rutas y Carrusel OSRM)
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart'; // Para navegar al login
+import 'package:go_router/go_router.dart';
 
-// ViewModel
+// ViewModels
 import '../vista_modelos/mapa_vm.dart';
 import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../../rutas/presentacion/vista_modelos/rutas_vm.dart';
 
-// Entidades (¡Importante para leer las rutas!)
+// Entidades
 import '../../../rutas/dominio/entidades/ruta.dart';
 
-// WIDGETS
+// Widgets
 import '../widgets/tarjeta_polaroid.dart';
 import '../widgets/filtro_chip.dart';
 import '../widgets/cached_tile_provider.dart';
@@ -33,6 +30,9 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
   late Animation<double> _cardScaleAnimation;
   bool _verRelieve = false;
 
+  // 0: Inscritas (Turista), 1: Creadas (Guía)
+  int _subFiltroRuta = 0;
+
   @override
   void initState() {
     super.initState();
@@ -45,10 +45,10 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
       curve: Curves.easeOutBack,
     );
 
+    // Carga inicial de dependencias
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final vmMapa = context.read<MapaVM>();
-        // Le pasamos RutasVM también
         vmMapa.actualizarDependencias(
             context.read<LugaresVM>(),
             context.read<AutenticacionVM>(),
@@ -74,118 +74,76 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
         : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   }
 
-  // --- DIÁLOGO DE BLOQUEO (Tu código original) ---
-  void _mostrarDialogoBloqueo(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE0F7FA), // Cian clarito
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.lock_outline, color: Color(0xFF00BCD4), size: 32),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                "Acción Requerida",
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF00BCD4)
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                "Necesitas iniciar sesión o crear una cuenta para acceder a tus recuerdos, favoritos y rutas.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54, fontSize: 15),
-              ),
-              const SizedBox(height: 24),
-              Column(
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text(
-                      "Seguir Explorando",
-                      style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        context.push('/login');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00BCD4),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text("Iniciar Sesión", style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- LÓGICA DE FILTROS ACTUALIZADA ---
+  // Lógica para cambiar filtro principal
   void _intentarCambiarFiltro(int indice) {
     final mapaVM = context.read<MapaVM>();
     final authVM = context.read<AutenticacionVM>();
 
     if (indice == 0) {
-      // "Explorar" siempre es público
       mapaVM.cambiarFiltro(0);
     } else {
-      // 1: Recuerdos, 2: Favoritos, 3: Rutas -> Requieren Login
       if (authVM.usuarioActual != null) {
         mapaVM.cambiarFiltro(indice);
+        // Si entramos a 'Mis Rutas', reseteamos a 'Inscritas' por defecto
+        if (indice == 3) setState(() => _subFiltroRuta = 0);
       } else {
         _mostrarDialogoBloqueo(context);
       }
     }
   }
 
+  void _mostrarDialogoBloqueo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Acción Requerida"),
+        content: const Text("Necesitas iniciar sesión para ver esta sección."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
+          ElevatedButton(
+            onPressed: () { Navigator.pop(ctx); context.push('/login'); },
+            child: const Text("Iniciar Sesión"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final mapaVM = context.watch<MapaVM>();
-    final rutasVM = context.watch<RutasVM>(); // <--- ESCUCHAMOS RUTAS
+    final rutasVM = context.watch<RutasVM>();
+    final authVM = context.watch<AutenticacionVM>();
     final theme = Theme.of(context);
 
-    // Animación de tarjeta
+    // Animación de tarjeta Polaroid
     if (mapaVM.lugarSeleccionado != null && !_cardAnimController.isCompleted) {
       _cardAnimController.forward();
     } else if (mapaVM.lugarSeleccionado == null && _cardAnimController.isCompleted) {
       _cardAnimController.reverse();
     }
 
-    // Calculamos la posición de los botones flotantes
-    // Si hay tarjeta (Polaroid) o Carrusel de Rutas, subimos los botones.
-    double bottomPositionButtons = 120;
-    if (mapaVM.lugarSeleccionado != null) {
-      bottomPositionButtons = 350; // Altura para Polaroid
-    } else if (mapaVM.filtroActual == 3) {
-      bottomPositionButtons = 200; // Altura para Carrusel de Rutas
+    // PREPARAR LAS LISTAS DE RUTAS
+    List<Ruta> rutasAMostrar = [];
+    if (mapaVM.filtroActual == 3) {
+      if (_subFiltroRuta == 0) {
+        // Inscritas
+        rutasAMostrar = rutasVM.misRutasInscritas;
+      } else {
+        // Creadas (filtramos localmente)
+        final uid = authVM.usuarioActual?.id;
+        if (uid != null) {
+          // CAMBIO AQUÍ: De 'rutasTotales' a 'rutas'
+          // Intenta con este nombre:
+          rutasAMostrar = rutasVM.rutasFiltradas.where((r) => r.guiaId == uid).toList();
+        }
+      }
     }
+
+    // Altura dinámica de los botones flotantes
+    double bottomPositionButtons = 120;
+    if (mapaVM.lugarSeleccionado != null) bottomPositionButtons = 350;
+    else if (mapaVM.filtroActual == 3) bottomPositionButtons = 260;
 
     return Scaffold(
       body: Stack(
@@ -197,119 +155,69 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
               initialCenter: const LatLng(-13.5167, -71.9781),
               initialZoom: 13.0,
               onTap: (_, __) {
+                // Si tocamos el mapa vacío, limpiamos todo
                 if (mapaVM.lugarSeleccionado != null) {
                   _cardAnimController.reverse().then((_) => mapaVM.cerrarDetalle());
+                } else {
+                  mapaVM.limpiarRutaPintada(); // <--- ESTO NECESITA ESTAR EN EL VM
                 }
               },
-              interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-              ),
             ),
             children: [
               TileLayer(
                 urlTemplate: _obtenerUrlMapa(),
                 userAgentPackageName: 'com.xplorecusco.app',
-                subdomains: const ['a', 'b', 'c'],
                 tileProvider: CachedTileProvider(),
               ),
-              // Pintamos la Línea Azul OSRM (si existe)
-              if (mapaVM.polylines.isNotEmpty) PolylineLayer(polylines: mapaVM.polylines),
+              // Línea OSRM (Ruta Azul)
+              if (mapaVM.polylines.isNotEmpty)
+                PolylineLayer(polylines: mapaVM.polylines),
+
               MarkerLayer(markers: mapaVM.markers),
-              const RichAttributionWidget(
-                attributions: [TextSourceAttribution('OpenStreetMap | OpenTopoMap')],
-              ),
             ],
           ),
 
-          // 2. LOADING
           if (mapaVM.estaCargando)
-            Container(
-              color: Colors.black12,
-              child: const Center(child: CircularProgressIndicator(color: Colors.white)),
-            ),
+            const Center(child: CircularProgressIndicator()),
 
-          // 3. BARRA DE FILTROS (Con el nuevo botón "Rutas")
+          // 2. FILTROS SUPERIORES
           Positioned(
             top: 50, left: 0, right: 0,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FiltroChip(
-                      label: "Explorar",
-                      icon: Icons.map,
-                      isSelected: mapaVM.filtroActual == 0,
-                      onTap: () => _intentarCambiarFiltro(0)
-                  ),
+                  FiltroChip(label: "Explorar", icon: Icons.map, isSelected: mapaVM.filtroActual == 0, onTap: () => _intentarCambiarFiltro(0)),
                   const SizedBox(width: 8),
-                  FiltroChip(
-                      label: "Recuerdos",
-                      icon: Icons.photo_camera,
-                      isSelected: mapaVM.filtroActual == 1,
-                      onTap: () => _intentarCambiarFiltro(1)
-                  ),
+                  FiltroChip(label: "Recuerdos", icon: Icons.photo_camera, isSelected: mapaVM.filtroActual == 1, onTap: () => _intentarCambiarFiltro(1)),
                   const SizedBox(width: 8),
-                  FiltroChip(
-                      label: "Por Visitar",
-                      icon: Icons.favorite,
-                      isSelected: mapaVM.filtroActual == 2,
-                      onTap: () => _intentarCambiarFiltro(2)
-                  ),
+                  FiltroChip(label: "Por Visitar", icon: Icons.favorite, isSelected: mapaVM.filtroActual == 2, onTap: () => _intentarCambiarFiltro(2)),
                   const SizedBox(width: 8),
-                  // --- ¡NUEVO FILTRO DE RUTAS! ---
-                  FiltroChip(
-                      label: "Mis Rutas",
-                      icon: Icons.alt_route, // Icono de ruta
-                      isSelected: mapaVM.filtroActual == 3,
-                      onTap: () => _intentarCambiarFiltro(3)
-                  ),
+                  FiltroChip(label: "Mis Rutas", icon: Icons.alt_route, isSelected: mapaVM.filtroActual == 3, onTap: () => _intentarCambiarFiltro(3)),
                 ],
               ),
             ),
           ),
 
-          // 4. BOTONES FLOTANTES (Posición dinámica)
+          // 3. BOTONES FLOTANTES
           Positioned(
-            right: 16,
-            bottom: bottomPositionButtons,
+            right: 16, bottom: bottomPositionButtons,
             child: Column(
               children: [
-                FloatingActionButton.small(
-                  heroTag: "btn_layers",
-                  onPressed: _alternarTipoMapa,
-                  backgroundColor: Colors.white,
-                  child: Icon(_verRelieve ? Icons.landscape : Icons.layers, color: Colors.black87),
-                ),
+                FloatingActionButton.small(heroTag: "btn_layers", onPressed: _alternarTipoMapa, backgroundColor: Colors.white, child: Icon(_verRelieve ? Icons.landscape : Icons.layers, color: Colors.black87)),
                 const SizedBox(height: 8),
-                FloatingActionButton.small(
-                  heroTag: "btn_gps",
-                  onPressed: () => mapaVM.enfocarMiUbicacion(),
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.my_location, color: theme.colorScheme.primary),
-                ),
+                FloatingActionButton.small(heroTag: "btn_gps", onPressed: () => mapaVM.enfocarMiUbicacion(), backgroundColor: Colors.white, child: Icon(Icons.my_location, color: theme.colorScheme.primary)),
                 const SizedBox(height: 8),
-                FloatingActionButton.small(
-                  heroTag: "btn_zoom_in",
-                  onPressed: () => mapaVM.zoomIn(),
-                  backgroundColor: Colors.white,
-                  child: const Icon(Icons.add, color: Colors.black87),
-                ),
+                FloatingActionButton.small(heroTag: "btn_zoom_in", onPressed: () => mapaVM.zoomIn(), backgroundColor: Colors.white, child: const Icon(Icons.add, color: Colors.black87)),
                 const SizedBox(height: 8),
-                FloatingActionButton.small(
-                  heroTag: "btn_zoom_out",
-                  onPressed: () => mapaVM.zoomOut(),
-                  backgroundColor: Colors.white,
-                  child: const Icon(Icons.remove, color: Colors.black87),
-                ),
+                FloatingActionButton.small(heroTag: "btn_zoom_out", onPressed: () => mapaVM.zoomOut(), backgroundColor: Colors.white, child: const Icon(Icons.remove, color: Colors.black87)),
               ],
             ),
           ),
 
-          // 5. CONTENIDO INFERIOR: TARJETA POLAROID O CARRUSEL DE RUTAS
+          // 4. PANELES INFERIORES
           if (mapaVM.lugarSeleccionado != null)
-          // A) MOSTRAR POLAROID (Prioridad Alta)
             Positioned(
               bottom: 30, left: 20, right: 20,
               child: ScaleTransition(
@@ -322,48 +230,75 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                 ),
               ),
             )
-          else if (mapaVM.filtroActual == 3)
-          // B) MOSTRAR CARRUSEL DE RUTAS (Si el filtro es 3)
+          else if (mapaVM.filtroActual == 3) ...[
+            // Switch Inscritas/Creadas
+            Positioned(
+              bottom: 180, left: 0, right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))]),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildSubFiltroItem("Inscritas", 0, theme),
+                      const SizedBox(width: 4),
+                      _buildSubFiltroItem("Creadas", 1, theme),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Carrusel de Nubes (Rutas)
             Positioned(
               bottom: 30, left: 0, right: 0,
-              child: _buildCarruselRutas(context, mapaVM, rutasVM),
+              child: _buildCarruselRutas(context, mapaVM, rutasAMostrar),
             ),
+          ],
         ],
       ),
     );
   }
 
-  // --- NUEVO WIDGET: CARRUSEL DE RUTAS ---
-  Widget _buildCarruselRutas(BuildContext context, MapaVM mapaVM, RutasVM rutasVM) {
-    final misRutas = rutasVM.misRutasInscritas;
+  Widget _buildSubFiltroItem(String label, int index, ThemeData theme) {
+    final isSelected = _subFiltroRuta == index;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _subFiltroRuta = index);
+        context.read<MapaVM>().limpiarRutaPintada(); // Limpia al cambiar tab
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(color: isSelected ? theme.colorScheme.primary : Colors.transparent, borderRadius: BorderRadius.circular(20)),
+        child: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: FontWeight.bold, fontSize: 13)),
+      ),
+    );
+  }
 
-    if (misRutas.isEmpty) {
+  Widget _buildCarruselRutas(BuildContext context, MapaVM mapaVM, List<Ruta> rutas) {
+    if (rutas.isEmpty) {
       return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))],
-        ),
-        child: const Text(
-          "No tienes rutas inscritas.\n¡Ve a Explorar e inscríbete en una!",
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.black87, fontSize: 14),
+        alignment: Alignment.bottomCenter,
+        margin: const EdgeInsets.only(bottom: 20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+          child: Text(_subFiltroRuta == 0 ? "No tienes rutas inscritas" : "No has creado rutas", style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
       );
     }
 
     return SizedBox(
-      height: 140, // Altura del carrusel
+      height: 140,
       child: PageView.builder(
         controller: PageController(viewportFraction: 0.85),
-        itemCount: misRutas.length,
+        itemCount: rutas.length,
         itemBuilder: (context, index) {
-          final ruta = misRutas[index];
+          final ruta = rutas[index];
           return GestureDetector(
             onTap: () {
-              // AL TOCAR: Pintamos la ruta en el mapa
+              // AQUÍ LLAMAMOS A LA FUNCIÓN QUE PINTA
               final lugaresVM = context.read<LugaresVM>();
               mapaVM.enfocarRutaEnMapa(ruta, lugaresVM.lugaresTotales);
             },
@@ -372,49 +307,17 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 color: Colors.white,
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))],
-                image: DecorationImage(
-                  image: NetworkImage(ruta.urlImagenPrincipal),
-                  fit: BoxFit.cover,
-                  // Oscurecemos un poco la imagen para que se lea el texto
-                  colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.3), BlendMode.darken),
-                ),
+                image: DecorationImage(image: NetworkImage(ruta.urlImagenPrincipal), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.3), BlendMode.darken)),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      ruta.nombre,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.directions_car, color: Colors.cyanAccent, size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          ruta.distanciaMetros > 0
-                              ? "${(ruta.distanciaMetros / 1000).toStringAsFixed(1)} km"
-                              : "Ver recorrido",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-                          ),
-                        ),
-                      ],
-                    )
+                    Text(ruta.nombre, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text("${(ruta.distanciaMetros / 1000).toStringAsFixed(1)} km", style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
