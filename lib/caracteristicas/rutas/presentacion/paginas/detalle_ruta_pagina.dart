@@ -27,12 +27,15 @@ class DetalleRutaPagina extends StatelessWidget {
     return true;
   }
 
-  void _handleRegistration(BuildContext context) {
+  // --- LÓGICA DE INSCRIPCIÓN CORREGIDA (AHORA ES REAL) ---
+  Future<void> _handleRegistration(BuildContext context) async {
+    // 1. Verificamos Login
     if (!_checkAndRedirect(context, 'inscribirte en esta ruta')) return;
 
     final vmAuth = context.read<AutenticacionVM>();
+    final vmRutas = context.read<RutasVM>(); // Leemos el VM de Rutas
 
-    // --- VALIDACIÓN DNI: Verificar que el usuario tenga DNI validado ---
+    // 2. Validación DNI
     if (!vmAuth.tieneNombreCompleto) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -52,87 +55,87 @@ class DetalleRutaPagina extends StatelessWidget {
       );
       return;
     }
-    // --- FIN VALIDACIÓN DNI ---
 
     final estaInscrito = vmAuth.rutasInscritasIds.contains(ruta.id);
 
-    if (estaInscrito) {
-      context.read<RutasVM>().salirDeRuta(ruta.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Has cancelado tu registro (Simulado)')),
-      );
-    } else {
-      context.read<RutasVM>().inscribirseEnRuta(ruta.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('¡Registro a la ruta exitoso! (Simulado)'),
-          backgroundColor: Colors.green,
-        ),
-      );
+    try {
+      if (estaInscrito) {
+        // --- CASO: CANCELAR RESERVA ---
+        // Usamos 'await' para esperar a que la BD termine
+        await vmRutas.salirDeRuta(ruta.id);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Has cancelado tu reserva correctamente.')),
+          );
+        }
+      } else {
+        // --- CASO: INSCRIBIRSE ---
+        // Usamos 'await' para esperar a la BD
+        await vmRutas.inscribirseEnRuta(ruta.id);
+
+        // Forzamos una recarga para que el mapa sepa que te uniste
+        await vmRutas.cargarRutas();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Inscripción exitosa! Ahora verás la ruta en tu Mapa.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Manejo de errores real
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString().replaceAll("Exception:", "")}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   // --- Helper de Colores (El mismo de la lista para mantener consistencia) ---
-  // --- REEMPLAZAR ESTE MÉTODO COMPLETO ---
   Color _getColorCategoria(String categoria) {
-    // Convertimos a minúsculas y limpiamos espacios por seguridad
     final categoriaLower = categoria.toLowerCase().trim();
 
-    // Verificamos coincidencias parciales para ser más flexibles
-    if (categoriaLower.contains('familiar'))
-      return const Color(0xFF4CAF50); // Verde
-    if (categoriaLower.contains('cultural'))
-      return const Color(0xFF3F51B5); // Indigo
-    if (categoriaLower.contains('aventura'))
-      return const Color(0xFFFF9800); // Naranja
-    if (categoriaLower.contains('+18')) return const Color(0xFF212121); // Negro
-    if (categoriaLower.contains('naturaleza'))
-      return const Color(0xFF9C27B0); // Morado
-    if (categoriaLower.contains('extrema'))
-      return const Color(0xFFD32F2F); // Rojo
+    if (categoriaLower.contains('familiar')) return const Color(0xFF4CAF50);
+    if (categoriaLower.contains('cultural')) return const Color(0xFF3F51B5);
+    if (categoriaLower.contains('aventura')) return const Color(0xFFFF9800);
+    if (categoriaLower.contains('+18')) return const Color(0xFF212121);
+    if (categoriaLower.contains('naturaleza')) return const Color(0xFF9C27B0);
+    if (categoriaLower.contains('extrema')) return const Color(0xFFD32F2F);
 
-    // Default para datos antiguos o desconocidos
     return Colors.grey;
   }
 
-  // --- AGREGAR ESTE NUEVO MÉTODO ---
   IconData _getIconForCategory(String categoria) {
     final categoriaLower = categoria.toLowerCase().trim();
 
     if (categoriaLower.contains('familiar')) return Icons.family_restroom;
     if (categoriaLower.contains('cultural')) return Icons.museum;
     if (categoriaLower.contains('aventura')) return Icons.hiking;
-    if (categoriaLower.contains('+18'))
-      return Icons.local_bar; // O Icons.nightlife
-    if (categoriaLower.contains('naturaleza'))
-      return Icons.self_improvement; // O Icons.landscape
-    if (categoriaLower.contains('extrema'))
-      return Icons.volcano; // O Icons.warning
+    if (categoriaLower.contains('+18')) return Icons.local_bar;
+    if (categoriaLower.contains('naturaleza')) return Icons.self_improvement;
+    if (categoriaLower.contains('extrema')) return Icons.volcano;
 
     return Icons.info_outline;
   }
 
-  // Obtener descripción de la categoría
   String _getDescripcionCategoria(String categoria) {
     final categoriaLower = categoria.toLowerCase().trim();
 
-    if (categoriaLower.contains('arqueología') ||
-        categoriaLower.contains('arqueologia'))
-      return 'Exploración de sitios arqueológicos, restos históricos y ruinas antiguas';
-    if (categoriaLower.contains('naturaleza'))
-      return 'Experiencias enfocadas en paisajes naturales, flora y fauna';
-    if (categoriaLower.contains('aventura'))
-      return 'Rutas con actividades dinámicas, caminatas y desafíos físicos';
-    if (categoriaLower.contains('familiar'))
-      return 'Actividades ideales para todas las edades y grupos familiares';
-    if (categoriaLower.contains('cultural'))
-      return 'Experiencias basadas en historia, tradiciones y patrimonio cultural';
-    if (categoriaLower.contains('+18') || categoriaLower.contains('exclusiva'))
-      return 'Actividades solo para adultos, como vida nocturna y experiencias premium';
-    if (categoriaLower.contains('relax'))
-      return 'Experiencias diseñadas para desconectar, relajarse y renovar energías';
-    if (categoriaLower.contains('extrema'))
-      return 'Rutas de alta exigencia física o riesgo controlado para aventureros experimentados';
+    if (categoriaLower.contains('arqueología')) return 'Exploración de sitios arqueológicos';
+    if (categoriaLower.contains('naturaleza')) return 'Experiencias enfocadas en paisajes naturales';
+    if (categoriaLower.contains('aventura')) return 'Rutas con actividades dinámicas';
+    if (categoriaLower.contains('familiar')) return 'Actividades ideales para todas las edades';
+    if (categoriaLower.contains('cultural')) return 'Historia, tradiciones y patrimonio';
+    if (categoriaLower.contains('+18')) return 'Actividades solo para adultos';
+    if (categoriaLower.contains('extrema')) return 'Rutas de alta exigencia física';
 
     return 'Experiencia turística única en Cusco';
   }
@@ -153,7 +156,7 @@ class DetalleRutaPagina extends StatelessWidget {
     final String? usuarioIdActual = vmAuth.usuarioActual?.id;
     final bool esPropietario =
         esModoPreview ||
-        (vmAuth.estaLogueado && usuarioIdActual == ruta.guiaId);
+            (vmAuth.estaLogueado && usuarioIdActual == ruta.guiaId);
     final bool esGuia = vmAuth.usuarioActual?.id == ruta.guiaId;
 
     final int cuposDisponibles = ruta.cuposTotales - ruta.inscritosCount;
@@ -179,7 +182,6 @@ class DetalleRutaPagina extends StatelessWidget {
               onPressed: () => context.pop(),
             ),
             actions: [
-              // Botón de editar (solo para el propietario)
               if (esPropietario && !esModoPreview)
                 IconButton(
                   onPressed: () {
@@ -194,7 +196,6 @@ class DetalleRutaPagina extends StatelessWidget {
                     child: const Icon(Icons.edit, color: Colors.white),
                   ),
                 ),
-              // Botón de favorito
               IconButton(
                 onPressed: () {
                   if (esModoPreview) {
@@ -223,63 +224,40 @@ class DetalleRutaPagina extends StatelessWidget {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // A. Imagen de Fondo
                   Image.network(
                     ruta.urlImagenPrincipal,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
                       color: Colors.grey[900],
                       child: const Center(
-                        child: Icon(
-                          Icons.image_not_supported,
-                          size: 60,
-                          color: Colors.grey,
-                        ),
+                        child: Icon(Icons.image_not_supported, size: 60, color: Colors.grey),
                       ),
                     ),
                   ),
-
-                  // B. Gradiente Oscuro (Para que el texto se lea bien)
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.3),
-                          Colors.black.withOpacity(0.9),
-                        ],
-                        stops: const [0.4, 0.7, 1.0],
+                        colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
+                        stops: const [0.4, 1.0],
                       ),
                     ),
                   ),
-
-                  // C. Contenido del Header
                   Positioned(
-                    bottom: 20,
-                    left: 20,
-                    right: 20,
+                    bottom: 20, left: 20, right: 20,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Etiquetas (Chips) Modernas
                         Row(
                           children: [
-                            // Categoria
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.6),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: _getColorCategoria(ruta.categoria),
-                                  width: 1,
-                                ),
+                                border: Border.all(color: _getColorCategoria(ruta.categoria), width: 1),
                               ),
                               child: Text(
                                 ruta.categoria.toUpperCase(),
@@ -291,30 +269,19 @@ class DetalleRutaPagina extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            // Cupos
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(
-                                    Icons.group,
-                                    color: Colors.white,
-                                    size: 14,
-                                  ),
+                                  const Icon(Icons.group, color: Colors.white, size: 14),
                                   const SizedBox(width: 4),
                                   Text(
                                     '$cuposDisponibles cupos',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                    ),
+                                    style: const TextStyle(color: Colors.white, fontSize: 11),
                                   ),
                                 ],
                               ),
@@ -322,8 +289,6 @@ class DetalleRutaPagina extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 10),
-
-                        // Título Grande
                         Text(
                           ruta.nombre,
                           style: const TextStyle(
@@ -334,31 +299,11 @@ class DetalleRutaPagina extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-
-                        // Rating
                         Row(
                           children: [
-                            const Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              ruta.rating.toStringAsFixed(1),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Text(
-                              ' (${ruta.reviewsCount} reseñas)',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
-                            ),
+                            const Icon(Icons.star, color: Colors.amber, size: 18),
+                            Text(" ${ruta.rating.toStringAsFixed(1)} ", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            Text("(${ruta.reviewsCount} reseñas)", style: const TextStyle(color: Colors.white70)),
                           ],
                         ),
                       ],
@@ -375,33 +320,18 @@ class DetalleRutaPagina extends StatelessWidget {
               const SizedBox(height: 20),
               _buildInfoCard(context, ruta, cuposDisponibles: cuposDisponibles),
 
-              // --- DESCRIPCIÓN DE LA CATEGORÍA ---
               Container(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _getColorCategoria(
-                    ruta.categoria,
-                  ).withValues(alpha: 0.1),
+                  color: _getColorCategoria(ruta.categoria).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _getColorCategoria(
-                      ruta.categoria,
-                    ).withValues(alpha: 0.3),
-                    width: 1,
-                  ),
+                  border: Border.all(color: _getColorCategoria(ruta.categoria).withOpacity(0.3)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      _getIconForCategory(ruta.categoria),
-                      color: _getColorCategoria(ruta.categoria),
-                      size: 24,
-                    ),
+                    Icon(_getIconForCategory(ruta.categoria), color: _getColorCategoria(ruta.categoria), size: 24),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -413,17 +343,12 @@ class DetalleRutaPagina extends StatelessWidget {
                               color: _getColorCategoria(ruta.categoria),
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
-                              letterSpacing: 0.5,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             _getDescripcionCategoria(ruta.categoria),
-                            style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 13,
-                              height: 1.4,
-                            ),
+                            style: TextStyle(color: Colors.grey[700], fontSize: 13),
                           ),
                         ],
                       ),
@@ -432,49 +357,29 @@ class DetalleRutaPagina extends StatelessWidget {
                 ),
               ),
 
-              // --- AVISO DE ESTADO (DINÁMICO) ---
               if (ruta.estado != 'convocatoria')
                 Container(
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: ruta.estado == 'en_curso'
-                        ? Colors.green[50]
-                        : Colors.grey[200],
+                    color: ruta.estado == 'en_curso' ? Colors.green[50] : Colors.grey[200],
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: ruta.estado == 'en_curso'
-                          ? Colors.green
-                          : Colors.grey,
-                    ),
+                    border: Border.all(color: ruta.estado == 'en_curso' ? Colors.green : Colors.grey),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        ruta.estado == 'en_curso' ? Icons.live_tv : Icons.flag,
-                        color: ruta.estado == 'en_curso'
-                            ? Colors.green
-                            : Colors.grey[700],
-                      ),
+                      Icon(ruta.estado == 'en_curso' ? Icons.live_tv : Icons.flag, color: ruta.estado == 'en_curso' ? Colors.green : Colors.grey[700]),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          ruta.estado == 'en_curso'
-                              ? "¡Esta ruta está EN CURSO ahora mismo!"
-                              : "Esta ruta ha FINALIZADO",
-                          style: TextStyle(
-                            color: ruta.estado == 'en_curso'
-                                ? Colors.green
-                                : Colors.grey[700],
-                            fontWeight: FontWeight.bold,
-                          ),
+                          ruta.estado == 'en_curso' ? "¡Esta ruta está EN CURSO ahora mismo!" : "Esta ruta ha FINALIZADO",
+                          style: TextStyle(color: ruta.estado == 'en_curso' ? Colors.green : Colors.grey[700], fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-              // --- INFORMACIÓN DEL EVENTO (NUEVO) ---
               if (ruta.fechaEvento != null || ruta.puntoEncuentro != null) ...[
                 const SizedBox(height: 20),
                 _buildSectionTitle('📅 Información del Evento'),
@@ -482,11 +387,7 @@ class DetalleRutaPagina extends StatelessWidget {
                   margin: const EdgeInsets.symmetric(horizontal: 20),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.teal[50]!, Colors.teal[100]!],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    gradient: LinearGradient(colors: [Colors.teal[50]!, Colors.teal[100]!]),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.teal[200]!),
                   ),
@@ -496,48 +397,15 @@ class DetalleRutaPagina extends StatelessWidget {
                       if (ruta.fechaEvento != null) ...[
                         Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.calendar_month,
-                                color: Colors.teal,
-                                size: 28,
-                              ),
-                            ),
+                            const Icon(Icons.calendar_month, color: Colors.teal, size: 28),
                             const SizedBox(width: 16),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Fecha y Hora',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black54,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _formatFechaCompleta(ruta.fechaEvento!),
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  Text(
-                                    _formatHoraCompleta(ruta.fechaEvento!),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.teal[700],
-                                    ),
-                                  ),
+                                  const Text('Fecha y Hora', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                                  Text(_formatFechaCompleta(ruta.fechaEvento!), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  Text(_formatHoraCompleta(ruta.fechaEvento!), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.teal[700])),
                                 ],
                               ),
                             ),
@@ -545,45 +413,17 @@ class DetalleRutaPagina extends StatelessWidget {
                         ),
                       ],
                       if (ruta.puntoEncuentro != null) ...[
-                        if (ruta.fechaEvento != null)
-                          const SizedBox(height: 20),
+                        const SizedBox(height: 20),
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.orange,
-                                size: 28,
-                              ),
-                            ),
+                            const Icon(Icons.location_on, color: Colors.orange, size: 28),
                             const SizedBox(width: 16),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Punto de Encuentro',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black54,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    ruta.puntoEncuentro!,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
+                                  const Text('Punto de Encuentro', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                                  Text(ruta.puntoEncuentro!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                                 ],
                               ),
                             ),
@@ -599,199 +439,76 @@ class DetalleRutaPagina extends StatelessWidget {
               _buildSectionTitle('Organizador'),
               _buildGuideProfile(context, ruta),
 
-              // --- SECCIÓN EQUIPAMIENTO (NUEVO) ---
               if (ruta.equipamiento.isNotEmpty) ...[
                 _buildSectionTitle('🎒 Equipamiento Necesario'),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: ruta.equipamiento
-                        .map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.check,
-                                  size: 16,
-                                  color: Colors.green,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  item,
-                                  style: const TextStyle(fontSize: 15),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                        .toList(),
+                    children: ruta.equipamiento.map((item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(children: [const Icon(Icons.check, size: 16, color: Colors.green), const SizedBox(width: 8), Text(item, style: const TextStyle(fontSize: 15))]),
+                    )).toList(),
                   ),
                 ),
                 const Divider(height: 40),
               ],
 
-              const Divider(
-                height: 40,
-                thickness: 1,
-                indent: 20,
-                endIndent: 20,
-              ),
-
+              const Divider(height: 40, thickness: 1, indent: 20, endIndent: 20),
               _buildSectionTitle('Sobre la Experiencia'),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Text(
-                  ruta.descripcion,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.black87,
-                    height: 1.5,
-                  ),
-                ),
+                child: Text(ruta.descripcion, style: const TextStyle(fontSize: 16, height: 1.5)),
               ),
 
               const SizedBox(height: 20),
               _buildSectionTitle('Itinerario'),
               _buildTimelineItinerary(ruta.lugaresIncluidos),
-
               const SizedBox(height: 120),
             ]),
           ),
         ],
       ),
-
-      // --- BOTÓN INFERIOR INTELIGENTE ---
-      bottomNavigationBar: _buildSmartBottomBar(
-        context,
-        ruta,
-        esGuia,
-        estaInscrito,
-      ),
+      bottomNavigationBar: _buildSmartBottomBar(context, ruta, esGuia, estaInscrito),
     );
   }
 
-  Widget _buildSmartBottomBar(
-    BuildContext context,
-    Ruta ruta,
-    bool esGuia,
-    bool estaInscrito,
-  ) {
+  // --- BOTONES INFERIORES ---
+  Widget _buildSmartBottomBar(BuildContext context, Ruta ruta, bool esGuia, bool estaInscrito) {
     final vmRutas = context.read<RutasVM>();
 
-    // CASO 1: SOY EL GUÍA
     if (esGuia) {
       if (ruta.estado == 'convocatoria') {
-        return _buildBottomBtn(
-          "INICIAR AVENTURA",
-          Colors.green,
-          Icons.play_arrow,
-          () {
-            vmRutas.cambiarEstadoRuta(ruta.id, 'en_curso');
-          },
-        );
+        return _buildBottomBtn("INICIAR AVENTURA", Colors.green, Icons.play_arrow, () { vmRutas.cambiarEstadoRuta(ruta.id, 'en_curso'); });
       } else if (ruta.estado == 'en_curso') {
-        return _buildBottomBtn("FINALIZAR RUTA", Colors.red, Icons.stop, () {
-          vmRutas.cambiarEstadoRuta(ruta.id, 'finalizada');
-        });
+        return _buildBottomBtn("FINALIZAR RUTA", Colors.red, Icons.stop, () { vmRutas.cambiarEstadoRuta(ruta.id, 'finalizada'); });
       } else {
-        return _buildBottomBtn(
-          "RUTA FINALIZADA",
-          Colors.grey,
-          Icons.flag,
-          null,
-        );
+        return _buildBottomBtn("RUTA FINALIZADA", Colors.grey, Icons.flag, null);
       }
     }
 
-    // CASO 2: SOY TURISTA INSCRITO
     if (estaInscrito) {
+      // Si ya está inscrito, mostramos opciones de inscrito (Cancelar o Asistencia)
       if (ruta.estado == 'en_curso') {
-        if (ruta.asistio) {
-          return _buildBottomBtn(
-            "📸 SUBIR RECUERDO",
-            Colors.purple,
-            Icons.camera_alt,
-            () async {
-              // 1. Capturar foto
-              final imagenServicio = ImagenServicio(); // O inyectado
-              final urlFoto = await imagenServicio.seleccionarYSubir(
-                'recuerdos',
-              );
-
-              if (urlFoto != null && context.mounted) {
-                // 2. Obtener ubicación actual
-                final position = await Geolocator.getCurrentPosition();
-
-                // 3. Guardar en BD (Usando el repositorio directamente o vía VM)
-                // Aquí un ejemplo rápido accediendo al repo (idealmente vía RutasVM)
-                final repo =
-                    context.read<LugaresRepositorio>()
-                        as LugaresRepositorioSupabase;
-
-                await repo.crearRecuerdo(
-                  rutaId: ruta.id,
-                  fotoUrl: urlFoto,
-                  latitud: position.latitude,
-                  longitud: position.longitude,
-                  comentario: "¡Recuerdo de ${ruta.nombre}!",
-                );
-
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("¡Recuerdo guardado en tu mapa!"),
-                    ),
-                  );
-
-                  // Recargar para que aparezca en el mapa
-                  context.read<LugaresVM>().cargarMisRecuerdos();
-                }
-              }
-            },
-          );
-        } else {
-          return _buildBottomBtn(
-            "📍 MARCAR ASISTENCIA",
-            Colors.orange,
-            Icons.location_on,
-            () {
-              vmRutas.marcarAsistencia(ruta.id);
-            },
-          );
-        }
-      } else if (ruta.estado == 'finalizada') {
-        return _buildBottomBtn(
-          "VER RECUERDOS",
-          Colors.blue,
-          Icons.photo_album,
-          () {
-            // Ir al mapa filtrado
-          },
-        );
+        return _buildBottomBtn("📍 MARCAR ASISTENCIA", Colors.orange, Icons.location_on, () { vmRutas.marcarAsistencia(ruta.id); });
       } else {
-        // Convocatoria
-        return _buildBottomBtn(
-          "YA ESTÁS INSCRITO",
-          Colors.grey,
-          Icons.check,
-          null,
-        ); // O botón salir
+        // Si es convocatoria, puede cancelar
+        // OJO: Aquí reutilizamos el botón con un estilo diferente o el método buildRegister
+        return _buildRegisterButton(
+            context,
+            context.read<AutenticacionVM>(),
+            ruta,
+            estaInscrito: true, // Esto hará que salga "CANCELAR RESERVA"
+            cuposDisponibles: 10,
+            esPropietario: false,
+            esModoPreview: false
+        );
       }
     }
 
-    // CASO 3: TURISTA NO INSCRITO
     if (ruta.estado != 'convocatoria') {
-      return _buildBottomBtn(
-        "INSCRIPCIONES CERRADAS",
-        Colors.grey,
-        Icons.block,
-        null,
-      );
+      return _buildBottomBtn("INSCRIPCIONES CERRADAS", Colors.grey, Icons.block, null);
     }
 
-    // Botón normal de reservar (tu lógica anterior)
     return _buildRegisterButton(
       context,
       context.read<AutenticacionVM>(),
@@ -803,98 +520,47 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomBtn(
-    String text,
-    Color color,
-    IconData icon,
-    VoidCallback? onTap,
-  ) {
+  Widget _buildBottomBtn(String text, Color color, IconData icon, VoidCallback? onTap) {
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.white,
       child: ElevatedButton.icon(
         onPressed: onTap,
         icon: Icon(icon, color: Colors.white),
-        label: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-        ),
+        label: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(backgroundColor: color, padding: const EdgeInsets.symmetric(vertical: 16)),
       ),
     );
   }
 
-  // --- WIDGETS AUXILIARES REDISEÑADOS ---
-
-  Widget _buildInfoCard(
-    BuildContext context,
-    Ruta ruta, {
-    required int cuposDisponibles,
-  }) {
+  Widget _buildInfoCard(BuildContext context, Ruta ruta, {required int cuposDisponibles}) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildInfoItem(
-            Icons.monetization_on_outlined,
-            'S/ ${ruta.precio.toStringAsFixed(0)}',
-            'Por persona',
-            Colors.green,
-          ),
+          _buildInfoItem(Icons.monetization_on_outlined, 'S/ ${ruta.precio.toStringAsFixed(0)}', 'Por persona', Colors.green),
           Container(width: 1, height: 40, color: Colors.grey[200]),
-          _buildInfoItem(
-            Icons.calendar_today_outlined,
-            '${ruta.dias} Día(s)',
-            'Duración',
-            Colors.blue,
-          ),
+          _buildInfoItem(Icons.calendar_today_outlined, '${ruta.dias} Día(s)', 'Duración', Colors.blue),
           Container(width: 1, height: 40, color: Colors.grey[200]),
-          _buildInfoItem(
-            _getIconForCategory(ruta.categoria), // Icono dinámico
-            ruta.categoria,
-            'Categoría', // Cambiamos 'Nivel' por 'Categoría' que suena mejor
-            _getColorCategoria(
-              ruta.categoria,
-            ), // Usamos el color de la categoría
-          ),
+          _buildInfoItem(_getIconForCategory(ruta.categoria), ruta.categoria, 'Categoría', _getColorCategoria(ruta.categoria)),
         ],
       ),
     );
   }
 
-  Widget _buildInfoItem(
-    IconData icon,
-    String title,
-    String subtitle,
-    Color color,
-  ) {
+  Widget _buildInfoItem(IconData icon, String title, String subtitle, Color color) {
     return Column(
       children: [
         Icon(icon, color: color, size: 28),
         const SizedBox(height: 8),
-        Text(
-          title.toUpperCase(),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        Text(title.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         Text(subtitle, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
       ],
     );
@@ -913,36 +579,15 @@ class DetalleRutaPagina extends StatelessWidget {
         contentPadding: EdgeInsets.zero,
         leading: CircleAvatar(
           radius: 28,
-          backgroundImage: (ruta.guiaFotoUrl.isNotEmpty)
-              ? NetworkImage(ruta.guiaFotoUrl)
-              : null,
-          child: (ruta.guiaFotoUrl.isEmpty)
-              ? Text(ruta.guiaNombre.substring(0, 1))
-              : null,
+          backgroundImage: (ruta.guiaFotoUrl.isNotEmpty) ? NetworkImage(ruta.guiaFotoUrl) : null,
+          child: (ruta.guiaFotoUrl.isEmpty) ? Text(ruta.guiaNombre.substring(0, 1)) : null,
         ),
-        title: Text(
-          ruta.guiaNombre,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        subtitle: Row(
-          children: [
-            Icon(Icons.person, size: 14, color: Colors.grey[600]),
-            const SizedBox(width: 4),
-            Text(
-              'Organizador de la ruta',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
-            ),
-          ],
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.chat_bubble_outline),
-          onPressed: () {},
-        ),
+        title: Text(ruta.guiaNombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        subtitle: const Text("Organizador de la ruta"),
       ),
     );
   }
 
-  // --- ITINERARIO TIPO LÍNEA DE TIEMPO ---
   Widget _buildTimelineItinerary(List<String> lugares) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -956,22 +601,14 @@ class DetalleRutaPagina extends StatelessWidget {
                 children: [
                   Container(
                     margin: const EdgeInsets.only(top: 4),
-                    width: 12,
-                    height: 12,
+                    width: 12, height: 12,
                     decoration: BoxDecoration(
-                      color: Colors.black,
-                      shape: BoxShape.circle,
+                      color: Colors.black, shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                        ),
-                      ],
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)],
                     ),
                   ),
-                  if (!isLast)
-                    Container(width: 2, height: 50, color: Colors.grey[300]),
+                  if (!isLast) Container(width: 2, height: 50, color: Colors.grey[300]),
                 ],
               ),
               const SizedBox(width: 20),
@@ -979,18 +616,9 @@ class DetalleRutaPagina extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      lugares[index],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+                    Text(lugares[index], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
-                    Text(
-                      'Parada ${index + 1}',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                    ),
+                    Text('Parada ${index + 1}', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                     const SizedBox(height: 30),
                   ],
                 ),
@@ -1005,22 +633,19 @@ class DetalleRutaPagina extends StatelessWidget {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      ),
+      child: Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
     );
   }
 
   Widget _buildRegisterButton(
-    BuildContext context,
-    AutenticacionVM vmAuth,
-    Ruta ruta, {
-    required bool estaInscrito,
-    required int cuposDisponibles,
-    required bool esPropietario,
-    required bool esModoPreview,
-  }) {
+      BuildContext context,
+      AutenticacionVM vmAuth,
+      Ruta ruta, {
+        required bool estaInscrito,
+        required int cuposDisponibles,
+        required bool esPropietario,
+        required bool esModoPreview,
+      }) {
     final bool isRouteFull = cuposDisponibles <= 0;
     final bool isUserLoggedIn = vmAuth.estaLogueado;
 
@@ -1041,6 +666,7 @@ class DetalleRutaPagina extends StatelessWidget {
       buttonText = 'CANCELAR RESERVA';
       buttonColor = Colors.white;
       textColor = Colors.red;
+      // Usamos el handler corregido
       onPressed = () => _handleRegistration(context);
     } else if (isRouteFull) {
       buttonText = 'AGOTADO';
@@ -1060,32 +686,19 @@ class DetalleRutaPagina extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
       ),
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: buttonColor,
           foregroundColor: textColor,
-          side: estaInscrito
-              ? const BorderSide(color: Colors.red)
-              : BorderSide.none,
+          side: estaInscrito ? const BorderSide(color: Colors.red) : BorderSide.none,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: estaInscrito ? 0 : 4,
         ),
-        child: Text(
-          buttonText,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        child: Text(buttonText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       ),
     );
   }
@@ -1095,23 +708,12 @@ class DetalleRutaPagina extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Únete a Haku'),
           content: Text('Necesitas iniciar sesión para $action.'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context.push('/login');
-              },
-              child: const Text('Iniciar Sesión'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+            ElevatedButton(onPressed: () { Navigator.pop(context); context.push('/login'); }, child: const Text('Iniciar Sesión')),
           ],
         );
       },
@@ -1119,27 +721,12 @@ class DetalleRutaPagina extends StatelessWidget {
   }
 
   void _showPreviewModeWarning(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Estás en modo vista previa.')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Estás en modo vista previa.')));
   }
 
   String _formatFechaCompleta(DateTime fecha) {
     final dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    final meses = [
-      'Enero',
-      'Febrero',
-      'Marzo',
-      'Abril',
-      'Mayo',
-      'Junio',
-      'Julio',
-      'Agosto',
-      'Septiembre',
-      'Octubre',
-      'Noviembre',
-      'Diciembre',
-    ];
+    final meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     return '${dias[fecha.weekday % 7]}, ${fecha.day} de ${meses[fecha.month - 1]} ${fecha.year}';
   }
 

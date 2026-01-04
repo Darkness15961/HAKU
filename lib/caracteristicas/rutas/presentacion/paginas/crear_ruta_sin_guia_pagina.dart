@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart'; // <--- 1. IMPORT NECESARIO
+
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
 import '../../../inicio/dominio/entidades/lugar.dart';
@@ -51,7 +53,7 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
     final random = Random();
     return List.generate(
       6,
-      (index) => chars[random.nextInt(chars.length)],
+          (index) => chars[random.nextInt(chars.length)],
     ).join();
   }
 
@@ -447,9 +449,9 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
         child: _creando
             ? const CircularProgressIndicator(color: Colors.white)
             : const Text(
-                'Crear Ruta',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+          'Crear Ruta',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
@@ -467,29 +469,29 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
           child: lugaresVM.lugaresTotales.isEmpty
               ? const Center(child: Text('No hay lugares disponibles'))
               : ListView.builder(
-                  itemCount: lugaresVM.lugaresTotales.length,
-                  itemBuilder: (context, index) {
-                    final lugar = lugaresVM.lugaresTotales[index];
-                    final isSelected = _lugaresSeleccionados.contains(lugar);
+            itemCount: lugaresVM.lugaresTotales.length,
+            itemBuilder: (context, index) {
+              final lugar = lugaresVM.lugaresTotales[index];
+              final isSelected = _lugaresSeleccionados.contains(lugar);
 
-                    return CheckboxListTile(
-                      title: Text(lugar.nombre),
-                      subtitle: Text(lugar.descripcion, maxLines: 2),
-                      value: isSelected,
-                      onChanged: (selected) {
-                        setState(() {
-                          if (selected!) {
-                            _lugaresSeleccionados.add(lugar);
-                          } else {
-                            _lugaresSeleccionados.remove(lugar);
-                          }
-                        });
-                        Navigator.pop(context);
-                        _mostrarSelectorLugares();
-                      },
-                    );
-                  },
-                ),
+              return CheckboxListTile(
+                title: Text(lugar.nombre),
+                subtitle: Text(lugar.descripcion, maxLines: 2),
+                value: isSelected,
+                onChanged: (selected) {
+                  setState(() {
+                    if (selected!) {
+                      _lugaresSeleccionados.add(lugar);
+                    } else {
+                      _lugaresSeleccionados.remove(lugar);
+                    }
+                  });
+                  Navigator.pop(context);
+                  _mostrarSelectorLugares();
+                },
+              );
+            },
+          ),
         ),
         actions: [
           TextButton(
@@ -514,6 +516,7 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
     }
   }
 
+  // --- LÓGICA DE CREACIÓN CORREGIDA ---
   Future<void> _crearRuta() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -536,7 +539,6 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
       }
 
       final userId = vmAuth.usuarioActual!.id;
-      print('🔍 Usuario ID: $userId'); // Debug
 
       // Generar código para ruta privada
       String? codigoAcceso;
@@ -547,25 +549,28 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
       // Crear ruta usando datos del primer lugar seleccionado
       final lugarPrincipal = _lugaresSeleccionados.first;
 
-      // Preparar datos para crear la ruta
+      // --- ¡MAPA DE DATOS CORREGIDO! ---
       final datosRuta = {
         'nombre': _nombreController.text,
         'descripcion': _descripcionController.text,
         'categoria': _categoria,
         'precio': double.tryParse(_precioController.text) ?? 0,
-        'cupos_totales': _cuposTotales,
-        'cupos_disponibles': _cuposTotales,
+
+        // CORRECCIÓN 1: Usar 'cupos' (repo) en lugar de 'cupos_totales'
+        'cupos': _cuposTotales,
+
         'dias': 1,
-        'visible':
-            true, // Siempre visible para que aparezca en "Creadas por mí" (filtro por guia_id)
-        'es_privada':
-            _preferenciaPrivacidad ==
-            'privada', // ¡Esto define la privacidad real!
+        'visible': true,
+        'es_privada': _preferenciaPrivacidad == 'privada',
         'guia_id': userId,
         'url_imagen_principal': lugarPrincipal.urlImagen,
-        'lugares_incluidos_ids': _lugaresSeleccionados
-            .map((l) => l.id)
-            .toList(),
+
+        // CORRECCIÓN 2: Usar 'lugaresIds' (repo) en lugar de 'lugares_incluidos_ids'
+        'lugaresIds': _lugaresSeleccionados.map((l) => l.id).toList(),
+
+        // CORRECCIÓN 3: ¡AGREGAR COORDENADAS PARA OSRM!
+        'puntos_coordenadas': _lugaresSeleccionados.map((l) => LatLng(l.latitud, l.longitud)).toList(),
+
         'fecha_evento': _fechaEvento?.toIso8601String(),
         'punto_encuentro': _puntoEncuentroController.text.isNotEmpty
             ? _puntoEncuentroController.text
@@ -574,14 +579,13 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
         if (codigoAcceso != null) 'codigo_acceso': codigoAcceso,
       };
 
-      print('📤 Datos a enviar: $datosRuta'); // Debug
+      print('📤 Datos a enviar: $datosRuta');
 
       await vmRutas.crearRuta(datosRuta);
 
       setState(() => _creando = false);
 
       if (mounted) {
-        // Si es privada, mostrar el código
         if (codigoAcceso != null) {
           _mostrarCodigoAcceso(codigoAcceso);
         } else {
@@ -610,37 +614,18 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
   }
 
   String _formatearFecha(DateTime fecha) {
-    final meses = [
-      'Ene',
-      'Feb',
-      'Mar',
-      'Abr',
-      'May',
-      'Jun',
-      'Jul',
-      'Ago',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dic',
-    ];
+    final meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     return '${fecha.day} ${meses[fecha.month - 1]} ${fecha.year}';
   }
 
   Color _getColorCategoria(String categoria) {
     switch (categoria.toLowerCase()) {
-      case 'familiar':
-        return const Color(0xFF4CAF50);
-      case 'cultural':
-        return const Color(0xFF3F51B5);
-      case 'aventura':
-        return const Color(0xFFFF9800);
-      case 'naturaleza':
-        return const Color(0xFF9C27B0);
-      case 'extrema':
-        return const Color(0xFFD32F2F);
-      default:
-        return Colors.grey;
+      case 'familiar': return const Color(0xFF4CAF50);
+      case 'cultural': return const Color(0xFF3F51B5);
+      case 'aventura': return const Color(0xFFFF9800);
+      case 'naturaleza': return const Color(0xFF9C27B0);
+      case 'extrema': return const Color(0xFFD32F2F);
+      default: return Colors.grey;
     }
   }
 }

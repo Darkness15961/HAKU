@@ -1,19 +1,20 @@
-// --- PIEDRA 5 (RUTAS): EL "MESERO DE RUTAS" (CONECTADO AL CEREBRO Y PERFIL) ---
-//
-// 1. (BUG LÓGICA CORREGIDO): 'inscribirseEnRuta' y 'salirDeRuta'
-//    ahora SÍ llaman al repositorio para actualizar la base de datos
-//    (el Mock), lo que arregla el bug de 'inscritosCount'.
+// --- CARACTERISTICAS/RUTAS/PRESENTACION/VISTA_MODELOS/RUTAS_VM.DART ---
+// Versión: CON CEREBRO OSRM (Calcula la ruta antes de guardar)
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart'; // <--- NUEVO IMPORT (Para manejar coordenadas)
 import '../../dominio/repositorios/rutas_repositorio.dart';
-import '../../datos/repositorios/rutas_repositorio_supabase.dart'; // Importar implementación concreta para cast
+import '../../datos/repositorios/rutas_repositorio_supabase.dart';
 import '../../dominio/entidades/ruta.dart';
 import '../../../../locator.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
+import '../../datos/servicios/osrm_service.dart'; // <--- NUEVO IMPORT (Tu servicio calculadora)
+import '../../../inicio/dominio/entidades/lugar.dart'; // Necesario para acceder a las coordenadas de los lugares
 
 class RutasVM extends ChangeNotifier {
   // --- A. DEPENDENCIAS ---
   late final RutasRepositorio _repositorio;
+  final OsrmService _osrmService = OsrmService(); // <--- Instancia del servicio
   AutenticacionVM? _authVM;
 
   // --- B. ESTADO DE LA UI ---
@@ -24,7 +25,7 @@ class RutasVM extends ChangeNotifier {
   String? _error;
   bool _cargaInicialRealizada = false;
 
-  // --- C. GETTERS ---
+  // --- C. GETTERS (Iguales) ---
   bool get estaCargando => _estaCargando;
   String get pestanaActual => _pestanaActual;
   String get categoriaActual => _categoriaActual;
@@ -41,35 +42,25 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  // --- ¡NUEVO GETTER PARA EL PERFIL! (Paso 2 Acoplado) ---
   List<Ruta> get misRutasInscritas {
-    // 1. Verificamos que el "Cerebro" (AuthVM) esté listo
     if (_authVM == null || !_authVM!.estaLogueado) return [];
-
-    // 2. Obtenemos los IDs del "Cerebro"
     final ids = _authVM!.rutasInscritasIds;
-
-    // 3. Filtramos la lista completa de rutas
-    // (Usamos _rutas, que es la lista principal que carga este VM)
     return _rutas.where((r) => ids.contains(r.id)).toList();
   }
-  // --- FIN DE NUEVO GETTER ---
 
-  // --- D. CONSTRUCTOR (¡LIMPIO!) ---
+  // --- D. CONSTRUCTOR ---
   RutasVM() {
     _repositorio = getIt<RutasRepositorio>();
   }
 
-  // --- E. MÉTODO DE CARGA INICIAL (AHORA ES INTELIGENTE) ---
+  // --- E. MÉTODOS DE CARGA (Iguales) ---
   void cargarDatosIniciales(AutenticacionVM authVM) {
     if (_cargaInicialRealizada) return;
     _authVM = authVM;
-
     if (_authVM?.estaCargando ?? false) {
       _authVM?.addListener(_onAuthReadyParaRutas);
       return;
     }
-
     _iniciarCargaLogica();
   }
 
@@ -103,8 +94,6 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  // --- ¡MÉTODO ACTUALIZADO! ---
-  // ORDEN 1: "Cargar las rutas" (Llama al Repositorio)
   Future<void> cargarRutas() async {
     _estaCargando = true;
     _error = null;
@@ -112,16 +101,11 @@ class RutasVM extends ChangeNotifier {
 
     try {
       String tipoFiltro = 'recomendadas';
-
-      // --- CAMBIO DE LÓGICA ---
       if (_pestanaActual == 'Mis Inscripciones') {
-        // <-- Nombre nuevo
-        tipoFiltro = 'inscritas'; // <-- Filtro nuevo del repo
+        tipoFiltro = 'inscritas';
       } else if (_pestanaActual == 'Creadas por mí') {
         tipoFiltro = 'creadas_por_mi';
       }
-
-      // Llamada al repositorio
       _rutas = await _repositorio.obtenerRutas(tipoFiltro);
     } catch (e) {
       _error = e.toString();
@@ -139,7 +123,7 @@ class RutasVM extends ChangeNotifier {
     super.dispose();
   }
 
-  // --- G. MÉTODOS DE ACCIÓN (¡CONECTADOS AL CEREBRO!) ---
+  // --- G. MÉTODOS DE ACCIÓN ---
 
   void cambiarPestana(String nuevaPestana) {
     if (nuevaPestana == _pestanaActual) return;
@@ -154,34 +138,24 @@ class RutasVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- ¡MÉTODO CORREGIDO! ---
   Future<void> inscribirseEnRuta(String rutaId) async {
-    // 1. Llama al repositorio para actualizar la BD (Mock)
     await _repositorio.inscribirseEnRuta(rutaId);
-    // 2. Llama al "Cerebro" para actualizar la UI
     await _authVM?.toggleRutaInscrita(rutaId);
   }
 
-  // --- ¡NUEVO! INGRESO POR CÓDIGO ---
   Future<void> unirseARutaPorCodigo(String codigo) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
     try {
       if (_repositorio is RutasRepositorioSupabase) {
-        // Asumimos que está implementado en la clase concreta o interfaz
         await _repositorio.unirseARutaPorCodigo(codigo);
       } else {
-        // Fallback si la interfaz ya lo tiene (que es lo ideal)
         await _repositorio.unirseARutaPorCodigo(codigo);
       }
-
       _estaCargando = false;
       notifyListeners();
       await cargarRutas();
-      // Refrescamos también el AuthVM para que salga en "Mis Inscripciones"
-      // (Esto sería mejor si el repo devolviera el ID de la ruta,
-      //  pero por ahora recargamos todo)
     } catch (e) {
       _estaCargando = false;
       _error = e.toString();
@@ -190,54 +164,94 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  // --- ¡MÉTODO CORREGIDO! ---
   Future<void> salirDeRuta(String rutaId) async {
-    // 1. Llama al repositorio para actualizar la BD (Mock)
     await _repositorio.salirDeRuta(rutaId);
-    // 2. Llama al "Cerebro" para actualizar la UI
     await _authVM?.toggleRutaInscrita(rutaId);
   }
 
-  // --- ¡MÉTODO ACTUALIZADO! ---
   Future<void> toggleFavoritoRuta(String rutaId) async {
-    // Llama al nuevo método del "Cerebro".
     await _authVM?.toggleRutaFavorita(rutaId);
   }
 
-  // Este método sí debe llamar al repositorio
+  // --- ¡AQUÍ ESTÁ LA MAGIA OSRM! (Método Modificado) ---
   Future<void> crearRuta(Map<String, dynamic> datosRuta) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
+
     try {
+      // 1. RECUPERAR COORDENADAS
+      // En 'crear_ruta_pagina.dart', estamos pasando 'lugaresIds' (lista de Strings).
+      // Pero para calcular la ruta, necesitamos los objetos Lugar completos (con lat/lng).
+      //
+      // OPCIÓN SEGURA: Si ya tienes los objetos Lugar en la página anterior,
+      // lo ideal sería pasarlos. Pero para no romper tu flujo actual, vamos a
+      // asumir que debemos confiar en los IDs o que 'datosRuta' trae algo más.
+
+      // TRUCO: Como en 'crear_ruta_pagina.dart' tú tienes la lista '_locations',
+      // vamos a hacer un pequeño hack:
+      // Tu UI debería enviar una lista de LatLng en 'datosRuta' bajo una clave temporal.
+      //
+      // Si no lo hace, no podemos calcular.
+      // Asumiremos que agregaste 'puntos_coordenadas' al mapa en el paso anterior.
+      // Si no, el servicio devuelve vacío y no pasa nada malo.
+
+      List<LatLng> puntosParaCalculo = [];
+      if (datosRuta['puntos_coordenadas'] != null) {
+        puntosParaCalculo = datosRuta['puntos_coordenadas'] as List<LatLng>;
+      }
+
+      // 2. LLAMAR A OSRM (El Cerebro)
+      if (puntosParaCalculo.length >= 2) {
+        print('🧠 [RutasVM] Calculando ruta con OSRM...');
+        final resultadoOsrm = await _osrmService.getRutaCompleta(puntosParaCalculo);
+
+        // 3. AGREGAR RESULTADOS AL MAPA PARA SUPABASE
+        // Ojo: jsonEncode lo hace Supabase internamente si le pasas listas simples.
+        // Pero nosotros necesitamos pasar una lista de listas [[lat,lng], [lat,lng]].
+        final List<LatLng> geometria = resultadoOsrm['points'];
+        final List<List<double>> geometriaJson = geometria.map((p) => [p.latitude, p.longitude]).toList();
+
+        datosRuta['geometria_json'] = geometriaJson;
+        datosRuta['distancia_metros'] = resultadoOsrm['distance'];
+        datosRuta['duracion_segundos'] = resultadoOsrm['duration'];
+
+        print('✅ [RutasVM] OSRM terminó. Distancia: ${resultadoOsrm['distance']}m');
+      } else {
+        print('⚠️ [RutasVM] No hay suficientes puntos para calcular ruta.');
+      }
+
+      // 4. GUARDAR EN BASE DE DATOS (Lo de siempre)
       await _repositorio.crearRuta(datosRuta);
+
       _estaCargando = false;
       notifyListeners();
       await cargarRutas();
+
     } catch (e) {
       _estaCargando = false;
       _error = e.toString();
       notifyListeners();
-      // ¡Relanzamos el error para que la UI lo atrape!
       throw Exception(e.toString().replaceFirst("Exception: ", ""));
     }
   }
 
-  // --- ¡NUEVAS FUNCIONES CRUD AÑADIDAS! ---
+  // --- (Resto de métodos CRUD iguales) ---
 
-  /// Actualiza una ruta existente en la base de datos.
   Future<void> actualizarRuta(
-    String rutaId,
-    Map<String, dynamic> datosRuta,
-  ) async {
+      String rutaId,
+      Map<String, dynamic> datosRuta,
+      ) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
     try {
+      // NOTA: Si quisieras recalcular la ruta al editar, aquí deberías repetir
+      // la lógica de OSRM (Paso 1, 2, 3) antes de llamar a actualizarRuta.
+      // Por ahora lo dejamos simple.
       await _repositorio.actualizarRuta(rutaId, datosRuta);
       _estaCargando = false;
       notifyListeners();
-      // Recargamos las rutas para ver los cambios
       await cargarRutas();
     } catch (e) {
       _estaCargando = false;
@@ -247,14 +261,12 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  /// Cancela una ruta: notifica a usuarios y la oculta (lógica de negocio).
   Future<void> cancelarRuta(String rutaId, String mensaje) async {
-    // <-- ¡ACTUALIZADO!
     _estaCargando = true;
     _error = null;
     notifyListeners();
     try {
-      await _repositorio.cancelarRuta(rutaId, mensaje); // <-- ¡ACTUALIZADO!
+      await _repositorio.cancelarRuta(rutaId, mensaje);
       _estaCargando = false;
       notifyListeners();
       await cargarRutas();
@@ -266,7 +278,6 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  /// Elimina una ruta permanentemente (solo si no tiene inscritos).
   Future<void> eliminarRuta(String rutaId) async {
     _estaCargando = true;
     _error = null;
@@ -284,19 +295,14 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  // Acción del Turista
   Future<void> marcarAsistencia(String rutaId) async {
     _estaCargando = true;
     notifyListeners();
     try {
-      // Necesitamos castear si no agregaste el método al contrato abstracto
-      // (Idealmente agrégalo a RutasRepositorio también)
       if (_repositorio is RutasRepositorioSupabase) {
-        await (_repositorio as RutasRepositorioSupabase).marcarAsistencia(
-          rutaId,
-        );
+        await (_repositorio as RutasRepositorioSupabase).marcarAsistencia(rutaId);
       }
-      await cargarRutas(); // Recargar para ver el check verde
+      await cargarRutas();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -305,16 +311,12 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  // Acción del Guía
   Future<void> cambiarEstadoRuta(String rutaId, String nuevoEstado) async {
     _estaCargando = true;
     notifyListeners();
     try {
       if (_repositorio is RutasRepositorioSupabase) {
-        await (_repositorio as RutasRepositorioSupabase).cambiarEstadoRuta(
-          rutaId,
-          nuevoEstado,
-        );
+        await (_repositorio as RutasRepositorioSupabase).cambiarEstadoRuta(rutaId, nuevoEstado);
       }
       await cargarRutas();
     } catch (e) {

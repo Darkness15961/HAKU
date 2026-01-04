@@ -30,6 +30,8 @@ import '../../../notificaciones/datos/repositorios/notificacion_repositorio_mock
 import '../../../notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
 import '../../../../core/servicios/imagen_servicio.dart'; // <--- Importado
 
+import 'package:latlong2/latlong.dart'; // <--- PEGAR ESTO ARRIBA
+
 // Helper: Clase simple para representar un Lugar en la Ruta
 // --- ¡SIMPLIFICADO! Ya no tiene 'durationMinutes' ---
 class RouteLocation {
@@ -148,6 +150,9 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       _codigoAccesoGenerado = null;
     }
 
+
+
+
     final Map<String, dynamic> datosRuta = {
       'nombre': _nombreCtrl.text,
       'descripcion': _descripcionCtrl.text,
@@ -159,6 +164,11 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       'codigo_acceso': codigoFinal,
       'dias': int.tryParse(diasText) ?? 1,
       'lugaresIds': _locations.map((loc) => loc.lugar.id).toList(),
+
+      // --- ¡ESTA ES LA LÍNEA QUE DEBES PEGAR! ---
+      'puntos_coordenadas': _locations.map((loc) => LatLng(loc.lugar.latitud, loc.lugar.longitud)).toList(),
+      // -----------------------------------------
+
       'lugaresNombres': _locations.map((loc) => loc.lugar.nombre).toList(),
       'guiaId': vmAuth.usuarioActual!.id,
       'guiaNombre': vmAuth.usuarioActual!.seudonimo,
@@ -226,6 +236,11 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       }
     }
   }
+
+
+
+
+
 
   // --- ¡FUNCIÓN DE PREVISUALIZACIÓN CORREGIDA! ---
   void _previsualizarRuta(BuildContext context) {

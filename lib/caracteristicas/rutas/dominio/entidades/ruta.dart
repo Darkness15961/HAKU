@@ -1,7 +1,8 @@
-// --- CARACTERISTICAS/RUTAS/DOMINIO/ENTIDADES/RUTA.DART (Receta Final) ---
-//
-// 1. (SIMPLIFICADO): Se eliminó 'duracionHoras'.
-// 2. 'dias' es la única fuente de verdad para la duración.
+// --- CARACTERISTICAS/RUTAS/DOMINIO/ENTIDADES/RUTA.DART ---
+// Versión: CON SOPORTE OSRM (Geometría, Distancia, Tiempo)
+
+import 'package:latlong2/latlong.dart'; // <--- NECESITAS ESTO
+
 
 class Ruta {
   final String id;
@@ -15,34 +16,34 @@ class Ruta {
   final bool visible;
   final int dias;
 
-  // --- NUEVOS CAMPOS FASE 2/3 ---
-  final String estado; // 'convocatoria', 'en_curso', 'finalizada'
-  final List<String> equipamiento; // Lista de cosas para llevar
-  final DateTime? fechaCierre; // Para saber si aun se puede inscribir
+  // --- NUEVOS CAMPOS OSRM (Backend) ---
+  final List<LatLng> polilinea; // El dibujo de la carretera
+  final double distanciaMetros; // Ej: 15400.0 (15.4 km)
+  final double duracionSegundos; // Ej: 3600.0 (1 hora)
 
-  // --- NUEVOS CAMPOS FASE 4: INFORMACIÓN DEL EVENTO ---
-  final DateTime? fechaEvento; // Fecha y hora del evento
-  final String? puntoEncuentro; // Ubicación del punto de encuentro
-  final bool esPrivada; // ¡NUEVO!
-  final String? codigoAcceso; // ¡NUEVO! Código de acceso para rutas privadas
+  // --- CAMPOS FASE 2/3/4 ---
+  final String estado;
+  final List<String> equipamiento;
+  final DateTime? fechaCierre;
+  final DateTime? fechaEvento;
+  final String? puntoEncuentro;
+  final bool esPrivada;
+  final String? codigoAcceso;
 
   // Campos Calculados
   final String guiaId;
   final String guiaNombre;
   final String guiaFotoUrl;
-  final double guiaRating; // Nuevo campo
+  final double guiaRating;
   final double rating;
   final int reviewsCount;
   final int inscritosCount;
   final List<String> lugaresIncluidos;
   final List<String> lugaresIncluidosIds;
-  final String? enlaceWhatsapp; // Nuevo
-
+  final String? enlaceWhatsapp;
   final bool esFavorita;
   final bool estaInscrito;
-
-  // --- NUEVO CAMPO DE ESTADO DEL USUARIO ---
-  final bool asistio; // ¿El usuario logueado marcó asistencia?
+  final bool asistio;
 
   Ruta({
     required this.id,
@@ -56,20 +57,23 @@ class Ruta {
     required this.visible,
     required this.dias,
 
-    // Valores por defecto para evitar errores con datos viejos
+    // Inicializamos OSRM
+    this.polilinea = const [],
+    this.distanciaMetros = 0,
+    this.duracionSegundos = 0,
+
     this.estado = 'convocatoria',
     this.equipamiento = const [],
     this.fechaCierre,
-    this.asistio = false,
     this.fechaEvento,
     this.puntoEncuentro,
-    this.esPrivada = false, // Por defecto false
+    this.esPrivada = false,
     this.codigoAcceso,
-
+    this.asistio = false,
     required this.guiaId,
     required this.guiaNombre,
     required this.guiaFotoUrl,
-    required this.guiaRating, // Nuevo campo
+    required this.guiaRating,
     required this.rating,
     required this.reviewsCount,
     required this.lugaresIncluidos,

@@ -1,9 +1,7 @@
 // --- CARACTERISTICAS/MAPA/PRESENTACION/VISTA_MODELOS/MAPA_VM.DART ---
-// Versión: OpenStreetMap (FlutterMap) Final
-
+// Versión: CORREGIDA (Sin errores rojos ni amarillos)
 
 import 'dart:ui' as ui;
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -29,19 +27,21 @@ class MapaVM extends ChangeNotifier {
   // --- A. DEPENDENCIAS ---
   LugaresVM? _lugaresVM;
   AutenticacionVM? _authVM;
-  RutasVM? _rutasVM;
+  // Eliminamos _rutasVM porque no lo estábamos usando y daba warning
 
   // --- B. ESTADO ---
   bool _estaCargando = false;
-  List<Marker> _markers = [];
-  List<Polyline> _polylines = [];
+  // CORRECCIÓN AMARILLA: Agregamos 'final'
+  final List<Marker> _markers = [];
+  final List<Polyline> _polylines = [];
+
   String? _error;
   bool _cargaInicialRealizada = false;
 
   final MapController mapController = MapController();
 
   Lugar? _lugarSeleccionado;
-  int _filtroActual = 0; // 0: Todos, 1: Recuerdos, 2: Favoritos
+  int _filtroActual = 0;
   TipoCarrusel _carruselActual = TipoCarrusel.ninguno;
   List<Lugar> _lugaresFiltrados = [];
 
@@ -67,14 +67,12 @@ class MapaVM extends ChangeNotifier {
       if (_authVM?.usuarioActual != authVM.usuarioActual) {
         _lugaresVM = lugaresVM;
         _authVM = authVM;
-        _rutasVM = rutasVM;
         _actualizarListasYMarcadores();
       }
       return;
     }
     _lugaresVM = lugaresVM;
     _authVM = authVM;
-    _rutasVM = rutasVM;
 
     if (lugaresVM.estaCargandoInicio || authVM.estaCargando) {
       _estaCargando = true;
@@ -153,7 +151,6 @@ class MapaVM extends ChangeNotifier {
     }
   }
 
-  // --- WIDGETS DE MARCADORES ---
   Marker _crearWidgetMarcador(Lugar lugar) {
     final esRecuerdo = _filtroActual == 1;
     final esFavorito = _filtroActual == 2;
@@ -162,12 +159,7 @@ class MapaVM extends ChangeNotifier {
       point: LatLng(lugar.latitud, lugar.longitud),
       width: esRecuerdo ? 70 : 60,
       height: esRecuerdo ? 70 : 60,
-
-      // CAMBIO CLAVE AQUÍ:
-      // Usa 'Alignment.center' para que la foto quede justo encima del lugar.
-      // O usa 'Alignment.bottomCenter' si quieres que el "piquito" del pin toque el suelo.
       alignment: Alignment.center,
-
       child: GestureDetector(
         onTap: () => _manejarTapMarcador(lugar),
         child: esRecuerdo
@@ -233,7 +225,6 @@ class MapaVM extends ChangeNotifier {
     }
   }
 
-  // --- ACCIONES ---
   void cerrarDetalle() {
     _lugarSeleccionado = null;
     notifyListeners();
@@ -251,28 +242,70 @@ class MapaVM extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- LÓGICA DE VISUALIZACIÓN OSRM ---
   void enfocarRutaEnMapa(Ruta ruta, List<Lugar> todosLosLugares) {
-    final lugaresRuta = todosLosLugares.where((l) => ruta.lugaresIncluidosIds.contains(l.id)).toList();
-    if (lugaresRuta.isEmpty) return;
-
     _markers.clear();
     _polylines.clear();
-    final points = <LatLng>[];
+
+    final lugaresRuta = todosLosLugares.where((l) => ruta.lugaresIncluidosIds.contains(l.id)).toList();
+
+    lugaresRuta.sort((a, b) {
+      final indexA = ruta.lugaresIncluidosIds.indexOf(a.id);
+      final indexB = ruta.lugaresIncluidosIds.indexOf(b.id);
+      return indexA.compareTo(indexB);
+    });
+
+    if (lugaresRuta.isEmpty) return;
 
     for (var lugar in lugaresRuta) {
       _markers.add(_crearWidgetMarcador(lugar));
-      points.add(LatLng(lugar.latitud, lugar.longitud));
     }
 
-    _polylines.add(Polyline(points: points, strokeWidth: 5.0, color: const Color(0xFF00BCD4)));
-
-    if (points.isNotEmpty) {
-      double sumLat = 0, sumLng = 0;
-      for (var p in points) { sumLat += p.latitude; sumLng += p.longitude; }
-      mapController.move(LatLng(sumLat / points.length, sumLng / points.length), 13.0);
+    if (ruta.polilinea.isNotEmpty) {
+      // CASO A: Tenemos datos de OSRM
+      _polylines.add(
+        Polyline(
+          points: ruta.polilinea,
+          strokeWidth: 5.0,
+          color: const Color(0xFF00BCD4),
+          borderColor: Colors.white,
+          borderStrokeWidth: 2.0,
+        ),
+      );
+    } else {
+      // CASO B: Fallback (CORREGIDO: Sin isDotted)
+      final points = lugaresRuta.map((l) => LatLng(l.latitud, l.longitud)).toList();
+      _polylines.add(
+        Polyline(
+          points: points,
+          strokeWidth: 4.0,
+          color: Colors.grey, // Línea gris sólida
+        ),
+      );
     }
+
+    if (ruta.polilinea.isNotEmpty) {
+      final centro = _calcularCentro(ruta.polilinea);
+      mapController.move(centro, 12.0);
+    } else if (lugaresRuta.isNotEmpty) {
+      final points = lugaresRuta.map((l) => LatLng(l.latitud, l.longitud)).toList();
+      final centro = _calcularCentro(points);
+      mapController.move(centro, 13.0);
+    }
+
     _carruselActual = TipoCarrusel.rutas;
     notifyListeners();
+  }
+
+  LatLng _calcularCentro(List<LatLng> puntos) {
+    if (puntos.isEmpty) return const LatLng(0, 0);
+    double sumLat = 0;
+    double sumLng = 0;
+    for (var p in puntos) {
+      sumLat += p.latitude;
+      sumLng += p.longitude;
+    }
+    return LatLng(sumLat / puntos.length, sumLng / puntos.length);
   }
 
   Future<void> enfocarMiUbicacion() async {
@@ -324,22 +357,18 @@ class MapaVM extends ChangeNotifier {
     super.dispose();
   }
 }
-// --- CLASE CLIPPER CORREGIDA Y BLINDADA ---
-// Usamos 'ui.Path' en TODO para que no quede duda alguna.
 
-class _TriangleClipper extends CustomClipper<ui.Path> { // <--- Agregado ui.
+class _TriangleClipper extends CustomClipper<ui.Path> {
   @override
-  ui.Path getClip(Size size) { // <--- Agregado ui.
-    final ui.Path path = ui.Path(); // <--- Agregado ui.
-
+  ui.Path getClip(Size size) {
+    final ui.Path path = ui.Path();
     path.moveTo(0, 0);
     path.lineTo(size.width / 2, size.height);
     path.lineTo(size.width, 0);
     path.close();
-
     return path;
   }
 
   @override
-  bool shouldReclip(covariant CustomClipper<ui.Path> oldClipper) => false; // <--- Agregado ui.
+  bool shouldReclip(covariant CustomClipper<ui.Path> oldClipper) => false;
 }
