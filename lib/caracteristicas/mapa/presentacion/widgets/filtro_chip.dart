@@ -11,36 +11,55 @@ class FiltroChip extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.isSelected,
-    required this.onTap
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final inactiveColor = Colors.grey.shade700;
+
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        // CORRECCIÓN: Padding reducido para que quepan todos en pantalla
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.surface,
+          color: isSelected ? primaryColor : Colors.white,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : Colors.grey.shade300,
+            width: 1.0,
+          ),
           boxShadow: [
-            BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+            BoxShadow(
+              color: Colors.black.withOpacity(isSelected ? 0.2 : 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 16,
-                color: isSelected ? Colors.white : theme.colorScheme.onSurface),
-            const SizedBox(width: 6),
-            Text(label,
-                style: TextStyle(
-                    color: isSelected
-                        ? Colors.white
-                        : theme.colorScheme.onSurface,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12)),
+            Icon(
+              icon,
+              color: isSelected ? Colors.white : inactiveColor,
+              size: 16, // Ícono más pequeño
+            ),
+            const SizedBox(width: 6), // Menos espacio
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : inactiveColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 13, // Letra compacta
+                letterSpacing: 0,
+              ),
+            ),
           ],
         ),
       ),

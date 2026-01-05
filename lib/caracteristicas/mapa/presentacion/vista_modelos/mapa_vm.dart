@@ -1,5 +1,5 @@
 // --- CARACTERISTICAS/MAPA/PRESENTACION/VISTA_MODELOS/MAPA_VM.DART ---
-// Versión: DEFINITIVA (Con limpiarRutaPintada y lógica OSRM)
+// Versión: DEFINITIVA (Con corrección GPS + Limpiar Ruta + OSRM)
 
 import 'dart:ui' as ui;
 import 'dart:async';
@@ -31,7 +31,7 @@ class MapaVM extends ChangeNotifier {
   // --- B. ESTADO ---
   bool _estaCargando = false;
   final List<Marker> _markers = [];
-  final List<Polyline> _polylines = []; // Lista para la línea azul
+  final List<Polyline> _polylines = [];
 
   String? _error;
   bool _cargaInicialRealizada = false;
@@ -97,14 +97,13 @@ class MapaVM extends ChangeNotifier {
     _lugaresVM?.addListener(_actualizarListasYMarcadores);
     _authVM?.addListener(_actualizarListasYMarcadores);
     _actualizarListasYMarcadores();
+    // Intentamos iniciar seguimiento silenciosamente al arrancar
     iniciarSeguimientoUbicacion();
   }
 
-  // --- LÓGICA DE MARCADORES (Pines normales) ---
+  // --- LÓGICA DE MARCADORES ---
   void _actualizarListasYMarcadores() {
     if (!_cargaInicialRealizada || _lugaresVM == null || _authVM == null) return;
-
-    // Si estamos viendo una ruta específica (OSRM), no sobreescribimos con pines normales
     if (_carruselActual == TipoCarrusel.rutas) return;
 
     _estaCargando = true;
@@ -115,10 +114,8 @@ class MapaVM extends ChangeNotifier {
       final idsFavoritos = _authVM!.lugaresFavoritosIds;
 
       if (_filtroActual == 0) {
-        // Explorar: Todos los lugares
         _lugaresFiltrados = todosLosLugares;
       } else if (_filtroActual == 1) {
-        // Recuerdos
         final recuerdos = _lugaresVM!.misRecuerdos;
         _lugaresFiltrados = recuerdos.map((r) => Lugar(
           id: 'recuerdo_${r.id}',
@@ -127,24 +124,16 @@ class MapaVM extends ChangeNotifier {
           urlImagen: r.fotoUrl,
           latitud: r.latitud,
           longitud: r.longitud,
-          rating: 5.0,
-          provinciaId: '0',
-          usuarioId: '',
-          horario: '',
-          reviewsCount: 0,
-          videoTiktokUrl: '',
+          rating: 5.0, provinciaId: '0', usuarioId: '', horario: '', reviewsCount: 0, videoTiktokUrl: '',
         )).toList();
       } else if (_filtroActual == 2) {
-        // Favoritos
         _lugaresFiltrados = todosLosLugares.where((l) => idsFavoritos.contains(l.id)).toList();
       } else if (_filtroActual == 3) {
-        // Mis Rutas: Aquí queremos el mapa LIMPIO por defecto, hasta que toquen una nube.
         _lugaresFiltrados = [];
       }
 
-      // Limpiamos y repintamos pines normales
       _markers.clear();
-      _polylines.clear(); // Limpiamos líneas viejas si cambiamos de filtro
+      _polylines.clear();
 
       for (var lugar in _lugaresFiltrados) {
         if (lugar.latitud != 0 && lugar.longitud != 0) {
@@ -171,9 +160,7 @@ class MapaVM extends ChangeNotifier {
       alignment: Alignment.center,
       child: GestureDetector(
         onTap: () => _manejarTapMarcador(lugar),
-        child: esRecuerdo
-            ? _buildPolaroidMarker(lugar)
-            : _buildPinMarker(lugar, esFavorito),
+        child: esRecuerdo ? _buildPolaroidMarker(lugar) : _buildPinMarker(lugar, esFavorito),
       ),
     );
   }
@@ -190,13 +177,7 @@ class MapaVM extends ChangeNotifier {
         padding: const EdgeInsets.all(3),
         child: Column(
           children: [
-            Expanded(
-              child: Image.network(
-                lugar.urlImagen,
-                fit: BoxFit.cover,
-                errorBuilder: (_,__,___) => Container(color: Colors.grey),
-              ),
-            ),
+            Expanded(child: Image.network(lugar.urlImagen, fit: BoxFit.cover, errorBuilder: (_,__,___) => Container(color: Colors.grey))),
             const SizedBox(height: 4),
           ],
         ),
@@ -225,17 +206,9 @@ class MapaVM extends ChangeNotifier {
   }
 
   void _manejarTapMarcador(Lugar lugar) {
-    // Si estamos en modo Rutas, tocar un pin debería mostrar info o nada,
-    // pero por ahora mantenemos el comportamiento de abrir detalle.
-    if (_filtroActual == 0 || _filtroActual == 2) {
-      // Navegar al detalle
-      final context = navigatorKey.currentContext;
-      if (context != null) context.push('/inicio/detalle-lugar', extra: lugar);
-    } else {
-      // En otros modos (Recuerdos, Rutas) mostramos la Polaroid
-      _lugarSeleccionado = lugar;
-      notifyListeners();
-    }
+    _lugarSeleccionado = lugar;
+    mapController.move(LatLng(lugar.latitud, lugar.longitud), 15.0);
+    notifyListeners();
   }
 
   void cerrarDetalle() {
@@ -249,42 +222,26 @@ class MapaVM extends ChangeNotifier {
     _actualizarListasYMarcadores();
   }
 
-  void enfocarLugarEnMapa(Lugar lugar) {
-    mapController.move(LatLng(lugar.latitud, lugar.longitud), 15.0);
-    _lugarSeleccionado = lugar;
-    notifyListeners();
-  }
-
-  // --- LÓGICA DE VISUALIZACIÓN OSRM (Rutas) ---
-
-  // 1. ESTA ES LA FUNCIÓN QUE FALTABA Y CAUSABA ERROR
   void limpiarRutaPintada() {
     _polylines.clear();
     _markers.clear();
     _lugarSeleccionado = null;
     _carruselActual = TipoCarrusel.ninguno;
-
-    // Si estamos en filtro Mis Rutas, dejamos el mapa limpio
     if (_filtroActual != 3) {
-      // Si estamos en otro filtro, restauramos los pines normales
       _actualizarListasYMarcadores();
     } else {
       notifyListeners();
     }
   }
 
-  // 2. Función para pintar la ruta al tocar la nube
   void enfocarRutaEnMapa(Ruta ruta, List<Lugar> todosLosLugares) {
-    _estaCargando = true; // Feedback visual rápido
+    _estaCargando = true;
     notifyListeners();
 
     _markers.clear();
     _polylines.clear();
 
-    // Filtramos los lugares que pertenecen a esta ruta
     final lugaresRuta = todosLosLugares.where((l) => ruta.lugaresIncluidosIds.contains(l.id)).toList();
-
-    // Ordenamos según el orden en la ruta
     lugaresRuta.sort((a, b) {
       final indexA = ruta.lugaresIncluidosIds.indexOf(a.id);
       final indexB = ruta.lugaresIncluidosIds.indexOf(b.id);
@@ -297,42 +254,36 @@ class MapaVM extends ChangeNotifier {
       return;
     }
 
-    // A) Creamos marcadores para los puntos de la ruta
     for (var lugar in lugaresRuta) {
       _markers.add(_crearWidgetMarcador(lugar));
     }
 
-    // B) Pintamos la línea (OSRM)
+    List<LatLng> puntosParaZoom = [];
     if (ruta.polilinea.isNotEmpty) {
       _polylines.add(
         Polyline(
           points: ruta.polilinea,
           strokeWidth: 5.0,
-          color: const Color(0xFF00BCD4), // Azul Cyan
+          color: const Color(0xFF00BCD4),
           borderColor: Colors.white,
           borderStrokeWidth: 2.0,
         ),
       );
+      puntosParaZoom = ruta.polilinea;
     } else {
-      // Fallback: Línea recta gris si no hay datos de camino
       final points = lugaresRuta.map((l) => LatLng(l.latitud, l.longitud)).toList();
-      _polylines.add(
-        Polyline(
-          points: points,
-          strokeWidth: 4.0,
-          color: Colors.grey,
-        ),
-      );
+      _polylines.add(Polyline(points: points, strokeWidth: 4.0, color: Colors.grey));
+      puntosParaZoom = points;
     }
 
-    // C) Movemos la cámara
-    if (ruta.polilinea.isNotEmpty) {
-      final centro = _calcularCentro(ruta.polilinea);
-      mapController.move(centro, 12.0);
-    } else if (lugaresRuta.isNotEmpty) {
-      final points = lugaresRuta.map((l) => LatLng(l.latitud, l.longitud)).toList();
-      final centro = _calcularCentro(points);
-      mapController.move(centro, 13.0);
+    if (puntosParaZoom.isNotEmpty) {
+      final bounds = LatLngBounds.fromPoints(puntosParaZoom);
+      mapController.fitCamera(
+        CameraFit.bounds(
+          bounds: bounds,
+          padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 80),
+        ),
+      );
     }
 
     _carruselActual = TipoCarrusel.rutas;
@@ -340,46 +291,56 @@ class MapaVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  LatLng _calcularCentro(List<LatLng> puntos) {
-    if (puntos.isEmpty) return const LatLng(0, 0);
-    double sumLat = 0;
-    double sumLng = 0;
-    for (var p in puntos) {
-      sumLat += p.latitude;
-      sumLng += p.longitude;
-    }
-    return LatLng(sumLat / puntos.length, sumLng / puntos.length);
-  }
+  // --- GPS MEJORADO ---
 
-  // --- GPS ---
-  Future<void> enfocarMiUbicacion() async {
-    if (_currentLocation != null) {
-      mapController.move(_currentLocation!, 16.0);
-    } else {
-      await iniciarSeguimientoUbicacion();
-      if (_currentLocation != null) mapController.move(_currentLocation!, 16.0);
+  // Devuelve un mensaje de error si falla, o null si todo sale bien.
+  Future<String?> enfocarMiUbicacion() async {
+    // 1. Verificar si el GPS está prendido
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return "⚠️ Por favor, activa el GPS de tu celular.";
     }
-  }
 
-  Future<bool> iniciarSeguimientoUbicacion() async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return false;
-      LocationPermission permission = await Geolocator.checkPermission();
+    // 2. Verificar Permisos
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return false;
+        return "❌ Necesitamos permiso para mostrar tu ubicación.";
       }
-      if (permission == LocationPermission.deniedForever) return false;
+    }
+    if (permission == LocationPermission.deniedForever) {
+      return "❌ Los permisos de ubicación están bloqueados en ajustes.";
+    }
+
+    // 3. Obtener ubicación
+    try {
+      Position position = await Geolocator.getCurrentPosition();
+      _currentLocation = LatLng(position.latitude, position.longitude);
+
+      mapController.move(_currentLocation!, 16.0);
+      iniciarSeguimientoUbicacion();
+
+      notifyListeners();
+      return null; // Éxito (sin error)
+    } catch (e) {
+      return "Error al obtener tu ubicación.";
+    }
+  }
+
+  Future<void> iniciarSeguimientoUbicacion() async {
+    // Solo inicia el stream si tenemos permisos básicos
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) return;
 
       _positionStreamSubscription?.cancel();
       _positionStreamSubscription = Geolocator.getPositionStream().listen((Position position) {
         _currentLocation = LatLng(position.latitude, position.longitude);
         notifyListeners();
       });
-      return true;
     } catch (e) {
-      return false;
+      // Silencioso si falla el stream de fondo
     }
   }
 
@@ -412,7 +373,6 @@ class _TriangleClipper extends CustomClipper<ui.Path> {
     path.close();
     return path;
   }
-
   @override
   bool shouldReclip(covariant CustomClipper<ui.Path> oldClipper) => false;
 }

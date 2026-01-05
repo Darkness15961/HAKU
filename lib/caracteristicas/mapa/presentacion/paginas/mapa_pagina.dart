@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:ui';
 
 // ViewModels
 import '../vista_modelos/mapa_vm.dart';
@@ -28,24 +29,26 @@ class MapaPagina extends StatefulWidget {
 class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
   late AnimationController _cardAnimController;
   late Animation<double> _cardScaleAnimation;
-  bool _verRelieve = false;
 
-  // 0: Inscritas (Turista), 1: Creadas (Guía)
+  late PageController _pageController;
+  double _currentPageValue = 0.0;
+
+  bool _verRelieve = false;
   int _subFiltroRuta = 0;
 
   @override
   void initState() {
     super.initState();
-    _cardAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _cardScaleAnimation = CurvedAnimation(
-      parent: _cardAnimController,
-      curve: Curves.easeOutBack,
-    );
+    _cardAnimController = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _cardScaleAnimation = CurvedAnimation(parent: _cardAnimController, curve: Curves.easeOutBack);
 
-    // Carga inicial de dependencias
+    _pageController = PageController(viewportFraction: 0.85);
+    _pageController.addListener(() {
+      setState(() {
+        _currentPageValue = _pageController.page ?? 0;
+      });
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final vmMapa = context.read<MapaVM>();
@@ -61,12 +64,11 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
   @override
   void dispose() {
     _cardAnimController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
-  void _alternarTipoMapa() {
-    setState(() => _verRelieve = !_verRelieve);
-  }
+  void _alternarTipoMapa() => setState(() => _verRelieve = !_verRelieve);
 
   String _obtenerUrlMapa() {
     return _verRelieve
@@ -74,7 +76,6 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
         : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   }
 
-  // Lógica para cambiar filtro principal
   void _intentarCambiarFiltro(int indice) {
     final mapaVM = context.read<MapaVM>();
     final authVM = context.read<AutenticacionVM>();
@@ -84,7 +85,6 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
     } else {
       if (authVM.usuarioActual != null) {
         mapaVM.cambiarFiltro(indice);
-        // Si entramos a 'Mis Rutas', reseteamos a 'Inscritas' por defecto
         if (indice == 3) setState(() => _subFiltroRuta = 0);
       } else {
         _mostrarDialogoBloqueo(context);
@@ -114,36 +114,28 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
     final mapaVM = context.watch<MapaVM>();
     final rutasVM = context.watch<RutasVM>();
     final authVM = context.watch<AutenticacionVM>();
-    final theme = Theme.of(context);
 
-    // Animación de tarjeta Polaroid
     if (mapaVM.lugarSeleccionado != null && !_cardAnimController.isCompleted) {
       _cardAnimController.forward();
     } else if (mapaVM.lugarSeleccionado == null && _cardAnimController.isCompleted) {
       _cardAnimController.reverse();
     }
 
-    // PREPARAR LAS LISTAS DE RUTAS
     List<Ruta> rutasAMostrar = [];
     if (mapaVM.filtroActual == 3) {
       if (_subFiltroRuta == 0) {
-        // Inscritas
         rutasAMostrar = rutasVM.misRutasInscritas;
       } else {
-        // Creadas (filtramos localmente)
         final uid = authVM.usuarioActual?.id;
         if (uid != null) {
-          // CAMBIO AQUÍ: De 'rutasTotales' a 'rutas'
-          // Intenta con este nombre:
           rutasAMostrar = rutasVM.rutasFiltradas.where((r) => r.guiaId == uid).toList();
         }
       }
     }
 
-    // Altura dinámica de los botones flotantes
     double bottomPositionButtons = 120;
     if (mapaVM.lugarSeleccionado != null) bottomPositionButtons = 350;
-    else if (mapaVM.filtroActual == 3) bottomPositionButtons = 260;
+    else if (mapaVM.filtroActual == 3) bottomPositionButtons = 220;
 
     return Scaffold(
       body: Stack(
@@ -155,11 +147,10 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
               initialCenter: const LatLng(-13.5167, -71.9781),
               initialZoom: 13.0,
               onTap: (_, __) {
-                // Si tocamos el mapa vacío, limpiamos todo
                 if (mapaVM.lugarSeleccionado != null) {
                   _cardAnimController.reverse().then((_) => mapaVM.cerrarDetalle());
                 } else {
-                  mapaVM.limpiarRutaPintada(); // <--- ESTO NECESITA ESTAR EN EL VM
+                  // mapaVM.limpiarRutaPintada(); // Opcional
                 }
               },
             ),
@@ -169,20 +160,46 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                 userAgentPackageName: 'com.xplorecusco.app',
                 tileProvider: CachedTileProvider(),
               ),
-              // Línea OSRM (Ruta Azul)
               if (mapaVM.polylines.isNotEmpty)
                 PolylineLayer(polylines: mapaVM.polylines),
 
-              MarkerLayer(markers: mapaVM.markers),
+              // CAPA DE MARCADORES (Con tu ubicación añadida)
+              MarkerLayer(
+                markers: [
+                  // 1. Marcador de "YO" (Puntito Azul)
+                  if (mapaVM.currentLocation != null)
+                    Marker(
+                      point: mapaVM.currentLocation!,
+                      width: 25,
+                      height: 25,
+                      child: Container(
+                        decoration: BoxDecoration(
+                            color: Colors.blueAccent,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 3),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blueAccent.withOpacity(0.4),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              )
+                            ]
+                        ),
+                      ),
+                    ),
+
+                  // 2. Los marcadores normales (Lugares)
+                  ...mapaVM.markers,
+                ],
+              ),
             ],
           ),
 
-          if (mapaVM.estaCargando)
-            const Center(child: CircularProgressIndicator()),
+          if (mapaVM.estaCargando) const Center(child: CircularProgressIndicator()),
 
           // 2. FILTROS SUPERIORES
           Positioned(
-            top: 50, left: 0, right: 0,
+            top: 60, left: 0, right: 0,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -200,18 +217,40 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
             ),
           ),
 
-          // 3. BOTONES FLOTANTES
+          // 3. BOTONES FLOTANTES (Con alerta GPS)
           Positioned(
             right: 16, bottom: bottomPositionButtons,
             child: Column(
               children: [
-                FloatingActionButton.small(heroTag: "btn_layers", onPressed: _alternarTipoMapa, backgroundColor: Colors.white, child: Icon(_verRelieve ? Icons.landscape : Icons.layers, color: Colors.black87)),
+                _buildFloatingBtn("btn_layers", _verRelieve ? Icons.landscape : Icons.layers, _alternarTipoMapa, false),
                 const SizedBox(height: 8),
-                FloatingActionButton.small(heroTag: "btn_gps", onPressed: () => mapaVM.enfocarMiUbicacion(), backgroundColor: Colors.white, child: Icon(Icons.my_location, color: theme.colorScheme.primary)),
+
+                // BOTÓN GPS MEJORADO
+                FloatingActionButton.small(
+                  heroTag: "btn_gps",
+                  onPressed: () async {
+                    // Llamamos a la función que devuelve el error
+                    final error = await mapaVM.enfocarMiUbicacion();
+                    if (error != null && context.mounted) {
+                      // Si hubo error (GPS apagado, etc), mostramos mensaje
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(error),
+                          backgroundColor: Colors.orange,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Icon(Icons.my_location, color: Theme.of(context).colorScheme.primary),
+                ),
+
                 const SizedBox(height: 8),
-                FloatingActionButton.small(heroTag: "btn_zoom_in", onPressed: () => mapaVM.zoomIn(), backgroundColor: Colors.white, child: const Icon(Icons.add, color: Colors.black87)),
+                _buildFloatingBtn("btn_zoom_in", Icons.add, () => mapaVM.zoomIn(), false),
                 const SizedBox(height: 8),
-                FloatingActionButton.small(heroTag: "btn_zoom_out", onPressed: () => mapaVM.zoomOut(), backgroundColor: Colors.white, child: const Icon(Icons.remove, color: Colors.black87)),
+                _buildFloatingBtn("btn_zoom_out", Icons.remove, () => mapaVM.zoomOut(), false),
               ],
             ),
           ),
@@ -219,7 +258,7 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
           // 4. PANELES INFERIORES
           if (mapaVM.lugarSeleccionado != null)
             Positioned(
-              bottom: 30, left: 20, right: 20,
+              bottom: 40, left: 20, right: 20,
               child: ScaleTransition(
                 scale: _cardScaleAnimation,
                 child: TarjetaPolaroid(
@@ -231,28 +270,40 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
               ),
             )
           else if (mapaVM.filtroActual == 3) ...[
-            // Switch Inscritas/Creadas
+            // Switch Moderno + Botón Cerrar (CORREGIDO)
             Positioned(
-              bottom: 180, left: 0, right: 0,
+              bottom: 180,
+              left: 0, right: 0,
               child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))]),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildSubFiltroItem("Inscritas", 0, theme),
-                      const SizedBox(width: 4),
-                      _buildSubFiltroItem("Creadas", 1, theme),
-                    ],
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildSwitchModerno(),
+                    // Si hay una ruta pintada (línea azul), mostramos la X para borrarla
+                    if (mapaVM.polylines.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => mapaVM.limpiarRutaPintada(),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                              color: Colors.redAccent,
+                              shape: BoxShape.circle,
+                              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)]
+                          ),
+                          child: const Icon(Icons.close, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ]
+                  ],
                 ),
               ),
             ),
-            // Carrusel de Nubes (Rutas)
+
+            // Carrusel (MÁS PEQUEÑO)
             Positioned(
               bottom: 30, left: 0, right: 0,
-              child: _buildCarruselRutas(context, mapaVM, rutasAMostrar),
+              child: _buildCarruselRutasAnimado(context, mapaVM, rutasAMostrar),
             ),
           ],
         ],
@@ -260,31 +311,83 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSubFiltroItem(String label, int index, ThemeData theme) {
-    final isSelected = _subFiltroRuta == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() => _subFiltroRuta = index);
-        context.read<MapaVM>().limpiarRutaPintada(); // Limpia al cambiar tab
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(color: isSelected ? theme.colorScheme.primary : Colors.transparent, borderRadius: BorderRadius.circular(20)),
-        child: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: FontWeight.bold, fontSize: 13)),
+  // --- WIDGETS AUXILIARES ---
+
+  Widget _buildFloatingBtn(String tag, IconData icon, VoidCallback onTap, bool isPrimary) {
+    return FloatingActionButton.small(
+      heroTag: tag,
+      onPressed: onTap,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Icon(icon, color: isPrimary ? Theme.of(context).colorScheme.primary : Colors.black87),
+    );
+  }
+
+  Widget _buildSwitchModerno() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(30),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildSwitchOption("Inscritas", 0),
+              const SizedBox(width: 4),
+              _buildSwitchOption("Creadas", 1),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildCarruselRutas(BuildContext context, MapaVM mapaVM, List<Ruta> rutas) {
+  Widget _buildSwitchOption(String label, int index) {
+    final isSelected = _subFiltroRuta == index;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _subFiltroRuta = index);
+        // Al cambiar de pestaña, limpiamos la ruta anterior como pediste
+        context.read<MapaVM>().limpiarRutaPintada();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)] : [],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.black : Colors.white70,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCarruselRutasAnimado(BuildContext context, MapaVM mapaVM, List<Ruta> rutas) {
     if (rutas.isEmpty) {
       return Container(
         alignment: Alignment.bottomCenter,
         margin: const EdgeInsets.only(bottom: 20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-          child: Text(_subFiltroRuta == 0 ? "No tienes rutas inscritas" : "No has creado rutas", style: const TextStyle(fontWeight: FontWeight.bold)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]),
+          child: Text(
+            _subFiltroRuta == 0 ? "No tienes rutas inscritas" : "No has creado rutas",
+            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
         ),
       );
     }
@@ -292,32 +395,70 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
     return SizedBox(
       height: 140,
       child: PageView.builder(
-        controller: PageController(viewportFraction: 0.85),
+        controller: _pageController,
         itemCount: rutas.length,
         itemBuilder: (context, index) {
           final ruta = rutas[index];
-          return GestureDetector(
-            onTap: () {
-              // AQUÍ LLAMAMOS A LA FUNCIÓN QUE PINTA
-              final lugaresVM = context.read<LugaresVM>();
-              mapaVM.enfocarRutaEnMapa(ruta, lugaresVM.lugaresTotales);
-            },
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white,
-                image: DecorationImage(image: NetworkImage(ruta.urlImagenPrincipal), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.3), BlendMode.darken)),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+
+          double scale = 1.0;
+          if (_pageController.hasClients && _pageController.position.haveDimensions) {
+            double diff = (_currentPageValue - index);
+            scale = (1 - (diff.abs() * 0.15)).clamp(0.85, 1.0);
+          } else {
+            scale = (index == 0) ? 1.0 : 0.85;
+          }
+
+          return Transform.scale(
+            scale: scale,
+            alignment: Alignment.bottomCenter,
+            child: GestureDetector(
+              onTap: () {
+                final lugaresVM = context.read<LugaresVM>();
+                mapaVM.enfocarRutaEnMapa(ruta, lugaresVM.lugaresTotales);
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))],
+                  image: DecorationImage(image: NetworkImage(ruta.urlImagenPrincipal), fit: BoxFit.cover),
+                ),
+                child: Stack(
                   children: [
-                    Text(ruta.nombre, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
-                    Text("${(ruta.distanciaMetros / 1000).toStringAsFixed(1)} km", style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.9)], stops: const [0.5, 1.0]),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8, right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(color: Colors.black45, shape: BoxShape.circle, border: Border.all(color: Colors.white30)),
+                        child: const Icon(Icons.directions_car, color: Colors.white, size: 14),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 12, left: 12, right: 12,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(ruta.nombre, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, shadows: [Shadow(color: Colors.black, blurRadius: 4)]), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 4),
+                          // Simplificamos la info para el tamaño reducido
+                          Row(
+                            children: [
+                              Icon(Icons.timeline, color: Colors.cyanAccent, size: 12),
+                              const SizedBox(width: 4),
+                              Text("${(ruta.distanciaMetros / 1000).toStringAsFixed(1)} km", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),

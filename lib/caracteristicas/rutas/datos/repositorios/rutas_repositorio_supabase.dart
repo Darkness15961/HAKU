@@ -26,10 +26,9 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       if (tipoFiltro == 'creadas_por_mi') {
         if (userId == null) return [];
 
-        // CORRECCIÓN DEL ERROR "AMBIGUOUS":
-        // Usamos 'rutas.guia_id' para decirle explícitamente que filtre por la COLUMNA,
-        // no por la relación.
-        query = query.eq('rutas.guia_id', userId);
+        // ✅ CORRECCIÓN: Usamos solo 'guia_id'.
+        // Al no haber otra columna con este nombre en las tablas unidas, no hay ambigüedad.
+        query = query.eq('guia_id', userId);
 
       } else if (tipoFiltro == 'inscritas') {
         if (userId == null) return [];
