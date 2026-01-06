@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 class ReniecServicio {
   // URL del webhook de N8N para consulta DNI
   static const String _webhookUrl =
-      'https://breakfast-dimensional-stocks-fabric.trycloudflare.com/webhook/consulta-dni';
+      'https://n8n.premiospapicho.com/webhook/consulta-dni-proxy';
 
   final Dio _dio = Dio();
 
@@ -30,11 +30,10 @@ class ReniecServicio {
 
       print('🔍 [RENIEC] Consultando DNI: $dni');
 
-      final response = await _dio.post(
+      final response = await _dio.get(
         _webhookUrl,
-        data: {'dni': dni},
+        queryParameters: {'numero': dni},
         options: Options(
-          headers: {'Content-Type': 'application/json'},
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
@@ -45,9 +44,15 @@ class ReniecServicio {
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;
         print(
-          '✅ [RENIEC] Datos recibidos: ${data['nombre']} ${data['apellidoPaterno']}',
+          '✅ [RENIEC] Datos recibidos: ${data['first_name']} ${data['first_last_name']}',
         );
-        return data;
+
+        return {
+          'dni': dni,
+          'nombre': data['first_name'],
+          'apellidoPaterno': data['first_last_name'],
+          'apellidoMaterno': data['second_last_name'],
+        };
       } else {
         print('❌ [RENIEC] Error: ${response.statusCode}');
         throw Exception('Error al consultar RENIEC: ${response.statusCode}');
