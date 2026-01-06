@@ -36,7 +36,7 @@ class FiltroChip extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isSelected ? 0.2 : 0.1),
+              color: Colors.black.withValues(alpha: isSelected ? 0.2 : 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),

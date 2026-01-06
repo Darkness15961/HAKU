@@ -15,7 +15,7 @@ import '../vista_modelos/lugares_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/provincia.dart';
-import '../../dominio/entidades/categoria.dart';
+// import '../../dominio/entidades/categoria.dart';
 import '../../../notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
 
 class InicioPagina extends StatefulWidget {
@@ -46,6 +46,7 @@ class _InicioPaginaState extends State<InicioPagina> {
     _pageController = PageController(viewportFraction: 0.84, initialPage: 0);
 
     Future.microtask(() {
+      if (!mounted) return;
       final vmAuth = context.read<AutenticacionVM>();
       final vmLugares = context.read<LugaresVM>();
       vmLugares.cargarDatosIniciales(vmAuth);
@@ -165,7 +166,7 @@ class _InicioPaginaState extends State<InicioPagina> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -239,7 +240,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                       Container(
                         margin: const EdgeInsets.only(right: 12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Consumer<NotificacionesVM>(
@@ -268,12 +269,12 @@ class _InicioPaginaState extends State<InicioPagina> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           width: 2.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           ),
@@ -281,7 +282,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                       ),
                       child: CircleAvatar(
                         radius: 26,
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
                         backgroundImage:
                             (vmAuth.estaLogueado &&
                                 vmAuth.usuarioActual!.urlFotoPerfil != null &&
@@ -337,7 +338,7 @@ class _InicioPaginaState extends State<InicioPagina> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -486,7 +487,7 @@ class _InicioPaginaState extends State<InicioPagina> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.25),
+                color: Colors.black.withValues(alpha: 0.25),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -517,8 +518,8 @@ class _InicioPaginaState extends State<InicioPagina> {
                     gradient: LinearGradient(
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.3),
-                        Colors.black.withOpacity(0.75),
+                        Colors.black.withValues(alpha: 0.3),
+                        Colors.black.withValues(alpha: 0.75),
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -531,11 +532,11 @@ class _InicioPaginaState extends State<InicioPagina> {
                   right: 16,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.25),
+                      color: Colors.white.withValues(alpha: 0.25),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 8,
                         ),
                       ],
@@ -584,7 +585,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFD4AF37).withOpacity(0.9),
+                              color: const Color(0xFFD4AF37).withValues(alpha: 0.9),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -764,7 +765,7 @@ class _InicioPaginaState extends State<InicioPagina> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -790,8 +791,8 @@ class _InicioPaginaState extends State<InicioPagina> {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withOpacity(0.4),
-                    Colors.black.withOpacity(0.75),
+                    Colors.black.withValues(alpha: 0.4),
+                    Colors.black.withValues(alpha: 0.75),
                   ],
                   stops: const [0.3, 0.65, 1.0],
                 ),
@@ -812,10 +813,10 @@ class _InicioPaginaState extends State<InicioPagina> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
+                          color: Colors.black.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                             width: 1.5,
                           ),
                         ),
@@ -851,7 +852,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFD4AF37).withOpacity(0.9),
+                      color: const Color(0xFFD4AF37).withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -911,7 +912,7 @@ class _InicioPaginaState extends State<InicioPagina> {
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: const Color(0xFFD4AF37).withOpacity(0.4),
+                      color: const Color(0xFFD4AF37).withValues(alpha: 0.4),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -966,7 +967,7 @@ class _InicioPaginaState extends State<InicioPagina> {
                 decoration: BoxDecoration(
                   color: const Color(
                     0xFF00BCD4,
-                  ).withOpacity(0.1), // Azul del tema
+                  ).withValues(alpha: 0.1), // Azul del tema
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(

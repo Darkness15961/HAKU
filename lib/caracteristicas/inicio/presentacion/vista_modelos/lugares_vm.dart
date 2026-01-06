@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../dominio/repositorios/lugares_repositorio.dart';
@@ -165,11 +166,11 @@ class LugaresVM extends ChangeNotifier {
   Future<void> cargarMisRecuerdos() async {
     if (_repositorio is LugaresRepositorioSupabase) {
       try {
-        _misRecuerdos = await (_repositorio as LugaresRepositorioSupabase)
-            .obtenerMisRecuerdos();
+        _misRecuerdos = await _repositorio.obtenerMisRecuerdos();
         notifyListeners();
       } catch (e) {
-        print("Error cargando recuerdos: $e");
+        // Logs can be handled by a service in production
+        debugPrint("Error cargando recuerdos: $e");
       }
     }
   }
@@ -198,7 +199,7 @@ class LugaresVM extends ChangeNotifier {
       _lugaresTotales =
           resultados[3] as List<Lugar>; // Lista maestra actualizada
     } catch (e) {
-      print("Error cargando catálogos: $e");
+      debugPrint("Error cargando catálogos: $e");
     } finally {
       _estaCargandoInicio = false;
       _cargaInicialRealizada = true;
@@ -308,8 +309,9 @@ class LugaresVM extends ChangeNotifier {
   ) async {
     if (_authVM == null ||
         !_authVM!.estaLogueado ||
-        _authVM!.usuarioActual == null)
+        _authVM!.usuarioActual == null) {
       return;
+    }
 
     final usuario = _authVM!.usuarioActual!;
     await _repositorio.enviarComentario(

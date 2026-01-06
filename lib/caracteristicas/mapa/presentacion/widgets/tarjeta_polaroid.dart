@@ -30,7 +30,7 @@ class TarjetaPolaroid extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2), // Bordes casi rectos como papel
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 15,
                         offset: const Offset(0, 8)),
                   ],
@@ -126,7 +126,7 @@ class TarjetaPolaroid extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 5
                           )
                         ],

@@ -35,6 +35,7 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
     super.initState();
     Future.microtask(() {
       // 1. Pedimos al Mesero de Lugares que cargue solo los datos de esta provincia.
+      if (!mounted) return;
       context.read<LugaresVM>().cargarLugaresPorProvincia(widget.provincia.id);
     });
     // Sincronizamos la búsqueda con el VM
@@ -132,7 +133,7 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
     // (Tu código intacto aquí...)
     final List<Categoria> categorias = [
       Categoria(id: '1', nombre: 'Todos', urlImagen: ''),
-      ...vmLugares.categorias.where((c) => c.id != '1').toList(),
+      ...vmLugares.categorias.where((c) => c.id != '1'),
     ];
 
     final String selectedCategoryId =
