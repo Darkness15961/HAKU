@@ -7,6 +7,14 @@ import '../vista_modelos/rutas_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../dominio/entidades/ruta.dart';
 
+import '../widgets/mapa_ruta_preview.dart';
+
+// --- External Packages ---
+import 'package:latlong2/latlong.dart';
+
+// --- Other VMs ---
+import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
+
 class DetalleRutaPagina extends StatelessWidget {
   final Ruta ruta;
 
@@ -118,6 +126,17 @@ class DetalleRutaPagina extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // --- OBTENER PUNTOS DE INTERÉS (WAYPOINTS) ---
+    final lugaresVM = context.read<LugaresVM>();
+    // Mapeamos los IDs de la ruta a objetos Lugar reales para obtener sus coordenadas
+    final List<LatLng> waypointsRuta = ruta.lugaresIncluidosIds.map((id) {
+      final lugar = lugaresVM.lugaresTotales.firstWhere(
+        (l) => l.id == id,
+        orElse: () => lugaresVM.lugaresTotales.first, // Fallback seguro
+      );
+      return LatLng(lugar.latitud, lugar.longitud);
+    }).toList();
+
     final vmAuth = context.watch<AutenticacionVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
@@ -206,7 +225,7 @@ class DetalleRutaPagina extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
+                        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.9)],
                         stops: const [0.4, 1.0],
                       ),
                     ),
@@ -222,7 +241,7 @@ class DetalleRutaPagina extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.6),
+                                color: Colors.black.withValues(alpha: 0.6),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: colorTema, width: 1),
                               ),
@@ -235,7 +254,7 @@ class DetalleRutaPagina extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -269,146 +288,87 @@ class DetalleRutaPagina extends StatelessWidget {
             ),
           ),
 
-          // --- 2. DETALLES ---
+          // --- 2. BODY REORDENADO ---
           SliverList(
             delegate: SliverChildListDelegate([
               const SizedBox(height: 20),
+              
+              // A. RESUMEN CLAVE (Precio, Días, Categoría)
               _buildInfoCard(context, ruta, cuposDisponibles: cuposDisponibles),
+              const SizedBox(height: 24),
 
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colorTema.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colorTema.withOpacity(0.3)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(_getIconForCategory(ruta.categoria), color: colorTema, size: 24),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(ruta.categoria.toUpperCase(), style: TextStyle(color: colorTema, fontWeight: FontWeight.bold, fontSize: 12)),
-                          const SizedBox(height: 4),
-                          Text(_getDescripcionCategoria(ruta.categoria), style: TextStyle(color: Colors.grey[700], fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              // B. MAPA VISUAL (Contexto Inmediato - Restaurado arriba)
+              MapaRutaPreview(
+                polilinea: ruta.polilinea,
+                waypoints: waypointsRuta, 
+                distanciaMetros: ruta.distanciaMetros,
+                duracionSegundos: ruta.duracionSegundos,
               ),
 
-              if (ruta.estado != 'convocatoria')
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: ruta.estado == 'en_curso' ? Colors.green[50] : Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ruta.estado == 'en_curso' ? Colors.green : Colors.grey),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(ruta.estado == 'en_curso' ? Icons.live_tv : Icons.flag, color: ruta.estado == 'en_curso' ? Colors.green : Colors.grey[700]),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          ruta.estado == 'en_curso' ? "¡Esta ruta está EN CURSO ahora mismo!" : "Esta ruta ha FINALIZADO",
-                          style: TextStyle(color: ruta.estado == 'en_curso' ? Colors.green : Colors.grey[700], fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              // C. DESCRIPCIÓN (La Historia)
+              const Divider(height: 40, thickness: 1, indent: 20, endIndent: 20),
+              _buildSectionTitle('Sobre la Experiencia'),
+               Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Text(ruta.descripcion, style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87)),
+              ),
+              const SizedBox(height: 20),
 
+              // D. ITINERARIO (El Detalle paso a paso)
+               const Divider(height: 40, thickness: 1, indent: 20, endIndent: 20),
+               _buildSectionTitle('Itinerario'),
+              _buildTimelineItinerary(ruta.lugaresIncluidos, ruta.lugaresIncluidosIds, colorTema),
+              
+              const Divider(height: 40, thickness: 1, indent: 20, endIndent: 20),
+
+              // E. INFO ADICIONAL (Fecha, Guía, Equipo)
               if (ruta.fechaEvento != null || ruta.puntoEncuentro != null) ...[
-                const SizedBox(height: 20),
-                _buildSectionTitle('📅 Información del Evento'),
+                 _buildSectionTitle('📅 Detalles Logísticos'),
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 20),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [Colors.teal[50]!, Colors.teal[100]!]),
+                    color: Colors.teal.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.teal[200]!),
+                    border: Border.all(color: Colors.teal.withValues(alpha: 0.2)),
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (ruta.fechaEvento != null) ...[
-                        Row(
-                          children: [
-                            const Icon(Icons.calendar_month, color: Colors.teal, size: 28),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Fecha y Hora', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                                  Text(_formatFechaCompleta(ruta.fechaEvento!), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                  Text(_formatHoraCompleta(ruta.fechaEvento!), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.teal[700])),
-                                ],
-                              ),
-                            ),
-                          ],
+                      if (ruta.fechaEvento != null)
+                        _buildLogisticRow(Icons.calendar_month, "Fecha", _formatFechaCompleta(ruta.fechaEvento!)),
+                      if (ruta.puntoEncuentro != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16.0),
+                          child: _buildLogisticRow(Icons.location_on, "Encuentro", ruta.puntoEncuentro!),
                         ),
-                      ],
-                      if (ruta.puntoEncuentro != null) ...[
-                        const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on, color: Colors.orange, size: 28),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Punto de Encuentro', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                                  Text(ruta.puntoEncuentro!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
                     ],
                   ),
                 ),
+                const SizedBox(height: 24),
               ],
 
-              const SizedBox(height: 20),
-              _buildSectionTitle('Organizador'),
+              _buildSectionTitle('Tu Guía'),
               _buildGuideProfile(context, ruta),
 
               if (ruta.equipamiento.isNotEmpty) ...[
-                _buildSectionTitle('🎒 Equipamiento Necesario'),
+                const SizedBox(height: 20),
+                _buildSectionTitle('🎒 ¿Qué llevar?'),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: ruta.equipamiento.map((item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(children: [const Icon(Icons.check, size: 16, color: Colors.green), const SizedBox(width: 8), Text(item, style: const TextStyle(fontSize: 15))]),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: ruta.equipamiento.map((item) => Chip(
+                      avatar: const Icon(Icons.check, size: 16, color: Colors.green),
+                      label: Text(item),
+                      backgroundColor: Colors.white,
+                      side: BorderSide(color: Colors.grey.shade300),
                     )).toList(),
                   ),
                 ),
-                const Divider(height: 40),
               ],
-
-              const Divider(height: 40, thickness: 1, indent: 20, endIndent: 20),
-              _buildSectionTitle('Sobre la Experiencia'),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Text(ruta.descripcion, style: const TextStyle(fontSize: 16, height: 1.5)),
-              ),
-
-              const SizedBox(height: 20),
-              _buildSectionTitle('Itinerario'),
-              _buildTimelineItinerary(ruta.lugaresIncluidos, ruta.lugaresIncluidosIds, colorTema),
-              const SizedBox(height: 120),
+              
+              const SizedBox(height: 120), // Espacio final
             ]),
           ),
         ],
@@ -417,7 +377,29 @@ class DetalleRutaPagina extends StatelessWidget {
     );
   }
 
-  // --- WIDGETS AUXILIARES ---
+  // Helper para fila logística
+  Widget _buildLogisticRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)]),
+          child: Icon(icon, color: Colors.teal, size: 20),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSmartBottomBar(BuildContext context, Ruta ruta, bool esGuia, bool estaInscrito) {
     final vmRutas = context.read<RutasVM>();
 
@@ -482,7 +464,7 @@ class DetalleRutaPagina extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 5))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -511,17 +493,35 @@ class DetalleRutaPagina extends StatelessWidget {
   Widget _buildGuideProfile(BuildContext context, Ruta ruta) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[200]!)),
+      padding: const EdgeInsets.all(16), // Padding aumentado para consistencia
+      decoration: BoxDecoration(
+        color: Colors.deepPurple.withValues(alpha: 0.05), // Fondo Morado Suave
+        borderRadius: BorderRadius.circular(20), // Borde redondeado consistente
+        border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.2)), // Borde Morado
+        boxShadow: [
+           BoxShadow(
+             color: Colors.deepPurple.withValues(alpha: 0.05),
+             blurRadius: 10,
+             offset: const Offset(0, 4),
+           ),
+        ],
+      ),
       child: ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundImage: (ruta.guiaFotoUrl.isNotEmpty) ? NetworkImage(ruta.guiaFotoUrl) : null,
-          child: (ruta.guiaFotoUrl.isEmpty) ? Text(ruta.guiaNombre.substring(0, 1)) : null,
+        leading: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.3), width: 2),
+          ),
+          child: CircleAvatar(
+            radius: 28,
+            backgroundColor: Colors.deepPurple.shade100,
+            backgroundImage: (ruta.guiaFotoUrl.isNotEmpty) ? NetworkImage(ruta.guiaFotoUrl) : null,
+            child: (ruta.guiaFotoUrl.isEmpty) ? Text(ruta.guiaNombre.substring(0, 1), style: const TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold)) : null,
+          ),
         ),
-        title: Text(ruta.guiaNombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        subtitle: const Text("Organizador de la ruta"),
+        title: Text(ruta.guiaNombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepPurple)), // Texto morado
+        subtitle: const Text("Organizador de la ruta", style: TextStyle(color: Colors.black54)),
       ),
     );
   }
@@ -555,18 +555,18 @@ class DetalleRutaPagina extends StatelessWidget {
                   width: 40,
                   child: Column(
                     children: [
-                      Container(width: 2, height: 20, color: isFirst ? Colors.transparent : colorTema.withOpacity(0.3)),
+                      Container(width: 2, height: 20, color: isFirst ? Colors.transparent : colorTema.withValues(alpha: 0.3)),
                       Container(
                         width: 32, height: 32,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                           border: Border.all(color: colorTema, width: 2),
-                          boxShadow: [BoxShadow(color: colorTema.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))],
+                          boxShadow: [BoxShadow(color: colorTema.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 4))],
                         ),
                         child: Center(child: Text('${index + 1}', style: TextStyle(color: colorTema, fontWeight: FontWeight.bold, fontSize: 14))),
                       ),
-                      Expanded(child: Container(width: 2, color: isLast ? Colors.transparent : colorTema.withOpacity(0.3))),
+                      Expanded(child: Container(width: 2, color: isLast ? Colors.transparent : colorTema.withValues(alpha: 0.3))),
                     ],
                   ),
                 ),
@@ -575,8 +575,6 @@ class DetalleRutaPagina extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 24.0),
                     child: InkWell(
-                      // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-                      // Ya descomentamos el código y usamos 'lugarId' para navegar
                       onTap: () {
                         if (lugarId != null) {
                           context.push('/lugares/detalle-lugar', extra: lugarId);
@@ -587,8 +585,8 @@ class DetalleRutaPagina extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4))],
-                          border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                          boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4))],
+                          border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
                         ),
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -653,7 +651,7 @@ class DetalleRutaPagina extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
-      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]),
+      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))]),
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(

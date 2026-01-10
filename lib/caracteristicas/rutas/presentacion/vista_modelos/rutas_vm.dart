@@ -9,7 +9,7 @@ import '../../dominio/entidades/ruta.dart';
 import '../../../../locator.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../datos/servicios/osrm_service.dart'; // <--- NUEVO IMPORT (Tu servicio calculadora)
-import '../../../inicio/dominio/entidades/lugar.dart'; // Necesario para acceder a las coordenadas de los lugares
+
 
 class RutasVM extends ChangeNotifier {
   // --- A. DEPENDENCIAS ---
