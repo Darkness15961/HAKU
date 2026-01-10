@@ -18,6 +18,7 @@ import '../../../rutas/presentacion/vista_modelos/rutas_vm.dart';
 import '../../../inicio/dominio/entidades/lugar.dart';
 import '../../../rutas/dominio/entidades/ruta.dart';
 
+
 // Key Global
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -205,6 +206,7 @@ class MapaVM extends ChangeNotifier {
     );
   }
 
+
   void _manejarTapMarcador(Lugar lugar) {
     _lugarSeleccionado = lugar;
     mapController.move(LatLng(lugar.latitud, lugar.longitud), 15.0);
@@ -276,12 +278,14 @@ class MapaVM extends ChangeNotifier {
       puntosParaZoom = points;
     }
 
+
     if (puntosParaZoom.isNotEmpty) {
       final bounds = LatLngBounds.fromPoints(puntosParaZoom);
       mapController.fitCamera(
         CameraFit.bounds(
           bounds: bounds,
-          padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 80),
+          // Aumentamos padding para "alejar" la vista (Zoom Out)
+          padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 140),
         ),
       );
     }
