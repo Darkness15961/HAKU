@@ -294,6 +294,7 @@ class MapaVM extends ChangeNotifier {
   // --- GPS MEJORADO ---
 
   // Devuelve un mensaje de error si falla, o null si todo sale bien.
+  // Devuelve un mensaje de error si falla, o null si todo sale bien.
   Future<String?> enfocarMiUbicacion() async {
     // 1. Verificar si el GPS está prendido
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -313,18 +314,36 @@ class MapaVM extends ChangeNotifier {
       return "❌ Los permisos de ubicación están bloqueados en ajustes.";
     }
 
-    // 3. Obtener ubicación
+    // 3. Estrategia Optimizada: Last Known + Current
     try {
-      Position position = await Geolocator.getCurrentPosition();
-      _currentLocation = LatLng(position.latitude, position.longitude);
+      // A. Intento Rápido: Última ubicación conocida (Caché)
+      // Esto suele ser instantáneo.
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        _currentLocation = LatLng(lastKnown.latitude, lastKnown.longitude);
+        mapController.move(_currentLocation!, 16.0);
+        notifyListeners();
+      }
 
-      mapController.move(_currentLocation!, 16.0);
+      // B. Iniciar seguimiento activo (Refinar ubicación)
+      // Esto actualizará la posición en cuanto el GPS tenga una lectura fresca
       iniciarSeguimientoUbicacion();
+      
+      // C. Forzar una lectura fresca si no había lastKnown (con timeout para no bloquear)
+      if (lastKnown == null) {
+         // Damos feedback visual de "buscando" si quieres, o simplemente esperamos
+         Position position = await Geolocator.getCurrentPosition(
+           timeLimit: const Duration(seconds: 5)
+         );
+         _currentLocation = LatLng(position.latitude, position.longitude);
+         mapController.move(_currentLocation!, 16.0);
+         notifyListeners();
+      }
 
-      notifyListeners();
-      return null; // Éxito (sin error)
+      return null; // Éxito
     } catch (e) {
-      return "Error al obtener tu ubicación.";
+      if (_currentLocation != null) return null; // Si ya tenemos ubicación (del lastKnown), no mostramos error
+      return "No se pudo obtener la ubicación actual.";
     }
   }
 

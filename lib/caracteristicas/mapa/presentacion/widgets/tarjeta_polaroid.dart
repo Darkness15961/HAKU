@@ -25,6 +25,7 @@ class TarjetaPolaroid extends StatelessWidget {
               // --- EL CUERPO DE LA POLAROID ---
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                constraints: const BoxConstraints(maxHeight: 400), // Constraint de seguridad máximo
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(2), // Bordes casi rectos como papel
@@ -35,81 +36,85 @@ class TarjetaPolaroid extends StatelessWidget {
                         offset: const Offset(0, 8)),
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 1. FOTO (Con Animación Hero)
-                    // Usamos AspectRatio 4/3 o 1/1 para efecto Polaroid real
-                    AspectRatio(
-                      aspectRatio: 4 / 3,
-                      child: Hero(
-                        tag: lugar.id, // ¡Magia! Conecta esta foto con la del detalle
-                        child: Container(
-                          color: Colors.grey[100],
-                          child: Image.network(
-                            lugar.urlImagen,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Center(
-                                child: Icon(Icons.broken_image, color: Colors.grey)),
+                child: SingleChildScrollView(
+                  // Scroll si no cabe en vertical (Landscape)
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 1. FOTO (Con Animación Hero)
+                      // Usamos AspectRatio 4/3 o 1/1 para efecto Polaroid real
+                      AspectRatio(
+                        aspectRatio: 4 / 3,
+                        child: Hero(
+                          tag: lugar.id, // ¡Magia! Conecta esta foto con la del detalle
+                          child: Container(
+                            color: Colors.grey[100],
+                            child: Image.network(
+                              lugar.urlImagen,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Center(
+                                  child: Icon(Icons.broken_image, color: Colors.grey)),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 2. TEXTO MANUSCRITO
-                    Text(
-                      lugar.nombre,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Cursive', // Intenta usar fuente manual del sistema
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // 3. RATING Y CATEGORÍA
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.star, size: 16, color: Colors.amber),
-                        Text(" ${lugar.rating} ",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[800])),
-                        Text("• ${lugar.reviewsCount} opiniones",
-                            style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // 4. BOTÓN VER DETALLES (Estilo Minimalista)
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          context.push('/inicio/detalle-lugar', extra: lugar);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          side: const BorderSide(color: Colors.black, width: 1.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                      const SizedBox(height: 16),
+  
+                      // 2. TEXTO MANUSCRITO
+                      Text(
+                        lugar.nombre,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Cursive', // Intenta usar fuente manual del sistema
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          letterSpacing: -0.5,
                         ),
-                        child: const Text("VER DETALLES",
-                            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
                       ),
-                    )
-                  ],
+  
+                      const SizedBox(height: 8),
+  
+                      // 3. RATING Y CATEGORÍA
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.star, size: 16, color: Colors.amber),
+                          Text(" ${lugar.rating} ",
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800])),
+                          Text("• ${lugar.reviewsCount} opiniones",
+                              style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                        ],
+                      ),
+  
+                      const SizedBox(height: 16),
+  
+                      // 4. BOTÓN VER DETALLES (Estilo Minimalista)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            context.push('/inicio/detalle-lugar', extra: lugar);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.black,
+                            side: const BorderSide(color: Colors.black, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text("VER DETALLES",
+                              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+                        ),
+                      )
+                    ],
+                  ),
                 ),
               ),
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui'; // Necesario para ImageFilter
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +19,7 @@ import '../../../rutas/dominio/entidades/ruta.dart';
 import '../widgets/tarjeta_polaroid.dart';
 import '../widgets/filtro_chip.dart';
 import '../widgets/cached_tile_provider.dart';
+import '../widgets/indicador_scroll.dart';
 
 class MapaPagina extends StatefulWidget {
   const MapaPagina({super.key});
@@ -35,6 +37,8 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
 
   bool _verRelieve = false;
   int _subFiltroRuta = 0;
+  bool _isRutasExpanded = false; // Nuevo estado para expansión
+  final ScrollController _filtrosScrollController = ScrollController();
 
   @override
   void initState() {
@@ -65,6 +69,7 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
   void dispose() {
     _cardAnimController.dispose();
     _pageController.dispose();
+    _filtrosScrollController.dispose();
     super.dispose();
   }
 
@@ -140,16 +145,44 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
           }
         }
 
-        // --- POSICIONAMIENTO DINÁMICO ---
-        double bottomButtons = isLandscape ? 20 : 120; // Más abajo en landscape
+        // Si cambiamos de filtro y no es rutas, colapsamos por seguridad
+        if (mapaVM.filtroActual != 3 && _isRutasExpanded) {
+             _isRutasExpanded = false;
+        }
+
+        // --- POSICIONAMIENTO DINÁMICO DE BOTONES FLOTANTES ---
+        double bottomButtons = 140; // Base un poco más arriba (+20px)
         double rightButtons = 16;
-        
-        // Ajustamos si hay elementos superpuestos
-        if (mapaVM.lugarSeleccionado != null) {
-          bottomButtons = isLandscape ? 20 : 350; // En landscape, los botones se quedan abajo derecha
-          // En landscape la tarjeta polaroid va a la izquierda
-        } else if (mapaVM.filtroActual == 3) {
-          bottomButtons = isLandscape ? size.height * 0.4 : 220;
+
+        if (isLandscape) {
+          // EN LANDSCAPE
+          if (_isRutasExpanded) {
+             bottomButtons = size.height * 0.7 + 30; 
+          } else if (mapaVM.filtroActual == 3) {
+             // Carrusel visible (ahora más pequeño: 110px).
+             // Botones: 110 + 20 margen = 130px.
+             bottomButtons = 140; // Dejamos 140 para asegurar "aire"
+          } else if (mapaVM.lugarSeleccionado != null) {
+             // Subimos un poco más de 20 a 50
+             bottomButtons = 50;
+          } else {
+             bottomButtons = 50;
+          }
+        } else {
+          // EN PORTRAIT
+          if (_isRutasExpanded) {
+             bottomButtons = size.height * 0.7 + 30;
+          } else if (mapaVM.filtroActual == 3) {
+             // Carrusel visible (ahora 140px).
+             // Botones: 140 + 20 (margen) + bottomBar (si hay) -> Pongamos 180 + safeArea
+             bottomButtons = 260; // Subimos más (+20px respecto al anterior 240)
+          } else if (mapaVM.lugarSeleccionado != null) {
+             // Polaroid visible.
+             bottomButtons = 380; // +20px
+          } else {
+             // Estado normal
+             bottomButtons = 160; // +20px base
+          }
         }
 
         return Scaffold(
@@ -215,21 +248,25 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
               Positioned(
                 top: MediaQuery.of(context).padding.top + 10,
                 left: 0, 
-                right: isLandscape ? 80 : 0, // Dejar espacio a botones si están arriba en landscape (opcional)
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: [
-                      FiltroChip(label: "Explorar", icon: Icons.map_outlined, isSelected: mapaVM.filtroActual == 0, onTap: () => _intentarCambiarFiltro(0)),
-                      const SizedBox(width: 8),
-                      FiltroChip(label: "Recuerdos", icon: Icons.camera_alt_outlined, isSelected: mapaVM.filtroActual == 1, onTap: () => _intentarCambiarFiltro(1)),
-                      const SizedBox(width: 8),
-                      FiltroChip(label: "Por Visitar", icon: Icons.bookmark_outline, isSelected: mapaVM.filtroActual == 2, onTap: () => _intentarCambiarFiltro(2)),
-                      const SizedBox(width: 8),
-                      FiltroChip(label: "Mis Rutas", icon: Icons.alt_route_outlined, isSelected: mapaVM.filtroActual == 3, onTap: () => _intentarCambiarFiltro(3)),
-                    ],
+                right: isLandscape ? 80 : 0, 
+                child: IndicadorScroll( // Envolvemos con el nuevo indicador
+                  scrollController: _filtrosScrollController,
+                  child: SingleChildScrollView(
+                    controller: _filtrosScrollController,
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        FiltroChip(label: "Explorar", icon: Icons.map_outlined, isSelected: mapaVM.filtroActual == 0, onTap: () => _intentarCambiarFiltro(0)),
+                        const SizedBox(width: 8),
+                        FiltroChip(label: "Recuerdos", icon: Icons.camera_alt_outlined, isSelected: mapaVM.filtroActual == 1, onTap: () => _intentarCambiarFiltro(1)),
+                        const SizedBox(width: 8),
+                        FiltroChip(label: "Por Visitar", icon: Icons.bookmark_outline, isSelected: mapaVM.filtroActual == 2, onTap: () => _intentarCambiarFiltro(2)),
+                        const SizedBox(width: 8),
+                        FiltroChip(label: "Mis Rutas", icon: Icons.alt_route_outlined, isSelected: mapaVM.filtroActual == 3, onTap: () => _intentarCambiarFiltro(3)),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -295,15 +332,23 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                 
               // --- B. CARRUSEL DE RUTAS ("MIS RUTAS") ---
               else if (mapaVM.filtroActual == 3) ...[
-                // Switch (Inscritas/Creadas)
-                 Positioned(
-                  bottom: isLandscape ? 20 : 210, // En landscape lo ponemos abajo izquierda alineado con carrusel si queremos, o arriba
-                  left: 0, 
+                // 1. Panel Expandible (Fondo)
+                // Lo ponemos PRIMERO para que quede DETRÁS del switch flotante
+                _buildPanelRutas(context, mapaVM, rutasAMostrar, isLandscape, size),
+
+                // 2. Switch (Inscritas/Creadas) (Frente)
+                 AnimatedPositioned(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  bottom: _isRutasExpanded 
+                      ? (size.height * 0.7) - 50 
+                      : (isLandscape ? 110 : 130), // Exactamente encima de 100/120 panel height
+                  left: isLandscape ? 20 : 0, // Landscape: Pegado a la izquierda pero con margen
                   right: isLandscape ? null : 0,
-                  top: isLandscape ? 80 : null, // Landscape: Arriba a la izquierda
+                  top: null, // Quitamos top en landscape para manejarlo por bottom que es más seguro para carruseles
                   child: Container(
-                    padding: isLandscape ? const EdgeInsets.only(left: 20) : EdgeInsets.zero,
-                    alignment: isLandscape ? Alignment.topLeft : Alignment.center,
+                    padding: isLandscape ? EdgeInsets.zero : EdgeInsets.zero, // Padding ya manejado por posición
+                    alignment: isLandscape ? Alignment.bottomLeft : Alignment.center,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -327,14 +372,6 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-
-                // Carrusel
-                Positioned(
-                  bottom: 30, // Margen inferior
-                  left: 0, 
-                  right: isLandscape ? 60 : 0, // En landscape dejamos espacio a la derecha par botones
-                  child: _buildCarruselRutasAnimado(context, mapaVM, rutasAMostrar, isLandscape),
-                ),
               ],
             ],
           ),
@@ -357,26 +394,37 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
   }
 
   Widget _buildSwitchModerno() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+    // DISEÑO SENIOR: Blanco Sólido + Sombra suave. Fuera "niebla".
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white, // Blanco sólido "Clean"
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
+        border: Border.all(color: Colors.grey.shade200), // Borde fino
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Flecha de Expansión (Clean, sin fondo extra, el padre ya es blanco)
+          GestureDetector(
+            onTap: () => setState(() => _isRutasExpanded = !_isRutasExpanded),
+            child: Container(
+              color: Colors.transparent, 
+              padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
+              child: Icon(
+                _isRutasExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+                color: Colors.black87, // Icono negro/gris fuerte
+                size: 22,
+              ),
+            ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildSwitchOption("Inscritas", 0),
-              const SizedBox(width: 4),
-              _buildSwitchOption("Creadas", 1),
-            ],
-          ),
-        ),
+          _buildSwitchOption("Inscritas", 0),
+          const SizedBox(width: 2), // Menos espacio, más compacto
+          _buildSwitchOption("Creadas", 1),
+        ],
       ),
     );
   }
@@ -392,15 +440,16 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
         duration: const Duration(milliseconds: 250),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          // Invertido: Fondo oscuro al seleccionar para estilo "Pill"
+          color: isSelected ? Colors.black87 : Colors.transparent, 
           borderRadius: BorderRadius.circular(24),
-          boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4)] : [],
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.black : Colors.white70,
-            fontWeight: FontWeight.bold,
+            // Texto blanco si seleccionado, gris oscuro si no
+            color: isSelected ? Colors.white : Colors.grey.shade600,
+            fontWeight: FontWeight.w600,
             fontSize: 13,
           ),
         ),
@@ -411,8 +460,8 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
   // --- CARRUSEL MEJORADO (OSRM + UI PRO) ---
   Widget _buildCarruselRutasAnimado(BuildContext context, MapaVM mapaVM, List<Ruta> rutas, bool isLandscape) {
     // Altura ajustada: más bajita en landscape si es necesario
-    final double carruselHeight = isLandscape ? 130 : 160; 
-
+    // Altura ajustada: Modo Compacto "Pro" para no obstruir el mapa
+    final double carruselHeight = isLandscape ? 90 : 110; 
 
     if (rutas.isEmpty) {
       return Container(
@@ -470,116 +519,117 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                 mapaVM.enfocarRutaEnMapa(ruta, lugaresVM.lugaresTotales);
               },
               child: Container(
-                margin: const EdgeInsets.only(bottom: 10, left: 5, right: 5), // Espacio entre cards
+                margin: const EdgeInsets.only(bottom: 15, left: 5, right: 5), // Un poco más de margen bottom para la sombra
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white, // Fondo blanco limpio
                   boxShadow: [
+                    // Sombra premium suave
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15), 
-                      blurRadius: 12, 
-                      offset: const Offset(0, 6)
+                      color: Colors.black.withOpacity(0.08), 
+                      blurRadius: 15, 
+                      offset: const Offset(0, 8)
                     )
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Stack(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Row(
                     children: [
-                      // 1. Imagen de Fondo
-                      Positioned.fill(
+                      // 1. Imagen - 40% del ancho (Solicitado por Diseño)
+                      Expanded(
+                        flex: 4, 
                         child: Image.network(
                           ruta.urlImagenPrincipal,
                           fit: BoxFit.cover,
-                          errorBuilder: (_,__,___) => Container(color: Colors.grey.shade200),
+                          height: double.infinity, // Cubrir toda la altura
+                          errorBuilder: (_,__,___) => Container(color: Colors.grey.shade100, child: const Icon(Icons.broken_image, color: Colors.grey)),
                         ),
                       ),
                       
-                      // 2. Gradiente Profesional
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: 0.3),
-                                Colors.black.withValues(alpha: 0.9),
-                              ],
-                              stops: const [0.4, 0.7, 1.0],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // 3. Contenido Informativo (OSRM)
-                      Positioned(
-                        bottom: 16, left: 16, right: 16,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
+                      // 2. Información "Rich Content" - 60% restante
+                      Expanded(
+                        flex: 6,
+                        child: Row(
                           children: [
-                            // Título
-                            Text(
-                              ruta.nombre,
-                              style: const TextStyle(
-                                color: Colors.white, 
-                                fontSize: 18, 
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: -0.5,
+                            // Columna de Info (Toma el espacio disponible del 60%)
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), // Padding ajustado
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center, // Centrado verticalmente
+                                  children: [
+                                    // A. Título y Rating
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            ruta.nombre,
+                                            style: const TextStyle(
+                                              color: Colors.black87, 
+                                              fontSize: 13, // Un pelín más pequeño para asegurar fit
+                                              fontWeight: FontWeight.w800,
+                                              height: 1.1,
+                                            ),
+                                            maxLines: 2, 
+                                            overflow: TextOverflow.ellipsis
+                                          ),
+                                        ),
+                                        if (ruta.rating > 0)
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 4.0),
+                                            child: Text("★${ruta.rating}", style: const TextStyle(fontSize: 10, color: Colors.amber, fontWeight: FontWeight.bold)),
+                                          )
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    
+                                    // B. Categoría (Compact Tag)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(3),
+                                        border: Border.all(color: Colors.grey.shade300),
+                                      ),
+                                      child: Text(
+                                        ruta.categoria.toUpperCase(),
+                                        style: TextStyle(fontSize: 8, color: Colors.grey.shade700, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+
+                                    // C. Métricas (Fila única compacta)
+                                    Row(
+                                      children: [
+                                        Icon(Icons.directions_walk, size: 10, color: Colors.blueGrey.shade400),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          "${(ruta.distanciaMetros / 1000).toStringAsFixed(1)}km",
+                                          style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 10, fontWeight: FontWeight.w600),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(Icons.schedule, size: 10, color: Colors.blueGrey.shade400),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          _formatearDuracion(ruta.duracionSegundos),
+                                          style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 10, fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                              maxLines: 1, 
-                              overflow: TextOverflow.ellipsis
                             ),
-                            const SizedBox(height: 8),
                             
-                            // Badges de Información (Distancia / Tiempo)
-                            Row(
-                              children: [
-                                _InfoBadge(
-                                  icon: Icons.directions_walk_rounded,
-                                  text: "${(ruta.distanciaMetros / 1000).toStringAsFixed(1)} km",
-                                  color: Colors.cyanAccent,
-                                ),
-                                const SizedBox(width: 12),
-                                _InfoBadge(
-                                  icon: Icons.timer_rounded,
-                                  // Conversión simple de segundos a texto (Ej: 3600 -> 1h)
-                                  text: _formatearDuracion(ruta.duracionSegundos),
-                                  color: Colors.orangeAccent,
-                                ),
-                              ],
+                            // 3. Chevron (Parte derecha del bloque 60%)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Icon(Icons.chevron_right_rounded, color: Colors.grey.shade300, size: 20),
                             ),
                           ],
-                        ),
-                      ),
-                      
-                      // 4. Indicador "Ver Ruta"
-
-                      Positioned(
-                        top: 12, right: 12,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.4),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text("Ver Mapa", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                  SizedBox(width: 4),
-                                  Icon(Icons.visibility_outlined, color: Colors.white, size: 12),
-                                ],
-                              ),
-                            ),
-                          ),
                         ),
                       ),
                     ],
@@ -603,6 +653,114 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
       final int mins = minutes % 60;
       return "${hours}h ${mins}m";
     }
+  }
+
+  // --- PANEL RUTAS EXPANDIBLE ---
+  Widget _buildPanelRutas(BuildContext context, MapaVM mapaVM, List<Ruta> rutas, bool isLandscape, Size screenSize) {
+    // Alturas
+    // Alturas
+    // Ajustado para coincidir con el carrusel compacto (110 + 10 padding = 120 aprox)
+    final double collapsedHeight = isLandscape ? 100 : 120;
+    final double expandedHeight = screenSize.height * 0.7; // 70% de la pantalla
+    
+    // Si está expandido ocupamos una posición fija desde abajo, si no, es solo el carrusel
+    // Usamos AnimatedPositioned para que se deslice suave
+    
+    final double bottomPos = 0; // Siempre anclado abajo
+    final double height = _isRutasExpanded ? expandedHeight : collapsedHeight;
+
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      bottom: bottomPos,
+      left: 0,
+      right: isLandscape ? 60 : 0, // Respetar botones laterales en landscape
+      height: height,
+      child: Stack(
+        children: [
+          // Fondo del Panel (Solo visible al expandir para dar contraste)
+          if (_isRutasExpanded)
+            GestureDetector(
+              onTap: () => setState(() => _isRutasExpanded = false), // Cerrar al tocar fuera (técnicamente el fondo)
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.95),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 5)]
+                ),
+              ),
+            ),
+
+          // Contenido
+          Column(
+            children: [
+              // Eliminamos el botón Handle superior ya que ahora está en el switch
+              const SizedBox(height: 10), // Un pequeño padding superior
+
+              // Lista o Carrusel
+              Expanded(
+                child: _isRutasExpanded
+                    ? _buildListaExpandida(rutas, mapaVM)
+                    : IndicadorScroll( // Agregamos indicadores al carrusel
+                        scrollController: _pageController,
+                        showArrows: true,
+                        child: _buildCarruselRutasAnimado(context, mapaVM, rutas, isLandscape),
+                      ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListaExpandida(List<Ruta> rutas, MapaVM mapaVM) {
+    if (rutas.isEmpty) return const SizedBox();
+    
+    return ListView.builder(
+      // Padding superior para que el Switch flotante no tape el primer elemento
+      // Padding inferior para el Safe Area
+      padding: EdgeInsets.fromLTRB(16, 60, 16, MediaQuery.of(context).padding.bottom + 20),
+      physics: const BouncingScrollPhysics(),
+      itemCount: rutas.length,
+      itemBuilder: (context, index) {
+        final ruta = rutas[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(8),
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                ruta.urlImagenPrincipal,
+                width: 60, height: 60, fit: BoxFit.cover,
+                errorBuilder: (_,__,___) => Container(color: Colors.grey.shade200, width: 60, height: 60),
+              ),
+            ),
+            title: Text(ruta.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Row(
+               children: [
+                 Icon(Icons.directions_walk, size: 14, color: Colors.grey),
+                 Text(" ${(ruta.distanciaMetros/1000).toStringAsFixed(1)}km ", style: const TextStyle(fontSize: 12)),
+                 const SizedBox(width: 8),
+                 Icon(Icons.timer, size: 14, color: Colors.grey),
+                 Text(" ${_formatearDuracion(ruta.duracionSegundos)}", style: const TextStyle(fontSize: 12)),
+               ],
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.map, color: Colors.blueAccent),
+              onPressed: () {
+                 final lugaresVM = context.read<LugaresVM>();
+                 mapaVM.enfocarRutaEnMapa(ruta, lugaresVM.lugaresTotales);
+                 setState(() => _isRutasExpanded = false); // Colapsar al elegir
+              },
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
