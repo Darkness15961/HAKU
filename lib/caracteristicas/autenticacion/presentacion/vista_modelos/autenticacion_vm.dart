@@ -152,15 +152,15 @@ class AutenticacionVM extends ChangeNotifier {
   }
 
   Future<bool> registrarUsuario(
-      String seudonimo,
-      String email,
-      String password,
-      String documentoIdentidad,
-      String tipoDocumento,
-      String? nombres,
-      String? apellidoPaterno,
-      String? apellidoMaterno,
-      ) async {
+    String seudonimo,
+    String email,
+    String password,
+    String documentoIdentidad,
+    String tipoDocumento,
+    String? nombres,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
+  ) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
@@ -209,9 +209,9 @@ class AutenticacionVM extends ChangeNotifier {
   }
 
   Future<bool> solicitarSerGuia(
-      String experiencia,
-      String rutaCertificado,
-      ) async {
+    String experiencia,
+    String rutaCertificado,
+  ) async {
     _estaCargando = true;
     _error = null;
     notifyListeners();
@@ -297,17 +297,21 @@ class AutenticacionVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> actualizarFotoPerfil(String pathImagen) async {
+  Future<bool> actualizarFotoPerfil(String pathImagen) async {
     _estaCargando = true;
     notifyListeners();
     try {
       await _repositorio.actualizarFotoPerfil(_usuarioActual!.id, pathImagen);
       _usuarioActual = _usuarioActual!.copyWith(urlFotoPerfil: pathImagen);
+      _estaCargando = false;
+      notifyListeners();
+      return true;
     } catch (e) {
       _error = e.toString();
+      _estaCargando = false;
+      notifyListeners();
+      return false;
     }
-    _estaCargando = false;
-    notifyListeners();
   }
 
   Future<void> cambiarPassword(String newPassword) async {
@@ -397,9 +401,9 @@ class AutenticacionVM extends ChangeNotifier {
   }
 
   Future<void> cambiarPasswordConValidacion(
-      String passwordActual,
-      String passwordNueva,
-      ) async {
+    String passwordActual,
+    String passwordNueva,
+  ) async {
     if (_usuarioActual == null) {
       throw Exception('No hay usuario autenticado');
     }
@@ -464,10 +468,10 @@ class AutenticacionVM extends ChangeNotifier {
 
       final AuthResponse res = await Supabase.instance.client.auth
           .signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken,
-        accessToken: accessToken,
-      );
+            provider: OAuthProvider.google,
+            idToken: idToken,
+            accessToken: accessToken,
+          );
 
       if (res.user != null) {
         await _sincronizarPerfilGoogle(res.user!);
@@ -498,11 +502,11 @@ class AutenticacionVM extends ChangeNotifier {
       'id': supabaseUser.id,
       'email': supabaseUser.email,
       'seudonimo':
-      datosExistentes?['seudonimo'] ??
+          datosExistentes?['seudonimo'] ??
           metadata?['full_name'] ??
           'Usuario Google',
       'url_foto_perfil':
-      datosExistentes?['url_foto_perfil'] ?? metadata?['avatar_url'],
+          datosExistentes?['url_foto_perfil'] ?? metadata?['avatar_url'],
       'rol': datosExistentes?['rol'] ?? 'turista',
       'dni': datosExistentes?['dni'],
       'nombres': datosExistentes?['nombres'],

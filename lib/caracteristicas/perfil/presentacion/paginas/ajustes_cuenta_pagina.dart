@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../../../core/servicios/reniec_servicio.dart';
+import '../../../../core/servicios/imagen_servicio.dart';
 
 class AjustesCuentaPagina extends StatefulWidget {
   const AjustesCuentaPagina({super.key});
@@ -33,6 +34,7 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
   String? _apellidoMaternoReniec;
 
   final _reniecServicio = ReniecServicio();
+  final _imagenServicio = ImagenServicio();
 
   @override
   void initState() {
@@ -137,6 +139,44 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _cambiarFotoPerfil() async {
+    // 1. Seleccionar y subir imagen
+    final url = await _imagenServicio.seleccionarYSubir('perfiles');
+
+    if (url != null && mounted) {
+      // 2. Actualizar URL en backend
+      final authVM = context.read<AutenticacionVM>();
+
+      // Mostrar carga si es necesario (opcional, pero buena UX)
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Guardando foto de perfil...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      final exito = await authVM.actualizarFotoPerfil(url);
+
+      if (mounted) {
+        if (exito) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Foto actualizada correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authVM.error ?? 'Error al actualizar foto'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -327,14 +367,7 @@ class _AjustesCuentaPaginaState extends State<AjustesCuentaPagina> {
                         child: IconButton(
                           icon: const Icon(Icons.camera_alt, size: 20),
                           color: Colors.white,
-                          onPressed: () {
-                            // TODO: Cambiar foto
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Función próximamente'),
-                              ),
-                            );
-                          },
+                          onPressed: _cambiarFotoPerfil,
                         ),
                       ),
                     ),
