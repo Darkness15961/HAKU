@@ -4,10 +4,7 @@ import '../../../../core/servicios/imagen_servicio.dart';
 class SubidaImagenRuta extends StatefulWidget {
   final TextEditingController urlImagenCtrl;
 
-  const SubidaImagenRuta({
-    super.key,
-    required this.urlImagenCtrl,
-  });
+  const SubidaImagenRuta({super.key, required this.urlImagenCtrl});
 
   @override
   State<SubidaImagenRuta> createState() => _SubidaImagenRutaState();
@@ -59,47 +56,38 @@ class _SubidaImagenRutaState extends State<SubidaImagenRuta> {
             child: _subiendoImagen
                 ? const Center(child: CircularProgressIndicator())
                 : widget.urlImagenCtrl.text.isEmpty
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.add_a_photo,
-                            size: 40,
-                            color: Colors.grey[600],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Toca para subir una foto',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ],
-                      )
-                    : null,
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_a_photo,
+                        size: 40,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Toca para subir una foto',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
+                  )
+                : null,
           ),
         ),
         if (widget.urlImagenCtrl.text.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 4.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'URL: ${widget.urlImagenCtrl.text}',
-                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                  onPressed: () {
-                    setState(() {
-                      widget.urlImagenCtrl.clear();
-                    });
-                  },
-                ),
-              ],
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                onPressed: () {
+                  setState(() {
+                    widget.urlImagenCtrl.clear();
+                  });
+                },
+                tooltip: 'Eliminar imagen',
+              ),
             ),
           ),
       ],

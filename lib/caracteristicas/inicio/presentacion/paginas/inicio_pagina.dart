@@ -17,6 +17,7 @@ import '../../dominio/entidades/lugar.dart';
 import '../../dominio/entidades/provincia.dart';
 // import '../../dominio/entidades/categoria.dart';
 import '../../../notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
+import '../widgets/buscador_lugares.dart';
 
 class InicioPagina extends StatefulWidget {
   const InicioPagina({super.key});
@@ -333,47 +334,59 @@ class _InicioPaginaState extends State<InicioPagina> {
     // ...
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: TextField(
-          controller: _searchCtrl,
-          style: const TextStyle(fontSize: 16),
-          decoration: InputDecoration(
-            hintText: 'Buscar destinos en Cusco...',
-            hintStyle: TextStyle(color: Colors.grey[500], fontSize: 15),
-            prefixIcon: Icon(
-              Icons.search_rounded,
-              color: Colors.grey[600],
-              size: 24,
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 18,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: BorderSide(color: Colors.grey[200]!, width: 1),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: const BorderSide(
-                color: Color(0xFF00BCD4), // Azul del tema
-                width: 2,
+      child: GestureDetector(
+        onTap: () {
+          showSearch(
+            context: context,
+            delegate: BuscadorLugares(vmLugares: context.read<LugaresVM>()),
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: AbsorbPointer(
+            // Importante para que el GestureDetector maneje el tap
+            child: TextField(
+              controller: _searchCtrl,
+              style: const TextStyle(fontSize: 16),
+              readOnly: true, // Importante
+              decoration: InputDecoration(
+                hintText: 'Buscar destinos en Cusco...',
+                hintStyle: TextStyle(color: Colors.grey[500], fontSize: 15),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: Colors.grey[600],
+                  size: 24,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide(color: Colors.grey[200]!, width: 1),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF00BCD4), // Azul del tema
+                    width: 2,
+                  ),
+                ),
               ),
             ),
           ),
@@ -585,7 +598,9 @@ class _InicioPaginaState extends State<InicioPagina> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFD4AF37).withValues(alpha: 0.9),
+                              color: const Color(
+                                0xFFD4AF37,
+                              ).withValues(alpha: 0.9),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(

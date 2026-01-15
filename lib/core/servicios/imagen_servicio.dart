@@ -1,13 +1,15 @@
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'dart:convert';
 
 class ImagenServicio {
   final ImagePicker _picker = ImagePicker();
-  final SupabaseClient _supabase = Supabase.instance.client;
 
   // 1. SELECCIONAR IMAGEN
   Future<File?> seleccionarImagen() async {
@@ -15,7 +17,7 @@ class ImagenServicio {
       source: ImageSource.gallery, // O ImageSource.camera
       imageQuality: 80, // Primera compresión ligera nativa
     );
-    
+
     if (pickedFile == null) return null;
     return File(pickedFile.path);
   }
@@ -25,7 +27,8 @@ class ImagenServicio {
     final tempDir = await getTemporaryDirectory();
     final path = tempDir.path;
     // Creamos un nombre temporal único
-    final targetPath = '$path/temp_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final targetPath =
+        '$path/temp_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
     var result = await FlutterImageCompress.compressAndGetFile(
       archivo.absolute.path,
@@ -38,33 +41,60 @@ class ImagenServicio {
     return File(result!.path);
   }
 
-  // 3. SUBIR A SUPABASE (S3)
+  // 3. SUBIR A S3 VÍA N8N (UPLOAD PROXY)
   Future<String?> subirImagen(File archivo, String carpeta) async {
     try {
-      // Generamos un nombre único para el archivo en la nube
-      final fileExt = p.extension(archivo.path);
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}$fileExt';
-      final rutaNube = '$carpeta/$fileName'; // Ej: "lugares/123456789.jpg"
+      final fileExt = p.extension(archivo.path).replaceAll('.', ''); // ej: jpg
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
 
-      // Subimos el archivo
-      await _supabase.storage.from('imagenes').upload(
-        rutaNube,
-        archivo,
-        fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+      // 1. Preparar la petición Multipart
+      final n8nUrl = Uri.parse(
+        'https://n8n.premiospapicho.com/webhook/get-upload-url',
       );
 
-      // Obtenemos la URL Pública
-      final urlPublica = _supabase.storage
-          .from('imagenes')
-          .getPublicUrl(rutaNube);
+      var request = http.MultipartRequest('POST', n8nUrl);
 
-      return urlPublica;
+      // Adjuntar campos de texto
+      request.fields['filename'] = fileName;
+      request.fields['folder'] = carpeta;
+
+      // Adjuntar el archivo real
+      var pic = await http.MultipartFile.fromPath(
+        'file', // Nombre del campo binario que espera n8n
+        archivo.path,
+        contentType: MediaType('image', 'jpeg'),
+      );
+      request.files.add(pic);
+
+      // Enviar
+      print('Enviando imagen a n8n...');
+      var response = await request.send();
+      var responseBody = await response.stream.bytesToString();
+
+      print('Status n8n: ${response.statusCode}');
+      print('Body n8n: $responseBody');
+
+      if (response.statusCode != 200) {
+        print('Error n8n (${response.statusCode}): $responseBody');
+        return null;
+      }
+
+      // Decodificar respuesta
+      final data = jsonDecode(responseBody);
+      final mapData = data is List ? data.first : data;
+
+      // Ahora esperamos la URL pública directamente
+      // Soportamos tanto 'publicUrl' (nuestra respuesta custom) como 'Location' (respuesta raw de S3)
+      final publicUrl = mapData['publicUrl'] ?? mapData['Location'];
+
+      print('✅ Imagen subida via n8n: $publicUrl');
+      return publicUrl?.toString();
     } catch (e) {
-      print('Error al subir imagen: $e');
+      print('Excepción al subir imagen: $e');
       return null;
     }
   }
-  
+
   // MÉTODO TODO EN UNO (Para facilitar el uso en la UI)
   Future<String?> seleccionarYSubir(String carpeta) async {
     // a. Seleccionar
@@ -76,7 +106,7 @@ class ImagenServicio {
 
     // c. Subir
     String? url = await subirImagen(comprimida, carpeta);
-    
+
     return url;
   }
 }

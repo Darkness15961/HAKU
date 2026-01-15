@@ -286,19 +286,6 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
                           : null,
                     ),
                   ),
-                  if (_urlImagenCtrl.text.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        'URL: ${_urlImagenCtrl.text}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
 
                   const Divider(height: 32),
 
@@ -365,42 +352,75 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
 
                   _buildSectionTitle('Ubicación en Mapa'),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
+                      border: Border.all(color: Colors.grey.shade300),
                       borderRadius: BorderRadius.circular(12),
+                      color: Colors.grey.shade50,
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         ElevatedButton.icon(
                           onPressed: _abrirSelectorMapa,
-                          icon: const Icon(Icons.map),
-                          label: const Text('Seleccionar en Google Maps'),
+                          icon: const Icon(Icons.location_on_rounded),
+                          label: const Text('Ubicar en el Mapa'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[600],
+                            minimumSize: const Size.fromHeight(45),
+                            backgroundColor: Colors.green[700],
                             foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _latitudCtrl,
-                                decoration: _buildInputDecoration('Latitud'),
-                                readOnly: true,
+                        // Indicador visual de estado
+                        if (_latitudCtrl.text.isNotEmpty &&
+                            _longitudCtrl.text.isNotEmpty &&
+                            _latitudCtrl.text != '0.0' &&
+                            _latitudCtrl.text != '0')
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 20,
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _longitudCtrl,
-                                decoration: _buildInputDecoration('Longitud'),
-                                readOnly: true,
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Ubicación establecida',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          )
+                        else
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: Colors.grey[600],
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'No has definido la ubicación',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),

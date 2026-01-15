@@ -1,14 +1,17 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart'; // Para inputFormatters
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart'; // <--- 1. IMPORT NECESARIO
+import 'package:latlong2/latlong.dart';
 
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
 import '../../../inicio/dominio/entidades/lugar.dart';
 import '../vista_modelos/rutas_vm.dart';
+import '../widgets/subida_imagen_ruta.dart';
+import '../widgets/selector_lugares_ruta.dart';
+import '../widgets/route_location.dart';
 
 class CrearRutaSinGuiaPagina extends StatefulWidget {
   const CrearRutaSinGuiaPagina({Key? key}) : super(key: key);
@@ -19,24 +22,28 @@ class CrearRutaSinGuiaPagina extends StatefulWidget {
 
 class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
   final _formKey = GlobalKey<FormState>();
+
+  // Controladores
   final _nombreController = TextEditingController();
   final _descripcionController = TextEditingController();
-  final _precioController = TextEditingController();
+  final _precioController = TextEditingController(text: '0');
   final _puntoEncuentroController = TextEditingController();
+  final _cuposController = TextEditingController(text: '1');
+  final _urlImagenCtrl = TextEditingController();
 
-  List<Lugar> _lugaresSeleccionados = [];
-  int _cuposTotales = 1;
+  // Estado
+  List<RouteLocation> _locations = [];
   String _preferenciaPrivacidad = 'publica';
   DateTime? _fechaEvento;
-  String _categoria = 'familiar';
+  String _categoria = 'Familiar';
   bool _creando = false;
 
   final List<String> _categorias = [
-    'familiar',
-    'cultural',
-    'aventura',
-    'naturaleza',
-    'extrema',
+    'Familiar',
+    'Cultural',
+    'Aventura',
+    'Naturaleza',
+    'Extrema',
   ];
 
   @override
@@ -45,15 +52,19 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
     _descripcionController.dispose();
     _precioController.dispose();
     _puntoEncuentroController.dispose();
+    _cuposController.dispose();
+    _urlImagenCtrl.dispose();
     super.dispose();
   }
+
+  // --- LÓGICA DE NEGOCIO ---
 
   String _generarCodigoAcceso() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random();
     return List.generate(
       6,
-          (index) => chars[random.nextInt(chars.length)],
+      (index) => chars[random.nextInt(chars.length)],
     ).join();
   }
 
@@ -144,385 +155,25 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final colorPrimario = Theme.of(context).primaryColor;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Crear Ruta Personalizada'),
-        backgroundColor: colorPrimario,
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            _buildSeccion('📍 Lugares a Visitar', [_buildSelectorLugares()]),
-            const SizedBox(height: 20),
-            _buildSeccion('📝 Información Básica', [
-              _buildCampoTexto(
-                controller: _nombreController,
-                label: 'Nombre de la ruta',
-                hint: 'Ej: Tour por el Valle Sagrado',
-                icono: Icons.title,
-                validator: (v) => v?.isEmpty ?? true ? 'Campo requerido' : null,
-              ),
-              const SizedBox(height: 15),
-              _buildCampoTexto(
-                controller: _descripcionController,
-                label: 'Descripción',
-                hint: 'Describe tu ruta...',
-                icono: Icons.description,
-                maxLineas: 4,
-                validator: (v) => v?.isEmpty ?? true ? 'Campo requerido' : null,
-              ),
-            ]),
-            const SizedBox(height: 20),
-            _buildSeccion('🎯 Categoría', [_buildSelectorCategoria()]),
-            const SizedBox(height: 20),
-            _buildSeccion('📅 Detalles del Viaje', [
-              _buildSelectorFecha(),
-              const SizedBox(height: 15),
-              _buildCampoTexto(
-                controller: _puntoEncuentroController,
-                label: 'Punto de Encuentro',
-                hint: 'Ej: Plaza de Armas',
-                icono: Icons.location_on,
-              ),
-              const SizedBox(height: 15),
-              _buildSelectorCupos(),
-              const SizedBox(height: 15),
-              _buildCampoTexto(
-                controller: _precioController,
-                label: 'Precio por Persona',
-                hint: 'Ej: 50',
-                icono: Icons.attach_money,
-                teclado: TextInputType.number,
-                validator: (v) => v?.isEmpty ?? true ? 'Campo requerido' : null,
-              ),
-            ]),
-            const SizedBox(height: 20),
-            _buildSeccion('🔒 Privacidad', [_buildSelectorPrivacidad()]),
-            const SizedBox(height: 30),
-            _buildBotonCrear(colorPrimario),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSeccion(String titulo, List<Widget> children) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            titulo,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 15),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCampoTexto({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icono,
-    int maxLineas = 1,
-    TextInputType teclado = TextInputType.text,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      maxLines: maxLineas,
-      keyboardType: teclado,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icono),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        filled: true,
-        fillColor: Colors.grey[50],
-      ),
-    );
-  }
-
-  Widget _buildSelectorLugares() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ElevatedButton.icon(
-          onPressed: _mostrarSelectorLugares,
-          icon: const Icon(Icons.add_location),
-          label: const Text('Agregar Lugares'),
-          style: ElevatedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        ),
-        if (_lugaresSeleccionados.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _lugaresSeleccionados.map((lugar) {
-              return Chip(
-                label: Text(lugar.nombre),
-                deleteIcon: const Icon(Icons.close, size: 18),
-                onDeleted: () {
-                  setState(() {
-                    _lugaresSeleccionados.remove(lugar);
-                  });
-                },
-              );
-            }).toList(),
-          ),
-        ],
-        if (_lugaresSeleccionados.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text(
-              'Selecciona al menos un lugar',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildSelectorCategoria() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: _categorias.map((cat) {
-        final isSelected = _categoria == cat;
-        return ChoiceChip(
-          label: Text(cat.toUpperCase()),
-          selected: isSelected,
-          onSelected: (selected) {
-            setState(() => _categoria = cat);
-          },
-          selectedColor: _getColorCategoria(cat).withOpacity(0.3),
-          labelStyle: TextStyle(
-            color: isSelected ? _getColorCategoria(cat) : Colors.grey[700],
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildSelectorFecha() {
-    return InkWell(
-      onTap: _seleccionarFecha,
-      child: Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(10),
-          color: Colors.grey[50],
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.calendar_today),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Text(
-                _fechaEvento == null
-                    ? 'Seleccionar fecha del evento'
-                    : _formatearFecha(_fechaEvento!),
-                style: TextStyle(
-                  color: _fechaEvento == null ? Colors.grey[600] : Colors.black,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSelectorCupos() {
-    return Row(
-      children: [
-        const Icon(Icons.people),
-        const SizedBox(width: 15),
-        const Text('Cupos totales:'),
-        const Spacer(),
-        IconButton(
-          onPressed: _cuposTotales > 1
-              ? () => setState(() => _cuposTotales--)
-              : null,
-          icon: const Icon(Icons.remove_circle_outline),
-        ),
-        Text(
-          '$_cuposTotales',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        IconButton(
-          onPressed: () => setState(() => _cuposTotales++),
-          icon: const Icon(Icons.add_circle_outline),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSelectorPrivacidad() {
-    return Column(
-      children: [
-        RadioListTile<String>(
-          title: const Text('Pública'),
-          subtitle: const Text('Cualquiera puede inscribirse'),
-          value: 'publica',
-          groupValue: _preferenciaPrivacidad,
-          onChanged: (value) {
-            setState(() => _preferenciaPrivacidad = value!);
-          },
-        ),
-        RadioListTile<String>(
-          title: const Text('Privada'),
-          subtitle: const Text('Solo con código de acceso'),
-          value: 'privada',
-          groupValue: _preferenciaPrivacidad,
-          onChanged: (value) {
-            setState(() => _preferenciaPrivacidad = value!);
-          },
-        ),
-        if (_preferenciaPrivacidad == 'privada') ...[
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.blue[700]),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Se generará un código único automáticamente que podrás compartir con tus invitados',
-                    style: TextStyle(color: Colors.blue[700], fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildBotonCrear(Color colorPrimario) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton(
-        onPressed: _creando ? null : _crearRuta,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: colorPrimario,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-        child: _creando
-            ? const CircularProgressIndicator(color: Colors.white)
-            : const Text(
-          'Crear Ruta',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
-  }
-
-  void _mostrarSelectorLugares() {
-    final lugaresVM = context.read<LugaresVM>();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Seleccionar Lugares'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: lugaresVM.lugaresTotales.isEmpty
-              ? const Center(child: Text('No hay lugares disponibles'))
-              : ListView.builder(
-            itemCount: lugaresVM.lugaresTotales.length,
-            itemBuilder: (context, index) {
-              final lugar = lugaresVM.lugaresTotales[index];
-              final isSelected = _lugaresSeleccionados.contains(lugar);
-
-              return CheckboxListTile(
-                title: Text(lugar.nombre),
-                subtitle: Text(lugar.descripcion, maxLines: 2),
-                value: isSelected,
-                onChanged: (selected) {
-                  setState(() {
-                    if (selected!) {
-                      _lugaresSeleccionados.add(lugar);
-                    } else {
-                      _lugaresSeleccionados.remove(lugar);
-                    }
-                  });
-                  Navigator.pop(context);
-                  _mostrarSelectorLugares();
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _seleccionarFecha() async {
-    final fecha = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 3)),
-      firstDate: DateTime.now().add(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (fecha != null) {
-      setState(() => _fechaEvento = fecha);
-    }
-  }
-
-  // --- LÓGICA DE CREACIÓN CORREGIDA ---
   Future<void> _crearRuta() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_lugaresSeleccionados.isEmpty) {
+    if (_locations.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona al menos un lugar')),
+        const SnackBar(
+          content: Text('Debes añadir al menos un lugar al itinerario.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_fechaEvento == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes seleccionar una fecha para el evento.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -546,31 +197,31 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
         codigoAcceso = _generarCodigoAcceso();
       }
 
-      // Crear ruta usando datos del primer lugar seleccionado
-      final lugarPrincipal = _lugaresSeleccionados.first;
+      // Usar imagen subida o del primer lugar
+      String urlImagen = _urlImagenCtrl.text;
+      if (urlImagen.isEmpty && _locations.isNotEmpty) {
+        urlImagen = _locations.first.lugar.urlImagen;
+      }
 
-      // --- ¡MAPA DE DATOS CORREGIDO! ---
+      final int cupos = int.tryParse(_cuposController.text) ?? 10;
+      final double precio = double.tryParse(_precioController.text) ?? 0.0;
+
       final datosRuta = {
         'nombre': _nombreController.text,
         'descripcion': _descripcionController.text,
         'categoria': _categoria,
-        'precio': double.tryParse(_precioController.text) ?? 0,
-
-        // CORRECCIÓN 1: Usar 'cupos' (repo) en lugar de 'cupos_totales'
-        'cupos': _cuposTotales,
-
+        'precio': precio,
+        'cupos': cupos,
         'dias': 1,
         'visible': true,
         'es_privada': _preferenciaPrivacidad == 'privada',
         'guia_id': userId,
-        'url_imagen_principal': lugarPrincipal.urlImagen,
-
-        // CORRECCIÓN 2: Usar 'lugaresIds' (repo) en lugar de 'lugares_incluidos_ids'
-        'lugaresIds': _lugaresSeleccionados.map((l) => l.id).toList(),
-
-        // CORRECCIÓN 3: ¡AGREGAR COORDENADAS PARA OSRM!
-        'puntos_coordenadas': _lugaresSeleccionados.map((l) => LatLng(l.latitud, l.longitud)).toList(),
-
+        'url_imagen_principal': urlImagen,
+        'lugaresIds': _locations.map((l) => l.lugar.id).toList(),
+        'puntos_coordenadas': _locations
+            .map((l) => LatLng(l.lugar.latitud, l.lugar.longitud))
+            .toList(),
+        'lugaresNombres': _locations.map((l) => l.lugar.nombre).toList(),
         'fecha_evento': _fechaEvento?.toIso8601String(),
         'punto_encuentro': _puntoEncuentroController.text.isNotEmpty
             ? _puntoEncuentroController.text
@@ -578,8 +229,6 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
         'estado': 'convocatoria',
         if (codigoAcceso != null) 'codigo_acceso': codigoAcceso,
       };
-
-      print('📤 Datos a enviar: $datosRuta');
 
       await vmRutas.crearRuta(datosRuta);
 
@@ -591,8 +240,8 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('✅ Ruta creada exitosamente'),
-              duration: Duration(seconds: 2),
+              content: Text('¡Ruta creada con éxito!'),
+              backgroundColor: Colors.green,
             ),
           );
           context.go('/rutas');
@@ -600,32 +249,456 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
       }
     } catch (e) {
       setState(() => _creando = false);
-
       if (mounted) {
+        final errorMsg = e.toString().replaceFirst("Exception: ", "");
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Error: ${e.toString()}'),
-            duration: const Duration(seconds: 4),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
         );
       }
     }
   }
 
+  // --- UI HELPERS ---
+
+  Widget _buildInputLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+
+  Widget _buildStyledInput({
+    required TextEditingController controller,
+    String? hintText,
+    TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+    IconData? prefixIcon,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, color: Theme.of(context).primaryColor)
+            : null,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+      ),
+      validator: validator,
+    );
+  }
+
+  Future<void> _seleccionarFecha() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 3)),
+      firstDate: DateTime.now().add(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+
+    if (fecha != null) {
+      setState(() => _fechaEvento = fecha);
+    }
+  }
+
   String _formatearFecha(DateTime fecha) {
-    final meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    final meses = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ];
     return '${fecha.day} ${meses[fecha.month - 1]} ${fecha.year}';
   }
 
-  Color _getColorCategoria(String categoria) {
-    switch (categoria.toLowerCase()) {
-      case 'familiar': return const Color(0xFF4CAF50);
-      case 'cultural': return const Color(0xFF3F51B5);
-      case 'aventura': return const Color(0xFFFF9800);
-      case 'naturaleza': return const Color(0xFF9C27B0);
-      case 'extrema': return const Color(0xFFD32F2F);
-      default: return Colors.grey;
-    }
+  // --- BUILD ---
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Crear Ruta Personalizada',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          _creando
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 3,
+                      ),
+                    ),
+                  ),
+                )
+              : Padding(
+                  padding: const EdgeInsets.only(right: 10.0),
+                  child: FilledButton(
+                    onPressed: _crearRuta,
+                    style: ButtonStyle(
+                      backgroundColor: MaterialStateProperty.all(Colors.white),
+                      foregroundColor: MaterialStateProperty.all(
+                        Theme.of(context).primaryColor,
+                      ),
+                      textStyle: MaterialStateProperty.all(
+                        const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    child: const Text('Guardar'),
+                  ),
+                ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. INFO BÁSICA ESTILO UNIFICADO
+                  _buildInputLabel('Nombre de la ruta *'),
+                  _buildStyledInput(
+                    controller: _nombreController,
+                    hintText: 'Ej. Tour por el Valle Sagrado',
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildInputLabel('Descripción *'),
+                  _buildStyledInput(
+                    controller: _descripcionController,
+                    hintText: 'Detalles sobre la experiencia...',
+                    maxLines: 4,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // PRECIO Y CUPOS
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildInputLabel('Precio (S/)'),
+                            _buildStyledInput(
+                              controller: _precioController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                  RegExp(r'^\d*\.?\d{0,2}'),
+                                ),
+                              ],
+                              prefixIcon: Icons.monetization_on,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildInputLabel('Cupos *'),
+                            _buildStyledInput(
+                              controller: _cuposController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              prefixIcon: Icons.people,
+                              validator: (v) {
+                                final n = int.tryParse(v ?? '');
+                                if (n == null || n < 1) return 'Mín 1';
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // FECHA Y CATEGORÍA
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildInputLabel('Fecha *'),
+                            InkWell(
+                              onTap: _seleccionarFecha,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today,
+                                      size: 20,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        _fechaEvento == null
+                                            ? 'Seleccionar'
+                                            : _formatearFecha(_fechaEvento!),
+                                        style: _fechaEvento == null
+                                            ? TextStyle(
+                                                color: Colors.grey.shade600,
+                                              )
+                                            : null,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 4,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildInputLabel('Categoría *'),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _categoria,
+                                  isExpanded: true,
+                                  items: _categorias.map((String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(value),
+                                    );
+                                  }).toList(),
+                                  onChanged: (newValue) {
+                                    if (newValue != null) {
+                                      setState(() => _categoria = newValue);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildInputLabel('Punto de Encuentro'),
+                  _buildStyledInput(
+                    controller: _puntoEncuentroController,
+                    hintText: 'Ej: Plaza de Armas',
+                    prefixIcon: Icons.location_on,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 2. SUBIDA IMAGEN (Reutilizado)
+                  SubidaImagenRuta(urlImagenCtrl: _urlImagenCtrl),
+
+                  const Divider(height: 32),
+
+                  // 3. SELECTOR DE LUGARES (Reutilizado)
+                  SelectorLugaresRuta(
+                    locations: _locations,
+                    onLocationsChanged: (newList) =>
+                        setState(() => _locations = newList),
+                  ),
+
+                  const Divider(height: 32),
+
+                  // 4. PRIVACIDAD (Estilo Local Guide)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Tipo de Ruta (Acceso)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Column(
+                      children: [
+                        RadioListTile<String>(
+                          title: const Text('Pública'),
+                          subtitle: const Text(
+                            'Cualquier usuario puede inscribirse',
+                          ),
+                          value: 'publica',
+                          groupValue: _preferenciaPrivacidad,
+                          onChanged: (val) =>
+                              setState(() => _preferenciaPrivacidad = val!),
+                        ),
+                        RadioListTile<String>(
+                          title: const Text('Privada con Código'),
+                          subtitle: const Text('Solo con invitación'),
+                          value: 'privada',
+                          groupValue: _preferenciaPrivacidad,
+                          onChanged: (val) =>
+                              setState(() => _preferenciaPrivacidad = val!),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // FOOTER FIJO
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Precio',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        Text(
+                          _precioController.text.isEmpty ||
+                                  _precioController.text == '0'
+                              ? 'Gratis'
+                              : 'S/ ${_precioController.text}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Cupos',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        Text(
+                          '${_cuposController.text} pers.',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton(
+                      onPressed: _crearRuta,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Crear Ruta',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
