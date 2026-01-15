@@ -50,7 +50,7 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final vmMapa = context.read<MapaVM>();
-        vmMapa.actualizarDependencias(
+        vmMapa.updateDependencies(
             context.read<LugaresVM>(),
             context.read<AutenticacionVM>(),
             context.read<RutasVM>()
@@ -79,10 +79,10 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
     final authVM = context.read<AutenticacionVM>();
 
     if (indice == 0) {
-      mapaVM.cambiarFiltro(0);
+      mapaVM.setFiltro(0);
     } else {
       if (authVM.usuarioActual != null) {
-        mapaVM.cambiarFiltro(indice);
+        mapaVM.setFiltro(indice);
         if (indice == 3) setState(() => _subFiltroRuta = 0);
       } else {
         _mostrarDialogoBloqueo(context);
@@ -214,8 +214,11 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                   if (mapaVM.polylines.isNotEmpty) ...[
                     PolylineLayer(polylines: mapaVM.polylines),
                   ],
+
+                  // 1.5 CAPA DE HAKUPARADAS (Debajo de los principales)
+                  MarkerLayer(markers: mapaVM.hakuparadaMarkers), // ✅ NUEVA CAPA
                     
-                  // CAPA DE MARCADORES
+                  // CAPA DE MARCADORES PRINCIPALES
                   MarkerLayer(
                     markers: [
                       if (mapaVM.currentLocation != null)
@@ -262,6 +265,7 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                       children: [
                         FiltroChip(label: "Explorar", icon: Icons.map_outlined, isSelected: mapaVM.filtroActual == 0, onTap: () => _intentarCambiarFiltro(0)),
                         const SizedBox(width: 8),
+                        // [REMOVIDO: Toggle Hakuparadas movido a FAB]
                         FiltroChip(label: "Recuerdos", icon: Icons.camera_alt_outlined, isSelected: mapaVM.filtroActual == 1, onTap: () => _intentarCambiarFiltro(1)),
                         const SizedBox(width: 8),
                         FiltroChip(label: "Por Visitar", icon: Icons.bookmark_outline, isSelected: mapaVM.filtroActual == 2, onTap: () => _intentarCambiarFiltro(2)),
@@ -273,6 +277,85 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                 ),
               ),
 
+// --- Z. ALERTA HAKUPARADA (RADAR) ---
+              // La ponemos antes de los botones para que no se superpongan feo
+              if (mapaVM.mostrarAlertaHakuparada && mapaVM.hakuparadaCercana != null)
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 70, // Debajo de los filtros
+                  left: 20,
+                  right: 20,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))
+                        ],
+                        border: Border.all(color: const Color(0xFF00BCD4), width: 2), // Borde Cyan
+                      ),
+                      child: Row(
+                        children: [
+                          // 1. Icono Vibrante (Radar)
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE0F7FA),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.radar, color: Color(0xFF00BCD4)),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // 2. Textos
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                    "¡Estás cerca!",
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[600]
+                                    )
+                                ),
+                                Text(
+                                  mapaVM.hakuparadaCercana!.nombre,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  mapaVM.hakuparadaCercana!.categoria,
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF00BCD4)
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // 3. Botón Cerrar (X)
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.grey),
+                            onPressed: () => mapaVM.cerrarAlertaHakuparada(),
+                            tooltip: "Cerrar aviso",
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
               // 3. BOTONES FLOTANTES
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),
@@ -281,9 +364,23 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // TOGGLE HAKUPARADAS (Ahora como botón flotante mini)
+                    if (mapaVM.filtroActual == 0) ...[
+                      FloatingActionButton.small(
+                        heroTag: "btn_toggle_hakuparadas",
+                        onPressed: () => mapaVM.toggleHakuparadas(),
+                        backgroundColor: mapaVM.mostrarHakuparadasEnMapa ? const Color(0xFF00BCD4) : Colors.white,
+                        foregroundColor: mapaVM.mostrarHakuparadasEnMapa ? Colors.white : Colors.grey[700],
+                        tooltip: mapaVM.mostrarHakuparadasEnMapa ? "Modo: Siempre Visible" : "Modo: Inteligente (Zoom)",
+                        child: Icon(mapaVM.mostrarHakuparadasEnMapa ? Icons.visibility : Icons.visibility_off),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
                     _buildFloatingBtn("btn_layers", _verRelieve ? Icons.landscape_rounded : Icons.layers_rounded, _alternarTipoMapa, false),
                     const SizedBox(height: 12),
                     
+                    // BOTÓN DE ZOOM IN
                     // BOTÓN GPS
                     FloatingActionButton.small(
                       heroTag: "btn_gps",
@@ -301,6 +398,7 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                       child: Icon(Icons.my_location_rounded, color: Theme.of(context).colorScheme.primary),
                     ),
                     const SizedBox(height: 12),
+
                     _buildFloatingBtn("btn_zoom_in", Icons.add_rounded, () => mapaVM.zoomIn(), false),
                     const SizedBox(height: 8),
                     _buildFloatingBtn("btn_zoom_out", Icons.remove_rounded, () => mapaVM.zoomOut(), false),

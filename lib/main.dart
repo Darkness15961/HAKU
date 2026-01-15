@@ -14,7 +14,9 @@ import 'caracteristicas/autenticacion/presentacion/vista_modelos/autenticacion_v
 import 'caracteristicas/rutas/presentacion/vista_modelos/rutas_vm.dart';
 import 'caracteristicas/mapa/presentacion/vista_modelos/mapa_vm.dart';
 import 'caracteristicas/notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
+
 import 'caracteristicas/solicitudes/presentacion/vista_modelos/solicitudes_vm.dart';
+import 'caracteristicas/administracion/presentacion/vista_modelos/admin_hakuparadas_vm.dart';
 
 // Notificaciones (Repositorios y Casos de Uso)
 import 'caracteristicas/notificaciones/dominio/repositorios/notificacion_repositorio.dart';
@@ -44,6 +46,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => AutenticacionVM()),
         ChangeNotifierProvider(create: (context) => RutasVM()),
         ChangeNotifierProvider(create: (_) => SolicitudesVM()),
+        ChangeNotifierProvider(create: (_) => AdminHakuparadasVM()),
 
         ChangeNotifierProxyProvider3<
           LugaresVM,
@@ -54,7 +57,7 @@ Future<void> main() async {
           create: (context) => MapaVM(),
           update: (context, lugaresVM, authVM, rutasVM, previousMapaVM) {
             return (previousMapaVM ?? MapaVM())
-              ..actualizarDependencias(lugaresVM, authVM, rutasVM);
+              ..updateDependencies(lugaresVM, authVM, rutasVM);
           },
         ),
 

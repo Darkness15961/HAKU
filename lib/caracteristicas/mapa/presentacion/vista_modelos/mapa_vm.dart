@@ -18,6 +18,10 @@ import '../../../rutas/presentacion/vista_modelos/rutas_vm.dart';
 import '../../../inicio/dominio/entidades/lugar.dart';
 import '../../../rutas/dominio/entidades/ruta.dart';
 
+// 👇 AGREGA ESTO: Imports para Hakuparadas
+import '../../dominio/entidades/hakuparada.dart';
+import '../../dominio/servicios/hakuparada_service.dart';
+
 
 // Key Global
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -25,6 +29,20 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 enum TipoCarrusel { ninguno, lugares, rutas }
 
 class MapaVM extends ChangeNotifier {
+
+  // 👇 AGREGA ESTO: Estado para Hakuparadas
+  final HakuparadaService _hakuparadaService = HakuparadaService();
+  Hakuparada? _hakuparadaCercana; // La que detectó el radar
+  bool _mostrarAlertaHakuparada = false; // Para controlar el UI
+  Timer? _timerRadar; // El reloj del radar
+
+  // VISUALIZACIÓN EN MAPA
+  List<Marker> _hakuparadaMarkers = [];
+  bool _mostrarHakuparadasEnMapa = false; // Default: FALSE (Modo Inteligente / Smart)
+  double _zoomLevel = 13.0; // Trackeo de zoom
+
+
+
   // --- A. DEPENDENCIAS ---
   LugaresVM? _lugaresVM;
   AutenticacionVM? _authVM;
@@ -49,6 +67,11 @@ class MapaVM extends ChangeNotifier {
   LatLng? _currentLocation;
 
   // --- GETTERS ---
+  Hakuparada? get hakuparadaCercana => _hakuparadaCercana;
+  bool get mostrarAlertaHakuparada => _mostrarAlertaHakuparada;
+  List<Marker> get hakuparadaMarkers => _hakuparadaMarkers;
+  bool get mostrarHakuparadasEnMapa => _mostrarHakuparadasEnMapa;
+
   bool get estaCargando => _estaCargando;
   List<Marker> get markers => _markers;
   List<Polyline> get polylines => _polylines;
@@ -60,8 +83,13 @@ class MapaVM extends ChangeNotifier {
 
   MapaVM();
 
+
+
+
+
+
   // --- INICIALIZACIÓN ---
-  void actualizarDependencias(LugaresVM lugaresVM, AutenticacionVM authVM, RutasVM rutasVM) {
+  void updateDependencies(LugaresVM lugaresVM, AutenticacionVM authVM, RutasVM rutasVM) {
     if (_cargaInicialRealizada) {
       if (_authVM?.usuarioActual != authVM.usuarioActual) {
         _lugaresVM = lugaresVM;
@@ -98,11 +126,25 @@ class MapaVM extends ChangeNotifier {
     _lugaresVM?.addListener(_actualizarListasYMarcadores);
     _authVM?.addListener(_actualizarListasYMarcadores);
     _actualizarListasYMarcadores();
-    // Intentamos iniciar seguimiento silenciosamente al arrancar
+    
+    // 1. Cargar Hakuparadas (Independiente del GPS)
+    _cargarHakuparadasCercanas().then((_) {
+      _actualizarMarcadoresHakuparadas(); // Refrescar mapa al terminar carga
+    });
+
+    // 2. Intentar iniciar seguimiento (Solo para Radar y Posición)
     iniciarSeguimientoUbicacion();
+    
+    // 👇 LISTENER DE ZOOM: Actualiza marcadores al hacer zoom
+    mapController.mapEventStream.listen((event) {
+      if (event is MapEventMoveEnd || event is MapEventRotateEnd) {
+        _zoomLevel = mapController.camera.zoom;
+        _actualizarMarcadoresHakuparadas();
+      }
+    });
   }
 
-  // --- LÓGICA DE MARCADORES ---
+  // --- LÓGICA DE MARCADORES (LUGARES PRINCIPALES) ---
   void _actualizarListasYMarcadores() {
     if (!_cargaInicialRealizada || _lugaresVM == null || _authVM == null) return;
     if (_carruselActual == TipoCarrusel.rutas) return;
@@ -142,12 +184,100 @@ class MapaVM extends ChangeNotifier {
         }
       }
 
+      // 👇 TAMBIÉN ACTUALIZAMOS HAKUPARADAS
+      _actualizarMarcadoresHakuparadas();
+
       _estaCargando = false;
       notifyListeners();
     } catch (e) {
       _estaCargando = false;
       notifyListeners();
     }
+  }
+
+  // --- NUEVO: MARCADORES HAKUPARADAS (Zoom > 14) ---
+  void toggleHakuparadas() {
+    _mostrarHakuparadasEnMapa = !_mostrarHakuparadasEnMapa;
+    _actualizarMarcadoresHakuparadas();
+    notifyListeners();
+  }
+
+  Future<void> _actualizarMarcadoresHakuparadas() async {
+    // LÓGICA DE VISIBILIDAD (Refinada por feedback):
+    // 1. Si el toggle está ENCENDIDO (_mostrarHakuparadasEnMapa = true) -> SIEMPRE MOSTRAR (Force Show).
+    // 2. Si el toggle está APAGADO (_mostrarHakuparadasEnMapa = false) -> MODO INTELIGENTE (Solo Zoom > 14).
+    
+    bool debeMostrar = _mostrarHakuparadasEnMapa || _zoomLevel >= 14.0;
+
+    if (!debeMostrar) {
+      if (_hakuparadaMarkers.isNotEmpty) {
+        _hakuparadaMarkers.clear();
+        notifyListeners();
+      }
+      return;
+    }
+
+    // 2. Obtener datos (Usamos el cache del servicio para velocidad)
+    // El servicio ya se cargó en _iniciarSeguimientoUbicacion -> _cargarHakuparadasCercanas
+    // OJO: Aquí podrías añadir lógica para recargar si el usuario se mueve mucho.
+    final paradasHelpers = _hakuparadaService.getParadasCache(); // Necesitaremos exponer esto en el servicio
+
+    _hakuparadaMarkers.clear();
+    for (var parada in paradasHelpers) {
+      if (parada.visible) { // Doble check
+        _hakuparadaMarkers.add(_crearMarcadorHakuparada(parada));
+      }
+    }
+    notifyListeners();
+  }
+
+  Marker _crearMarcadorHakuparada(Hakuparada parada) {
+    // ¿Está cerca? (Efecto Radar Visual)
+    final esLaCercana = _hakuparadaCercana?.id == parada.id;
+    
+    return Marker(
+      point: LatLng(parada.latitud, parada.longitud),
+      width: esLaCercana ? 60 : 40,  // CRECE si está cerca
+      height: esLaCercana ? 60 : 40,
+      alignment: Alignment.center,
+      child: GestureDetector(
+        onTap: () {
+          // Mostrar info básica (Podemos reusar _lugarSeleccionado si lo adaptamos, 
+          // o simplemente mostrar un Dialog rápido por ahora)
+          // Implementaremos un Dialog rápido para no romper la UI de Lugares
+          mapController.move(LatLng(parada.latitud, parada.longitud), 16);
+          // TODO: Mostrar Modal Info
+        },
+        child: _buildHakuparadaPin(parada, esLaCercana),
+      ),
+    );
+  }
+
+  Widget _buildHakuparadaPin(Hakuparada parada, bool esCercana) {
+    IconData icono;
+    switch (parada.categoria) {
+      case 'Mirador': icono = Icons.visibility; break;
+      case 'Descanso': icono = Icons.chair; break;
+      case 'Servicios Higiénicos': icono = Icons.wc; break;
+      case 'Tienda/Kiosko': icono = Icons.store; break;
+      case 'Dato Curioso': icono = Icons.lightbulb; break;
+      default: icono = Icons.flag;
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
+      decoration: BoxDecoration(
+        color: const Color(0xFF00BCD4), // Cyan
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: [
+          if (esCercana) // Efecto Pálpito (Simulado con sombra fuerte)
+             BoxShadow(color: const Color(0xFF00BCD4).withOpacity(0.6), blurRadius: 15, spreadRadius: 5),
+          const BoxShadow(color: Colors.black45, blurRadius: 3, offset: Offset(0, 2))
+        ],
+      ),
+      child: Icon(icono, color: Colors.white, size: esCercana ? 30 : 20),
+    );
   }
 
   Marker _crearWidgetMarcador(Lugar lugar) {
@@ -218,10 +348,11 @@ class MapaVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  void cambiarFiltro(int nuevoFiltro) {
+  void setFiltro(int nuevoFiltro) {
     _filtroActual = nuevoFiltro;
     _carruselActual = TipoCarrusel.ninguno;
     _actualizarListasYMarcadores();
+    notifyListeners();
   }
 
   void limpiarRutaPintada() {
@@ -295,6 +426,40 @@ class MapaVM extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- C. LÓGICA HAKUPARADAS (RADAR) ---
+
+  // 1. Cargar las paradas de la zona (Llamar esto al iniciar o al moverse mucho)
+  Future<void> _cargarHakuparadasCercanas() async {
+    // 🔥 CORRECCIÓN: Cargamos TODAS las paradas verificadas por ahora.
+    // A futuro, cuando sean miles, usaremos geohashing o carga por viewport.
+    await _hakuparadaService.cargarParadasPorProvincia(null);
+  }
+
+  // 2. El Loop del Radar (Se conecta al GPS)
+  void _verificarRadarHakuparadas(LatLng ubicacionActual) {
+    // Le preguntamos al cerebro si hay algo cerca
+    final paradaDetectada = _hakuparadaService.verificarCercania(ubicacionActual);
+
+    if (paradaDetectada != null) {
+      // ¡BINGO! Encontramos una.
+      _hakuparadaCercana = paradaDetectada;
+      _mostrarAlertaHakuparada = true;
+      notifyListeners();
+
+      // Opcional: Vibrar celular aquí si quieres
+    }
+  }
+
+  // 3. Cerrar la alerta visual
+  void cerrarAlertaHakuparada() {
+    _mostrarAlertaHakuparada = false;
+    notifyListeners();
+  }
+
+
+
+
+
   // --- GPS MEJORADO ---
 
   // Devuelve un mensaje de error si falla, o null si todo sale bien.
@@ -351,19 +516,33 @@ class MapaVM extends ChangeNotifier {
     }
   }
 
+
+
+
+
+
   Future<void> iniciarSeguimientoUbicacion() async {
-    // Solo inicia el stream si tenemos permisos básicos
     try {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) return;
 
+      // 1. Cargar datos al iniciar
+      await _cargarHakuparadasCercanas();
+
       _positionStreamSubscription?.cancel();
       _positionStreamSubscription = Geolocator.getPositionStream().listen((Position position) {
-        _currentLocation = LatLng(position.latitude, position.longitude);
+
+        // 2. Definimos la nueva ubicación (ESTO FALTABA EN TU CÓDIGO)
+        final nuevaUbicacion = LatLng(position.latitude, position.longitude);
+        _currentLocation = nuevaUbicacion;
+
+        // 3. Ahora sí pasamos la variable correcta al radar
+        _verificarRadarHakuparadas(nuevaUbicacion);
+
         notifyListeners();
       });
     } catch (e) {
-      // Silencioso si falla el stream de fondo
+      // Silencioso si falla
     }
   }
 
@@ -374,6 +553,10 @@ class MapaVM extends ChangeNotifier {
   Future<void> zoomOut() async {
     mapController.move(mapController.camera.center, mapController.camera.zoom - 1);
   }
+
+
+
+
 
   @override
   void dispose() {

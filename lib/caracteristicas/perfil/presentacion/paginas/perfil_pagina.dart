@@ -294,12 +294,20 @@ class PerfilPagina extends StatelessWidget {
                         subtitle: 'Fotos de tus aventuras en el mapa',
                         onTap: () {
                           // 1. Activamos el filtro "Mis Recuerdos" (índice 1) en el Mapa
-                          context.read<MapaVM>().cambiarFiltro(1);
+                          context.read<MapaVM>().setFiltro(1);
                           // 2. Navegamos a la pestaña del Mapa
                           context.go('/mapa');
                         },
                       ),
                       // --- FIN NUEVA OPCIÓN ---
+                      _buildDivider(),
+                      _buildListTile(
+                        icon: Icons.map_outlined, 
+                        color: const Color(0xFF00BCD4), // Cyan
+                        title: 'Mis Hakuparadas',
+                        subtitle: 'Tus paradas y sugerencias',
+                        onTap: () => context.push('/perfil/mis-hakuparadas'),
+                      ),
                     ],
                   ),
                 ),
@@ -377,8 +385,18 @@ class PerfilPagina extends StatelessWidget {
                         _buildDivider(),
                       ],
 
+                      // NUEVO: SUGERIR HAKUPARADA (Botón directo de gestión)
                       _buildListTile(
-                        icon: Icons.add_location_alt,
+                        icon: Icons.add_location_alt_outlined,
+                        color: const Color(0xFF00BCD4),
+                        title: 'Sugerir Hakuparada',
+                        subtitle: 'Crea un punto de interés rápido',
+                        onTap: () => context.push('/crear-hakuparada'),
+                      ),
+                      _buildDivider(),
+
+                      _buildListTile(
+                        icon: Icons.add_business_outlined, // Cambiado icono para diferenciarlo
                         color: Colors.orange,
                         title: 'Publicar un Lugar',
                         subtitle: 'Sugiere un nuevo destino',

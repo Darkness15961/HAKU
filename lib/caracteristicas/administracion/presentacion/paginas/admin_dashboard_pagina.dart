@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
+import '../vista_modelos/admin_hakuparadas_vm.dart';
 
 class AdminDashboardPagina extends StatelessWidget {
   const AdminDashboardPagina({super.key});
@@ -60,7 +61,15 @@ class AdminDashboardPagina extends StatelessWidget {
                   color: Colors.orange.shade700,
                   onTap: () => context.read<AutenticacionVM>().cargarSolicitudesPendientes(),
                 ),
-                // (Aquí puedes añadir más tarjetas de estadísticas en el futuro)
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  context,
+                  titulo: 'Hakuparadas Nuevas',
+                  valor: context.watch<AdminHakuparadasVM>().pendientes.length.toString(),
+                  icono: Icons.add_location_alt,
+                  color: Colors.teal.shade700,
+                  onTap: () {}, // Ya es visible, quizás refrescar?
+                ),
               ],
             ),
 
@@ -111,6 +120,18 @@ class AdminDashboardPagina extends StatelessWidget {
               color: Colors.indigo.shade600,
               onTap: () {
                 context.push('/admin/gestion-cuentas');
+              },
+            ),
+            
+            // 4. (NUEVO) Botón de Gestionar Hakuparadas
+            _buildGestionOpcion(
+              context,
+              titulo: 'Gestionar Hakuparadas',
+              subtitulo: 'Aprobar sugerencias de guías y turistas.',
+              icono: Icons.check_circle_outline, // Un icono de "Check" o "Verify"
+              color: Colors.teal.shade600,
+              onTap: () {
+                context.push('/admin/gestion-hakuparadas');
               },
             ),
           ],
