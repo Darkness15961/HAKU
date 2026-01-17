@@ -44,6 +44,8 @@ class Ruta {
   final bool esFavorita;
   final bool estaInscrito;
   final bool asistio;
+  final String? guiaNombreReal; // Nuevo: Nombre real concatenado (Nombres + Apellidos)
+  final bool guiaDniValidado;   // Nuevo: Si tiene check azul de Reniec
 
   Ruta({
     required this.id,
@@ -82,5 +84,7 @@ class Ruta {
     required this.inscritosCount,
     required this.esFavorita,
     required this.estaInscrito,
+    this.guiaNombreReal,
+    this.guiaDniValidado = false,
   });
 }

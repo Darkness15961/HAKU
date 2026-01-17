@@ -523,13 +523,22 @@ class DetalleRutaPagina extends StatelessWidget {
   }
 
   Widget _buildGuideProfile(BuildContext context, Ruta ruta) {
+    // LÓGICA DE NOMBRE:
+    // Si tiene DNI validado y nombre real disponible, mostramos el nombre real.
+    // Si no, mostramos el seudónimo.
+    final bool mostrarNombreReal = ruta.guiaDniValidado && 
+                                   ruta.guiaNombreReal != null && 
+                                   ruta.guiaNombreReal!.isNotEmpty;
+    
+    final String nombreAMostrar = mostrarNombreReal ? ruta.guiaNombreReal! : ruta.guiaNombre;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      padding: const EdgeInsets.all(16), // Padding aumentado para consistencia
+      padding: const EdgeInsets.all(16), 
       decoration: BoxDecoration(
-        color: Colors.deepPurple.withValues(alpha: 0.05), // Fondo Morado Suave
-        borderRadius: BorderRadius.circular(20), // Borde redondeado consistente
-        border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.2)), // Borde Morado
+        color: Colors.deepPurple.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.2)), 
         boxShadow: [
            BoxShadow(
              color: Colors.deepPurple.withValues(alpha: 0.05),
@@ -549,11 +558,20 @@ class DetalleRutaPagina extends StatelessWidget {
             radius: 28,
             backgroundColor: Colors.deepPurple.shade100,
             backgroundImage: (ruta.guiaFotoUrl.isNotEmpty) ? NetworkImage(ruta.guiaFotoUrl) : null,
-            child: (ruta.guiaFotoUrl.isEmpty) ? Text(ruta.guiaNombre.substring(0, 1), style: const TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold)) : null,
+            child: (ruta.guiaFotoUrl.isEmpty) ? Text(nombreAMostrar.substring(0, 1), style: const TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold)) : null,
           ),
         ),
-        title: Text(ruta.guiaNombre, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepPurple)), // Texto morado
-        subtitle: const Text("Organizador de la ruta", style: TextStyle(color: Colors.black54)),
+        title: Row(
+          children: [
+            Expanded(child: Text(nombreAMostrar, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepPurple))),
+            if (mostrarNombreReal) 
+              const Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Icon(Icons.verified, color: Colors.blue, size: 16),
+              ),
+          ],
+        ), 
+        subtitle: Text(mostrarNombreReal ? "Identidad Verificada (DNI)" : "Organizador (Seudónimo)", style: const TextStyle(color: Colors.black54)),
       ),
     );
   }

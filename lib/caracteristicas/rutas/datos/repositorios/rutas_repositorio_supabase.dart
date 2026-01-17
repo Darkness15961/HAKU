@@ -15,7 +15,10 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       // Consulta base
       var query = _supabase.from('rutas').select('''
             *,
-            perfiles!guia_id (seudonimo, url_foto_perfil, rating),
+            *,
+            *,
+            *,
+            perfiles!guia_id (seudonimo, url_foto_perfil, rating, nombres, apellido_paterno, apellido_materno, dni),
             ruta_detalles (
               orden_visita,
               lugares (id, nombre)
@@ -80,9 +83,25 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       ) async {
     try {
       final perfilData = json['perfiles'];
-      final guiaNombre = perfilData != null
-          ? (perfilData['seudonimo'] ?? perfilData['nombres'] ?? 'Guía')
+      final guiaSeudonimo = perfilData != null 
+          ? (perfilData['seudonimo'] ?? 'Guía') 
           : 'Desconocido';
+          
+      final guiaNombreReal = perfilData != null 
+          ? ('${perfilData['nombres'] ?? ''} ${perfilData['apellido_paterno'] ?? ''} ${perfilData['apellido_materno'] ?? ''}'.trim()) 
+          : '';
+          
+      // LÓGICA DE VALIDACIÓN (Actualizada):
+      // Si tiene DNI y Nombre Real registrado, lo consideramos "Validado" 
+      // (ya que la columna dni_validado aun no existe).
+      final String? dni = perfilData != null ? perfilData['dni']?.toString() : null;
+      final bool tieneDni = dni != null && dni.isNotEmpty;
+      final bool tieneNombre = guiaNombreReal.isNotEmpty;
+
+      final guiaDniValidado = tieneDni && tieneNombre;
+
+      final guiaNombre = guiaSeudonimo; // Por defecto usamos el seudónimo en la variable principal
+
       final guiaFoto = perfilData != null
           ? (perfilData['url_foto_perfil'] ?? '')
           : '';
@@ -178,6 +197,8 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         estaInscrito: estaInscrito,
         esPrivada: json['es_privada'] ?? false,
         codigoAcceso: json['codigo_acceso'],
+        guiaNombreReal: guiaNombreReal.isEmpty ? null : guiaNombreReal,
+        guiaDniValidado: guiaDniValidado,
       );
 
       return ruta;
