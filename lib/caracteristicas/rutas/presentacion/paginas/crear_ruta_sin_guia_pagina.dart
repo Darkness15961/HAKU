@@ -11,10 +11,11 @@ import '../../../inicio/dominio/entidades/lugar.dart';
 import '../vista_modelos/rutas_vm.dart';
 import '../widgets/subida_imagen_ruta.dart';
 import '../widgets/selector_lugares_ruta.dart';
-import '../widgets/route_location.dart';
+import '../widgets/route_location.dart'; // Restaurado
+import '../widgets/formulario_logistica.dart'; // Importar widget logístico
 
 class CrearRutaSinGuiaPagina extends StatefulWidget {
-  const CrearRutaSinGuiaPagina({Key? key}) : super(key: key);
+  const CrearRutaSinGuiaPagina({super.key});
 
   @override
   State<CrearRutaSinGuiaPagina> createState() => _CrearRutaSinGuiaPaginaState();
@@ -30,11 +31,14 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
   final _puntoEncuentroController = TextEditingController();
   final _cuposController = TextEditingController(text: '1');
   final _urlImagenCtrl = TextEditingController();
+  final _whatsappCtrl = TextEditingController(); // Nuevo campo
+  final _equipamientoCtrl = TextEditingController(); // Nuevo campo
 
   // Estado
   List<RouteLocation> _locations = [];
   String _preferenciaPrivacidad = 'publica';
   DateTime? _fechaEvento;
+  DateTime? _fechaCierre; // Nuevo campo
   String _categoria = 'Familiar';
   bool _creando = false;
 
@@ -54,6 +58,8 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
     _puntoEncuentroController.dispose();
     _cuposController.dispose();
     _urlImagenCtrl.dispose();
+    _whatsappCtrl.dispose();
+    _equipamientoCtrl.dispose();
     super.dispose();
   }
 
@@ -223,9 +229,16 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
             .toList(),
         'lugaresNombres': _locations.map((l) => l.lugar.nombre).toList(),
         'fecha_evento': _fechaEvento?.toIso8601String(),
+        'fechaCierreInscripcion': _fechaCierre?.toIso8601String(),
         'punto_encuentro': _puntoEncuentroController.text.isNotEmpty
             ? _puntoEncuentroController.text
             : null,
+        'enlace_grupo_whatsapp': _whatsappCtrl.text,
+        'equipamientoRuta': _equipamientoCtrl.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList(),
         'estado': 'convocatoria',
         if (codigoAcceso != null) 'codigo_acceso': codigoAcceso,
       };
@@ -260,18 +273,51 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
 
   // --- UI HELPERS ---
 
-  Widget _buildInputLabel(String label) {
+  Widget _buildSectionTitle(String title, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      padding: const EdgeInsets.only(bottom: 16.0, left: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: Theme.of(context).primaryColor, size: 24),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCard({required Widget child}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            offset: const Offset(0, 4),
+            blurRadius: 12,
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: child,
       ),
     );
   }
 
   Widget _buildStyledInput({
     required TextEditingController controller,
+    required String label,
     String? hintText,
     TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
@@ -279,55 +325,44 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        hintText: hintText,
-        prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon, color: Theme.of(context).primaryColor)
-            : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        maxLines: maxLines,
+        style: const TextStyle(fontSize: 15),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hintText,
+          alignLabelWithHint: maxLines > 1,
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          prefixIcon: prefixIcon != null
+              ? Icon(prefixIcon, color: Colors.grey.shade600, size: 22)
+              : null,
+          filled: true,
+          fillColor: Colors.grey.shade50,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
+        validator: validator,
       ),
-      validator: validator,
     );
-  }
-
-  Future<void> _seleccionarFecha() async {
-    final fecha = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 3)),
-      firstDate: DateTime.now().add(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (fecha != null) {
-      setState(() => _fechaEvento = fecha);
-    }
-  }
-
-  String _formatearFecha(DateTime fecha) {
-    final meses = [
-      'Ene',
-      'Feb',
-      'Mar',
-      'Abr',
-      'May',
-      'Jun',
-      'Jul',
-      'Ago',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dic',
-    ];
-    return '${fecha.day} ${meses[fecha.month - 1]} ${fecha.year}';
   }
 
   // --- BUILD ---
@@ -335,42 +370,28 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA), // Fondo gris muy suave
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
         title: const Text(
-          'Crear Ruta Personalizada',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          'Diseña tu Aventura',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: Colors.black87,
+            fontSize: 20,
+          ),
         ),
+        iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
-          _creando
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 3,
-                      ),
-                    ),
-                  ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.only(right: 10.0),
-                  child: FilledButton(
-                    onPressed: _crearRuta,
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(Colors.white),
-                      foregroundColor: MaterialStateProperty.all(
-                        Theme.of(context).primaryColor,
-                      ),
-                      textStyle: MaterialStateProperty.all(
-                        const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    child: const Text('Guardar'),
-                  ),
-                ),
+          if (_creando)
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              width: 20,
+              height: 20,
+              child: const CircularProgressIndicator(strokeWidth: 2.5),
+            ),
         ],
       ),
       body: Form(
@@ -378,230 +399,172 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
         child: Stack(
           children: [
             SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. INFO BÁSICA ESTILO UNIFICADO
-                  _buildInputLabel('Nombre de la ruta *'),
-                  _buildStyledInput(
-                    controller: _nombreController,
-                    hintText: 'Ej. Tour por el Valle Sagrado',
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Campo requerido' : null,
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildInputLabel('Descripción *'),
-                  _buildStyledInput(
-                    controller: _descripcionController,
-                    hintText: 'Detalles sobre la experiencia...',
-                    maxLines: 4,
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Campo requerido' : null,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // PRECIO Y CUPOS
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInputLabel('Precio (S/)'),
-                            _buildStyledInput(
-                              controller: _precioController,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'^\d*\.?\d{0,2}'),
-                                ),
-                              ],
-                              prefixIcon: Icons.monetization_on,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 1,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInputLabel('Cupos *'),
-                            _buildStyledInput(
-                              controller: _cuposController,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              prefixIcon: Icons.people,
-                              validator: (v) {
-                                final n = int.tryParse(v ?? '');
-                                if (n == null || n < 1) return 'Mín 1';
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // FECHA Y CATEGORÍA
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInputLabel('Fecha *'),
-                            InkWell(
-                              onTap: _seleccionarFecha,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 14,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_today,
-                                      size: 20,
-                                      color: Theme.of(context).primaryColor,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        _fechaEvento == null
-                                            ? 'Seleccionar'
-                                            : _formatearFecha(_fechaEvento!),
-                                        style: _fechaEvento == null
-                                            ? TextStyle(
-                                                color: Colors.grey.shade600,
-                                              )
-                                            : null,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInputLabel('Categoría *'),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _categoria,
-                                  isExpanded: true,
-                                  items: _categorias.map((String value) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(value),
-                                    );
-                                  }).toList(),
-                                  onChanged: (newValue) {
-                                    if (newValue != null) {
-                                      setState(() => _categoria = newValue);
-                                    }
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildInputLabel('Punto de Encuentro'),
-                  _buildStyledInput(
-                    controller: _puntoEncuentroController,
-                    hintText: 'Ej: Plaza de Armas',
-                    prefixIcon: Icons.location_on,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // 2. SUBIDA IMAGEN (Reutilizado)
-                  SubidaImagenRuta(urlImagenCtrl: _urlImagenCtrl),
-
-                  const Divider(height: 32),
-
-                  // 3. SELECTOR DE LUGARES (Reutilizado)
-                  SelectorLugaresRuta(
-                    locations: _locations,
-                    onLocationsChanged: (newList) =>
-                        setState(() => _locations = newList),
-                  ),
-
-                  const Divider(height: 32),
-
-                  // 4. PRIVACIDAD (Estilo Local Guide)
                   const Padding(
-                    padding: EdgeInsets.only(bottom: 8),
+                    padding: EdgeInsets.only(bottom: 20, left: 4),
                     child: Text(
-                      'Tipo de Ruta (Acceso)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                      'Completa los detalles para publicar tu ruta personalizada.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ),
+
+                  // 1. TARJETA DE EXPERIENCIA (Info Básica)
+                  _buildSectionTitle('La Experiencia', Icons.explore),
+                  _buildCard(
+                    child: Column(
+                      children: [
+                        _buildStyledInput(
+                          controller: _nombreController,
+                          label: 'Nombre de la Ruta *',
+                          hintText: 'Ej. Caminata al atardecer en Pisac',
+                          prefixIcon: Icons.edit_location_alt,
+                          validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
+                        ),
+                        _buildStyledInput(
+                          controller: _descripcionController,
+                          label: 'Descripción *',
+                          hintText: 'Describe qué hace especial a este recorrido...',
+                          maxLines: 4,
+                          validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
+                        ),
+                        DropdownButtonFormField<String>(
+                          value: _categoria,
+                          decoration: InputDecoration(
+                            labelText: 'Categoría',
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            prefixIcon: Icon(Icons.category, color: Colors.grey.shade600, size: 22),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade200),
+                            ),
+                          ),
+                          items: _categorias.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                          onChanged: (val) => setState(() => _categoria = val!),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // 2. LOGÍSTICA (FormularioLogistica refactorizado visualmente via wrapper)
+                  _buildSectionTitle('Logística', Icons.access_time_filled),
+                  _buildCard(
+                    child: Theme(
+                      data: Theme.of(context).copyWith(
+                        inputDecorationTheme: InputDecorationTheme(
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade200),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade200),
+                          ),
+                        ),
+                      ),
+                      child: FormularioLogistica(
+                        fechaEvento: _fechaEvento,
+                        fechaCierre: _fechaCierre,
+                        puntoEncuentroCtrl: _puntoEncuentroController,
+                        whatsappCtrl: _whatsappCtrl,
+                        equipamientoCtrl: _equipamientoCtrl,
+                        onFechaEventoChanged: (val) => setState(() => _fechaEvento = val),
+                        onFechaCierreChanged: (val) => setState(() => _fechaCierre = val),
                       ),
                     ),
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
+
+                  // 3. DETALLES (Cupos, Precio, Imagen)
+                  _buildSectionTitle('Detalles y Multimedia', Icons.image),
+                  _buildCard(
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStyledInput(
+                                controller: _precioController,
+                                label: 'Precio (S/)',
+                                prefixIcon: Icons.attach_money,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildStyledInput(
+                                controller: _cuposController,
+                                label: 'Cupos',
+                                prefixIcon: Icons.group,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                validator: (v) {
+                                  final n = int.tryParse(v ?? '');
+                                  if (n == null || n < 1) return 'Mín 1';
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SubidaImagenRuta(urlImagenCtrl: _urlImagenCtrl),
+                      ],
                     ),
+                  ),
+
+                  // 4. MAPA
+                  _buildSectionTitle('El Mapa', Icons.map),
+                  _buildCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                         const Padding(
+                          padding: EdgeInsets.only(bottom: 12.0),
+                          child: Text(
+                            'Selecciona los puntos clave de tu ruta:',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                        SelectorLugaresRuta(
+                          locations: _locations,
+                          onLocationsChanged: (newList) => setState(() => _locations = newList),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // 5. PRIVACIDAD
+                  _buildSectionTitle('Privacidad', Icons.lock_outline),
+                  _buildCard(
                     child: Column(
                       children: [
                         RadioListTile<String>(
-                          title: const Text('Pública'),
-                          subtitle: const Text(
-                            'Cualquier usuario puede inscribirse',
-                          ),
+                          activeColor: Theme.of(context).primaryColor,
+                          title: const Text('Pública', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Visible para todos en la comunidad'),
+                          secondary: const Icon(Icons.public),
                           value: 'publica',
                           groupValue: _preferenciaPrivacidad,
-                          onChanged: (val) =>
-                              setState(() => _preferenciaPrivacidad = val!),
+                          onChanged: (val) => setState(() => _preferenciaPrivacidad = val!),
                         ),
+                        const Divider(),
                         RadioListTile<String>(
-                          title: const Text('Privada con Código'),
-                          subtitle: const Text('Solo con invitación'),
+                          activeColor: Theme.of(context).primaryColor,
+                          title: const Text('Privada', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Solo accesible con código de invitación'),
+                          secondary: const Icon(Icons.vpn_key),
                           value: 'privada',
                           groupValue: _preferenciaPrivacidad,
-                          onChanged: (val) =>
-                              setState(() => _preferenciaPrivacidad = val!),
+                          onChanged: (val) => setState(() => _preferenciaPrivacidad = val!),
                         ),
                       ],
                     ),
@@ -610,89 +573,73 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
               ),
             ),
 
-            // FOOTER FIJO
+            // FOOTER MODERNO
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 15,
                       offset: const Offset(0, -5),
                     ),
                   ],
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Precio',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        Text(
-                          _precioController.text.isEmpty ||
-                                  _precioController.text == '0'
-                              ? 'Gratis'
-                              : 'S/ ${_precioController.text}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Cupos',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        Text(
-                          '${_cuposController.text} pers.',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    ElevatedButton(
-                      onPressed: _crearRuta,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                child: SafeArea(
+                  top: false,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Total Estimado',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              _precioController.text.isEmpty || _precioController.text == '0'
+                                  ? 'Gratis'
+                                  : 'S/ ${_precioController.text}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: const Text(
-                        'Crear Ruta',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                      ElevatedButton(
+                        onPressed: _crearRuta,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
                         ),
+                        child: const Text('CREAR RUTA'),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

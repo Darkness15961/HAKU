@@ -11,6 +11,7 @@ import '../widgets/mapa_ruta_preview.dart';
 
 // --- External Packages ---
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // --- Other VMs ---
 import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
@@ -321,27 +322,61 @@ class DetalleRutaPagina extends StatelessWidget {
               
               const Divider(height: 40, thickness: 1, indent: 20, endIndent: 20),
 
-              // E. INFO ADICIONAL (Fecha, Guía, Equipo)
-              if (ruta.fechaEvento != null || ruta.puntoEncuentro != null) ...[
-                 _buildSectionTitle('📅 Detalles Logísticos'),
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.teal.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.teal.withValues(alpha: 0.2)),
+                if (ruta.fechaEvento != null || ruta.puntoEncuentro != null || ruta.fechaCierre != null) ...[
+                  _buildSectionTitle('📅 Detalles Logísticos'),
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.teal.withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        if (ruta.fechaEvento != null)
+                          _buildLogisticRow(Icons.calendar_month, "Fecha del Evento", _formatFechaCompleta(ruta.fechaEvento!)),
+                        if (ruta.fechaCierre != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16.0),
+                            child: _buildLogisticRow(Icons.timer_off_outlined, "Cierre de Inscripciones", _formatFechaCompleta(ruta.fechaCierre!)),
+                          ),
+                        if (ruta.puntoEncuentro != null && ruta.puntoEncuentro!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16.0),
+                            child: _buildLogisticRow(Icons.location_on, "Punto de Encuentro", ruta.puntoEncuentro!),
+                          ),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      if (ruta.fechaEvento != null)
-                        _buildLogisticRow(Icons.calendar_month, "Fecha", _formatFechaCompleta(ruta.fechaEvento!)),
-                      if (ruta.puntoEncuentro != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16.0),
-                          child: _buildLogisticRow(Icons.location_on, "Encuentro", ruta.puntoEncuentro!),
-                        ),
-                    ],
+                  const SizedBox(height: 24),
+                ],
+
+              if (ruta.enlaceWhatsapp != null && ruta.enlaceWhatsapp!.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                       final uri = Uri.parse(ruta.enlaceWhatsapp!);
+                       try {
+                         if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo abrir WhatsApp')));
+                            }
+                         }
+                       } catch (e) {
+                         if (context.mounted) {
+                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al abrir enlace: $e')));
+                         }
+                       }
+                    },
+                    icon: const Icon(Icons.chat, color: Colors.white),
+                    label: const Text('Unirme al Grupo de WhatsApp', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366), // WhatsApp Green
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),

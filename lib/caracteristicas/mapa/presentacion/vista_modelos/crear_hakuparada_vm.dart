@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:xplore_cusco/core/servicios/imagen_servicio.dart';
 
-// Entidades
 // Entidades
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/provincia.dart';
 import 'package:xplore_cusco/caracteristicas/inicio/dominio/entidades/lugar.dart';
 
 class CrearHakuparadaVM extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final ImagenServicio _imagenServicio = ImagenServicio();
 
   // --- ESTADO DEL FORMULARIO ---
   bool _estaCargando = false;
@@ -233,7 +233,7 @@ class CrearHakuparadaVM extends ChangeNotifier {
       }).toList();
       
     } catch (e) {
-      print("Error cargando lugares cascada: $e");
+      debugPrint("Error cargando lugares cascada: $e");
     } finally {
       _estaCargando = false;
       notifyListeners();
@@ -259,25 +259,6 @@ class CrearHakuparadaVM extends ChangeNotifier {
   void limpiarFoto() {
     _fotoSeleccionada = null;
     notifyListeners();
-  }
-
-  Future<File?> _comprimirImagen(File file) async {
-    final filePath = file.absolute.path;
-    final lastIndex = filePath.lastIndexOf(new RegExp(r'.jp'));
-    if (lastIndex == -1) return file; // Si no es jpg, retornar original (simple fix)
-
-    final splitted = filePath.substring(0, (lastIndex));
-    final outPath = "${splitted}_out${filePath.substring(lastIndex)}";
-    
-    var result = await FlutterImageCompress.compressAndGetFile(
-      file.absolute.path, 
-      outPath,
-      quality: 70, // Calidad web decente
-      minWidth: 1024,
-      minHeight: 1024,
-    );
-
-    return result != null ? File(result.path) : null;
   }
 
   // --- 5. GUARDADO FINAL ---
@@ -314,21 +295,15 @@ class CrearHakuparadaVM extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Subir Foto
-      final fileExt = _fotoSeleccionada!.path.split('.').last;
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${nombreController.text.replaceAll(' ', '_')}.$fileExt';
-      final filePath = 'hakuparadas/$fileName';
+      // 1. Subir Foto (VÍA N8N -> S3)
+      final fotoComprimida = await _imagenServicio.comprimirImagen(_fotoSeleccionada!);
       
-      // Comprimimos antes de subir
-      final fotoComprimida = await _comprimirImagen(_fotoSeleccionada!) ?? _fotoSeleccionada!;
+      // Especificamos la carpeta 'hakuparadas'
+      final fotoUrl = await _imagenServicio.subirImagen(fotoComprimida, 'hakuparadas');
 
-      await _supabase.storage.from('lugares').upload(
-        filePath,
-        fotoComprimida,
-        fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
-      );
-
-      final fotoUrl = _supabase.storage.from('lugares').getPublicUrl(filePath);
+      if (fotoUrl == null) {
+        throw Exception("No se pudo subir la imagen al servidor");
+      }
 
       // 2. Insertar en BD
       final usuarioId = _supabase.auth.currentUser?.id;

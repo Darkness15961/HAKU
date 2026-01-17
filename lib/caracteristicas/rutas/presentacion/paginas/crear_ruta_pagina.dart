@@ -19,6 +19,7 @@ import '../widgets/subida_imagen_ruta.dart';
 import '../widgets/formulario_info_basica.dart';
 import '../widgets/selector_lugares_ruta.dart';
 import '../widgets/route_location.dart';
+import '../widgets/formulario_logistica.dart'; // <--- NUEVO IMPORT
 
 class CrearRutaPagina extends StatefulWidget {
   final Ruta? ruta;
@@ -48,6 +49,15 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
   String? _codigoAccesoGenerado;
   bool _estaGuardando = false;
 
+  // --- NUEVOS CONTROLADORES ---
+  final TextEditingController _whatsappCtrl = TextEditingController();
+  final TextEditingController _puntoEncuentroCtrl = TextEditingController();
+  final TextEditingController _equipamientoCtrl = TextEditingController();
+  
+  DateTime? _fechaEvento;
+  DateTime? _fechaCierre;
+  // ---------------------------
+
   List<RouteLocation> _locations = [];
 
   Future<void> _submitCrearRuta() async {
@@ -59,6 +69,16 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
           backgroundColor: Colors.red,
         ),
       );
+      return;
+    }
+    
+    // Validar Fechas (Básico)
+    if (_fechaEvento == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La fecha del evento es obligatoria.'), backgroundColor: Colors.orange));
+      return;
+    }
+    if (_fechaCierre != null && _fechaEvento != null && _fechaCierre!.isAfter(_fechaEvento!)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El cierre de inscripción no puede ser después del evento.'), backgroundColor: Colors.orange));
       return;
     }
 
@@ -113,6 +133,13 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       _codigoAccesoGenerado = null;
     }
 
+    // Convertir equipamiento string a list
+    List<String> listaEquipamiento = _equipamientoCtrl.text
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
     final Map<String, dynamic> datosRuta = {
       'nombre': _nombreCtrl.text,
       'descripcion': _descripcionCtrl.text,
@@ -132,6 +159,12 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       'url_imagen_principal': _urlImagenCtrl.text.isNotEmpty
           ? _urlImagenCtrl.text
           : (_locations.isNotEmpty ? _locations.first.lugar.urlImagen : ''),
+      // --- CAMPOS NUEVOS ---
+      'enlace_grupo_whatsapp': _whatsappCtrl.text,
+      'puntoEncuentro': _puntoEncuentroCtrl.text,
+      'equipamientoRuta': listaEquipamiento,
+      'fechaEvento': _fechaEvento?.toIso8601String(),
+      'fechaCierreInscripcion': _fechaCierre?.toIso8601String(),
     };
 
     try {
@@ -185,6 +218,13 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     if (vmAuth.usuarioActual == null) return; 
 
     final int cuposTotales = int.tryParse(_cuposCtrl.text) ?? 10;
+    
+    // Convertir equipamiento string a list para preview
+    List<String> listaEquipamiento = _equipamientoCtrl.text
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
 
     final Ruta rutaTemporal = Ruta(
       id: 'preview_id',
@@ -214,6 +254,12 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       estaInscrito: false,
       esFavorita: false,
       cuposDisponibles: cuposTotales - (widget.ruta?.inscritosCount ?? 0),
+      // Nuevos campos para preview
+      puntoEncuentro: _puntoEncuentroCtrl.text,
+      enlaceWhatsapp: _whatsappCtrl.text,
+      equipamiento: listaEquipamiento,
+      fechaEvento: _fechaEvento,
+      fechaCierre: _fechaCierre,
     );
 
     context.push('/rutas/detalle-ruta', extra: rutaTemporal);
@@ -237,6 +283,13 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       _precioCtrl.text = widget.ruta!.precio.toString();
       _diasCtrl.text = widget.ruta!.dias.toString();
       _cuposCtrl.text = widget.ruta!.cuposTotales.toString();
+
+      // Nuevos campos
+      _whatsappCtrl.text = widget.ruta!.enlaceWhatsapp ?? '';
+      _puntoEncuentroCtrl.text = widget.ruta!.puntoEncuentro ?? '';
+      _equipamientoCtrl.text = widget.ruta!.equipamiento.join(', ');
+      _fechaEvento = widget.ruta!.fechaEvento;
+      _fechaCierre = widget.ruta!.fechaCierre;
 
       const opcionesValidas = ['Familiar', 'Cultural', 'Aventura', '+18', 'Naturaleza', 'Extrema'];
       final categoriaGuardada = widget.ruta!.categoria;
@@ -284,6 +337,10 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     _diasCtrl.dispose();
     _cuposCtrl.dispose();
     _urlImagenCtrl.dispose();
+    // Nuevos
+    _whatsappCtrl.dispose();
+    _puntoEncuentroCtrl.dispose();
+    _equipamientoCtrl.dispose();
     super.dispose();
   }
 
@@ -292,6 +349,9 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
     return _nombreCtrl.text.isNotEmpty &&
         _descripcionCtrl.text.isNotEmpty &&
         _locations.isNotEmpty &&
+        // Validación básica de nuevos campos obligatorios si se desea
+        _fechaEvento != null &&
+        _puntoEncuentroCtrl.text.isNotEmpty &&
         (double.tryParse(_precioCtrl.text) ?? 0.0) >= 0;
   }
 
@@ -357,6 +417,18 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                     selectedDifficulty: _selectedDifficulty,
                     onDifficultyChanged: (val) => setState(() => _selectedDifficulty = val),
                     minCupos: widget.ruta?.inscritosCount ?? 0,
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // --- NUEVO: FORMULARIO LOGÍSTICA ---
+                  FormularioLogistica(
+                    whatsappCtrl: _whatsappCtrl,
+                    puntoEncuentroCtrl: _puntoEncuentroCtrl,
+                    equipamientoCtrl: _equipamientoCtrl,
+                    fechaEvento: _fechaEvento,
+                    fechaCierre: _fechaCierre,
+                    onFechaEventoChanged: (d) => setState(() => _fechaEvento = d),
+                    onFechaCierreChanged: (d) => setState(() => _fechaCierre = d),
                   ),
                   const SizedBox(height: 24),
                   
