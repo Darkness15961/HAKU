@@ -87,7 +87,7 @@ class _InicioPaginaState extends State<InicioPagina> {
 
   Future<void> _handleRefresh() async {
     final vmAuth = context.read<AutenticacionVM>();
-    await context.read<LugaresVM>().cargarDatosIniciales(vmAuth);
+    await context.read<LugaresVM>().cargarDatosIniciales(vmAuth, forceRefresh: true);
   }
   // ...
 
@@ -517,11 +517,13 @@ class _InicioPaginaState extends State<InicioPagina> {
                     item.urlImagen,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
-                      color: Colors.grey[300],
+                      color: const Color(0xFF1E1E1E), // Gris oscuro (sin neblina blanca)
+                      width: double.infinity,
+                      height: double.infinity,
                       child: const Icon(
-                        Icons.image,
+                        Icons.broken_image_outlined,
                         size: 50,
-                        color: Colors.grey,
+                        color: Colors.white24,
                       ),
                     ),
                   ),
@@ -795,8 +797,10 @@ class _InicioPaginaState extends State<InicioPagina> {
               p.urlImagen,
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => Container(
-                color: Colors.grey[200],
-                child: Icon(Icons.image, size: 50, color: Colors.grey[400]),
+                color: const Color(0xFF2C2C2C), // Gris oscuro
+                width: double.infinity,
+                height: double.infinity,
+                child: Icon(Icons.broken_image, size: 50, color: Colors.white24),
               ),
             ),
             Container(

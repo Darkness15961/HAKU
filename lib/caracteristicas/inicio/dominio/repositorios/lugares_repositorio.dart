@@ -9,7 +9,7 @@ abstract class LugaresRepositorio {
   Future<List<Lugar>> obtenerLugaresPopulares();
   Future<List<Provincia>> obtenerProvincias();
   Future<List<Categoria>> obtenerCategorias();
-  Future<List<Lugar>> obtenerLugaresPorProvincia(String provinciaId);
+  Future<List<Lugar>> obtenerLugaresPorProvincia(String provinciaId, {int page = 0, int pageSize = 10});
   Future<List<Lugar>> obtenerLugaresPorUsuario(String usuarioId);
 
   Future<List<Comentario>> obtenerComentarios(String lugarId);

@@ -11,8 +11,8 @@ import '../entidades/ruta.dart';
 abstract class RutasRepositorio {
   // --- ÓRDENES (Las funciones del contrato) ---
 
-  // ORDEN 1: "Traer la lista de rutas"
-  Future<List<Ruta>> obtenerRutas(String tipoFiltro);
+  // ORDEN 1: "Traer la lista de rutas" (Con Paginación)
+  Future<List<Ruta>> obtenerRutas(String tipoFiltro, {int page = 0, int pageSize = 6});
 
   // ORDEN 2: "Inscribirse a una ruta"
   Future<void> inscribirseEnRuta(String rutaId);

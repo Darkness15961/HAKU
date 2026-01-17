@@ -181,12 +181,17 @@ class LugaresRepositorioSupabase implements LugaresRepositorio {
   }
 
   @override
-  Future<List<Lugar>> obtenerLugaresPorProvincia(String provinciaId) async {
+  Future<List<Lugar>> obtenerLugaresPorProvincia(String provinciaId, {int page = 0, int pageSize = 10}) async {
     try {
+      final from = page * pageSize;
+      final to = from + pageSize - 1;
+
       final data = await _supabase
           .from('lugares')
           .select()
-          .eq('provincia_id', provinciaId);
+          .eq('provincia_id', provinciaId)
+          .range(from, to); // Paginación real
+          
       return (data as List)
           .map((e) => LugarModelo.fromJson(e).toEntity())
           .toList();

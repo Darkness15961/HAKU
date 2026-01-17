@@ -28,11 +28,14 @@ class ProvinciaLugaresPagina extends StatefulWidget {
 
 class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
   final TextEditingController _searchCtrl = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   // --- Lógica de Carga Inicial ---
   @override
+  @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     Future.microtask(() {
       // 1. Pedimos al Mesero de Lugares que cargue solo los datos de esta provincia.
       if (!mounted) return;
@@ -42,8 +45,19 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
     _searchCtrl.addListener(_onSearchChanged);
   }
 
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (mounted) {
+         context.read<LugaresVM>().cargarMasLugaresPorProvincia(widget.provincia.id);
+      }
+    }
+  }
+
+  @override
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     super.dispose();
@@ -209,9 +223,17 @@ class _ProvinciaLugaresPaginaState extends State<ProvinciaLugaresPagina> {
     List<Lugar> lugares,
   ) {
     return ListView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      itemCount: lugares.length,
+      itemCount: lugares.length + (vmLugares.isLoadingMoreProvincia ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == lugares.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
         final lugar = lugares[index];
         final bool esFavorito = vmLugares.esLugarFavorito(lugar.id);
         // final colorPrimario = Theme.of(context).colorScheme.primary; // Ya no lo usamos aquí

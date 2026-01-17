@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../vista_modelos/rutas_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../dominio/entidades/ruta.dart';
+import '../../../inicio/dominio/entidades/lugar.dart'; // Import correcto para Lugar
 
 import '../widgets/mapa_ruta_preview.dart';
 
@@ -92,7 +93,7 @@ class DetalleRutaPagina extends StatelessWidget {
     }
   }
 
-  // --- Helper de Colores y Textos ---
+  // Helper de Colores y Textos
   Color _getColorCategoria(String categoria) {
     final categoriaLower = categoria.toLowerCase().trim();
     if (categoriaLower.contains('familiar')) return const Color(0xFF4CAF50);
@@ -115,28 +116,24 @@ class DetalleRutaPagina extends StatelessWidget {
     return Icons.info_outline;
   }
 
-  String _getDescripcionCategoria(String categoria) {
-    final categoriaLower = categoria.toLowerCase().trim();
-    if (categoriaLower.contains('naturaleza')) return 'Experiencias enfocadas en paisajes naturales';
-    if (categoriaLower.contains('aventura')) return 'Rutas con actividades dinámicas';
-    if (categoriaLower.contains('familiar')) return 'Actividades ideales para todas las edades';
-    if (categoriaLower.contains('cultural')) return 'Historia, tradiciones y patrimonio';
-    if (categoriaLower.contains('extrema')) return 'Rutas de alta exigencia física';
-    return 'Experiencia turística única en Cusco';
-  }
-
   @override
   Widget build(BuildContext context) {
     // --- OBTENER PUNTOS DE INTERÉS (WAYPOINTS) ---
     final lugaresVM = context.read<LugaresVM>();
     // Mapeamos los IDs de la ruta a objetos Lugar reales para obtener sus coordenadas
+    // Mapeamos los IDs de la ruta a objetos Lugar reales para obtener sus coordenadas
     final List<LatLng> waypointsRuta = ruta.lugaresIncluidosIds.map((id) {
+      if (lugaresVM.lugaresTotales.isEmpty) {
+        return LatLng(0, 0); // Fallback seguro para evitar crash si no hay data cargada
+      }
       final lugar = lugaresVM.lugaresTotales.firstWhere(
         (l) => l.id == id,
-        orElse: () => lugaresVM.lugaresTotales.first, // Fallback seguro
+        orElse: () => lugaresVM.lugaresTotales.isNotEmpty 
+            ? lugaresVM.lugaresTotales.first 
+            : Lugar(id: 'dummy', nombre: '', descripcion: '', urlImagen: '', rating: 0, provinciaId: '', usuarioId: ''),
       );
       return LatLng(lugar.latitud, lugar.longitud);
-    }).toList();
+    }).where((latlng) => latlng.latitude != 0 && latlng.longitude != 0).toList();
 
     final vmAuth = context.watch<AutenticacionVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
@@ -726,9 +723,4 @@ class DetalleRutaPagina extends StatelessWidget {
     return '${dias[fecha.weekday % 7]}, ${fecha.day} de ${meses[fecha.month - 1]} ${fecha.year}';
   }
 
-  String _formatHoraCompleta(DateTime fecha) {
-    final hora = fecha.hour.toString().padLeft(2, '0');
-    final minuto = fecha.minute.toString().padLeft(2, '0');
-    return '$hora:$minuto hrs';
-  }
 }

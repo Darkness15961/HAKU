@@ -37,6 +37,12 @@ class LugaresVM extends ChangeNotifier {
   List<Lugar> _lugaresDeProvincia = [];
   String _terminoBusquedaProvincia = '';
   String _categoriaSeleccionadaIdProvincia = '1';
+  
+  // PAGINACIÓN PROVINCIA
+  int _pageProvincia = 0;
+  final int _pageSizeProvincia = 10;
+  bool _hasMoreProvincia = true;
+  bool _isLoadingMoreProvincia = false;
 
   bool _estaCargandoComentarios = true;
   List<Comentario> _comentarios = [];
@@ -60,6 +66,9 @@ class LugaresVM extends ChangeNotifier {
   bool get estaCargandoLugaresDeProvincia => _estaCargandoLugaresDeProvincia;
   String get categoriaSeleccionadaIdProvincia =>
       _categoriaSeleccionadaIdProvincia;
+  
+  bool get hasMoreProvincia => _hasMoreProvincia;
+  bool get isLoadingMoreProvincia => _isLoadingMoreProvincia;
   bool get estaCargandoComentarios => _estaCargandoComentarios;
   List<Comentario> get comentarios => _comentarios;
 
@@ -125,11 +134,21 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- INICIALIZACIÓN ---
-  Future<void> cargarDatosIniciales(AutenticacionVM authVM) async {
+  Future<void> cargarDatosIniciales(AutenticacionVM authVM, {bool forceRefresh = false}) async {
     if (_authVM == null) {
       _authVM = authVM;
       _authVM?.addListener(_onAuthChanged);
     }
+    
+    // Si ya cargamos y no es forzado, solo actualizamos datos de usuario si corresponde
+    if (_cargaInicialRealizada && !forceRefresh) {
+      if (_authVM?.estaLogueado ?? false) {
+        cargarFavoritos();
+        cargarMisRecuerdos();
+      }
+      return;
+    }
+
     if (_authVM?.estaCargando ?? false) {
       _estaCargandoInicio = true;
       notifyListeners();
@@ -146,7 +165,7 @@ class LugaresVM extends ChangeNotifier {
     // Cargar datos dependientes del usuario
     if (_authVM?.estaLogueado ?? false) {
       await cargarFavoritos();
-      await cargarMisRecuerdos(); // <--- ¡AGREGAR ESTO!
+      await cargarMisRecuerdos();
     }
 
     await _cargarCatalogos();
@@ -190,14 +209,14 @@ class LugaresVM extends ChangeNotifier {
         _repositorio.obtenerLugaresPopulares(),
         _repositorio.obtenerProvincias(),
         _repositorio.obtenerCategorias(),
-        _repositorio.obtenerTodosLosLugares(),
+        // _repositorio.obtenerTodosLosLugares(), // ⛔ OPTIMIZACIÓN: NO CARGAR TODO EL MUNDO
       ]);
 
       _lugaresPopulares = resultados[0] as List<Lugar>;
       _provincias = resultados[1] as List<Provincia>;
       _categorias = resultados[2] as List<Categoria>;
-      _lugaresTotales =
-          resultados[3] as List<Lugar>; // Lista maestra actualizada
+      // _lugaresTotales = resultados[3] as List<Lugar>; 
+      _lugaresTotales = []; // Iniciamos vacío, se llenará bajo demanda
     } catch (e) {
       debugPrint("Error cargando catálogos: $e");
     } finally {
@@ -240,20 +259,48 @@ class LugaresVM extends ChangeNotifier {
   }
 
   // --- LUGARES POR PROVINCIA ---
-  Future<void> cargarLugaresPorProvincia(String provinciaId) async {
-    _estaCargandoLugaresDeProvincia = true;
-    _terminoBusquedaProvincia = '';
-    _categoriaSeleccionadaIdProvincia = '1';
-    notifyListeners();
+  Future<void> cargarMasLugaresPorProvincia(String provinciaId) async {
+    if (_isLoadingMoreProvincia || !_hasMoreProvincia) return;
+    await cargarLugaresPorProvincia(provinciaId, refresh: false);
+  }
 
-    // Filtramos de la lista total en memoria para rapidez,
-    // pero podrías llamar al repo si prefieres datos frescos siempre.
-    _lugaresDeProvincia = _lugaresTotales
-        .where((l) => l.provinciaId == provinciaId)
-        .toList();
+  Future<void> cargarLugaresPorProvincia(String provinciaId, {bool refresh = true}) async {
+    if (refresh) {
+      _estaCargandoLugaresDeProvincia = true;
+      _pageProvincia = 0;
+      _hasMoreProvincia = true;
+      _lugaresDeProvincia = []; // Limpiamos para evitar flicker
+      notifyListeners();
+    } else {
+      _isLoadingMoreProvincia = true;
+      notifyListeners();
+    }
 
-    _estaCargandoLugaresDeProvincia = false;
-    notifyListeners();
+    try {
+      final nuevos = await _repositorio.obtenerLugaresPorProvincia(
+        provinciaId,
+        page: _pageProvincia,
+        pageSize: _pageSizeProvincia,
+      );
+
+      if (refresh) {
+        _lugaresDeProvincia = nuevos;
+      } else {
+        _lugaresDeProvincia.addAll(nuevos);
+      }
+
+      if (nuevos.length < _pageSizeProvincia) {
+        _hasMoreProvincia = false;
+      } else {
+        _pageProvincia++;
+      }
+    } catch (e) {
+      debugPrint("Error loading province places: $e");
+    } finally {
+      _estaCargandoLugaresDeProvincia = false;
+      _isLoadingMoreProvincia = false;
+      notifyListeners();
+    }
   }
 
   void buscarEnProvincia(String termino) {

@@ -18,6 +18,7 @@ class RutasVM extends ChangeNotifier {
   AutenticacionVM? _authVM;
 
   // --- B. ESTADO DE LA UI ---
+  // --- B. ESTADO DE LA UI ---
   bool _estaCargando = false;
   List<Ruta> _rutas = [];
   String _pestanaActual = 'Recomendadas';
@@ -25,12 +26,21 @@ class RutasVM extends ChangeNotifier {
   String? _error;
   bool _cargaInicialRealizada = false;
 
+  // --- PAGINACIÓN ---
+  int _page = 0;
+  final int _pageSize = 6;
+  bool _hasMore = true; // Si hay más páginas por cargar
+  bool _isLoadingMore = false; // Cargando la siguiente página (spinner abajo)
+
   // --- C. GETTERS (Iguales) ---
   bool get estaCargando => _estaCargando;
   String get pestanaActual => _pestanaActual;
   String get categoriaActual => _categoriaActual;
   String? get error => _error;
   bool get cargaInicialRealizada => _cargaInicialRealizada;
+  
+  bool get hasMore => _hasMore;
+  bool get isLoadingMore => _isLoadingMore;
 
   List<Ruta> get rutasFiltradas {
     if (_categoriaActual == 'Todos') {
@@ -94,10 +104,25 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  Future<void> cargarRutas() async {
-    _estaCargando = true;
-    _error = null;
-    Future.microtask(() => notifyListeners());
+  // --- E. MÉTODOS DE CARGA (Con Paginación) ---
+  
+  // Método público para "Cargar Más" (Scroll Bottom)
+  Future<void> cargarMasRutas() async {
+    if (_isLoadingMore || !_hasMore) return;
+    await cargarRutas(refresh: false);
+  }
+
+  Future<void> cargarRutas({bool refresh = true}) async {
+    if (refresh) {
+      _estaCargando = true; // Spinner grande solo si es refresh
+      _page = 0;
+      _hasMore = true;
+      _error = null;
+      notifyListeners();
+    } else {
+      _isLoadingMore = true; // Spinner pequeño abajo
+      notifyListeners();
+    }
 
     try {
       String tipoFiltro = 'recomendadas';
@@ -106,12 +131,34 @@ class RutasVM extends ChangeNotifier {
       } else if (_pestanaActual == 'Creadas por mí') {
         tipoFiltro = 'creadas_por_mi';
       }
-      _rutas = await _repositorio.obtenerRutas(tipoFiltro);
+
+      print('🔄 [VM] Cargando rutas. Page: $_page. Filter: $tipoFiltro. Refresh: $refresh');
+
+      final nuevasRutas = await _repositorio.obtenerRutas(
+        tipoFiltro,
+        page: _page,
+        pageSize: _pageSize,
+      );
+
+      if (refresh) {
+        _rutas = nuevasRutas;
+      } else {
+        _rutas.addAll(nuevasRutas);
+      }
+
+      // Lógica de "Habrá más?": Si trajimos menos de lo pedido, se acabó.
+      if (nuevasRutas.length < _pageSize) {
+        _hasMore = false;
+      } else {
+        _page++; // Preparamos para la siguiente
+      }
+
     } catch (e) {
       _error = e.toString();
     } finally {
       _estaCargando = false;
-      _cargaInicialRealizada = true;
+      _isLoadingMore = false;
+      if (refresh) _cargaInicialRealizada = true;
       notifyListeners();
     }
   }
@@ -129,7 +176,7 @@ class RutasVM extends ChangeNotifier {
     if (nuevaPestana == _pestanaActual) return;
     _pestanaActual = nuevaPestana;
     _categoriaActual = 'Todos';
-    cargarRutas();
+    cargarRutas(refresh: true); // Al cambiar pestaña, reiniciamos todo
   }
 
   void cambiarCategoria(String nuevaCategoria) {

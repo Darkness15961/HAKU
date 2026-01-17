@@ -7,12 +7,12 @@ class RutasRepositorioSupabase implements RutasRepositorio {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   @override
-  Future<List<Ruta>> obtenerRutas(String tipoFiltro) async {
+  Future<List<Ruta>> obtenerRutas(String tipoFiltro, {int page = 0, int pageSize = 6}) async {
     try {
-      print('🔍 [RUTAS] Iniciando obtenerRutas con filtro: $tipoFiltro');
+      print('🔍 [RUTAS] Iniciando obtenerRutas con filtro: $tipoFiltro, page: $page');
       final userId = _supabase.auth.currentUser?.id;
 
-      // Consulta base: Usamos el alias !guia_id para traer los datos del perfil
+      // Consulta base
       var query = _supabase.from('rutas').select('''
             *,
             perfiles!guia_id (seudonimo, url_foto_perfil, rating),
@@ -25,37 +25,39 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       // --- FILTROS ---
       if (tipoFiltro == 'creadas_por_mi') {
         if (userId == null) return [];
-
-        // ✅ CORRECCIÓN: Usamos solo 'guia_id'.
-        // Al no haber otra columna con este nombre en las tablas unidas, no hay ambigüedad.
         query = query.eq('guia_id', userId);
-
       } else if (tipoFiltro == 'inscritas') {
-        if (userId == null) return [];
-
-        final inscripciones = await _supabase
+         if (userId == null) return [];
+         // ... (Lógica inscritas puede requerir 2 queries, mantenemos igual)
+         // Nota: Paginación en 'inscritas' es compleja si filtramos IDs primero.
+         // Para simplificar, aplicaremos range SOLO si no es 'inscritas' o si 'inscritas' query returns paginated IDs.
+         // Pero para MVP, paginemos 'recomendadas' y 'creadas_por_mi' que son directas.
+         
+         final inscripciones = await _supabase
             .from('inscripciones')
             .select('ruta_id')
             .eq('usuario_id', userId);
 
-        print('🔍 [RUTAS] Inscripciones encontradas: ${inscripciones.length}');
+         final List<dynamic> ids = inscripciones.map((e) => e['ruta_id']).toList();
+         if (ids.isEmpty) return [];
+         query = query.inFilter('id', ids);
 
-        final List<dynamic> ids = inscripciones
-            .map((e) => e['ruta_id'])
-            .toList();
-
-        if (ids.isEmpty) return [];
-        query = query.inFilter('id', ids);
       } else {
         // 'Recomendadas' (Públicas)
         query = query.eq('visible', true);
       }
 
-      print('🔍 [RUTAS] Ejecutando query...');
-      final List<dynamic> data = await query.order(
-        'created_at',
-        ascending: false,
-      );
+      // --- PAGINACIÓN (La Magia) ---
+      // Calculamos el rango de filas a pedir
+      final from = page * pageSize;
+      final to = from + pageSize - 1;
+      
+      print('📄 [RUTAS] Paginando de $from a $to');
+
+      final List<dynamic> data = await query
+          .order('created_at', ascending: false)
+          .range(from, to); // <--- ESTO DESCARGA SOLO EL TROZO
+
       print('✅ [RUTAS] Datos recibidos: ${data.length} rutas');
 
       if (data.isEmpty) return [];
