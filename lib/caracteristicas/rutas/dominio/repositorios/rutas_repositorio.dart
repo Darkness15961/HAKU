@@ -5,7 +5,8 @@
 
 // 1. Importamos la "Receta" (Entidad) que este "Enchufe"
 //    va a manejar (la que creamos en la Piedra 1).
-import '../entidades/ruta.dart';
+import '../../dominio/entidades/ruta.dart';
+import '../../dominio/entidades/participante_ruta.dart';
 
 // 2. Definimos el "Contrato" (la clase abstracta)
 abstract class RutasRepositorio {
@@ -32,11 +33,18 @@ abstract class RutasRepositorio {
   Future<void> actualizarRuta(String rutaId, Map<String, dynamic> datosRuta);
 
   // ORDEN 7: "Cancelar una ruta" (Pone inscritos a 0 y la oculta)
-  Future<void> cancelarRuta(String rutaId, String mensaje); // <-- ¡Con mensaje!
+  Future<void> cambiarEstadoRuta(String rutaId, String nuevoEstado);
+  
+  // --- MÓDULO PARTICIPANTES ---
+  Future<List<ParticipanteRuta>> obtenerParticipantes(String rutaId);
+  Future<void> cambiarPrivacidad(String rutaId, bool mostrarNombreReal);
 
   // ORDEN 8: "Eliminar una ruta" (Solo si no tiene inscritos)
   Future<void> eliminarRuta(String rutaId);
 
   // ORDEN 9: "Unirse por código"
   Future<void> unirseARutaPorCodigo(String codigo);
+
+  // --- EXTRAS ---
+  Future<void> marcarAsistencia(String rutaId);
 }

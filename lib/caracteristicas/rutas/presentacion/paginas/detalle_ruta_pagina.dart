@@ -3,19 +3,16 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 // --- MVVM ---
+// --- MVVM ---
 import '../vista_modelos/rutas_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../dominio/entidades/ruta.dart';
-import '../../../inicio/dominio/entidades/lugar.dart'; // Import correcto para Lugar
-
+import '../widgets/lista_participantes_sheet.dart';
 import '../widgets/mapa_ruta_preview.dart';
 
 // --- External Packages ---
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-// --- Other VMs ---
-import '../../../inicio/presentacion/vista_modelos/lugares_vm.dart';
 
 class DetalleRutaPagina extends StatelessWidget {
   final Ruta ruta;
@@ -119,21 +116,12 @@ class DetalleRutaPagina extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // --- OBTENER PUNTOS DE INTERÉS (WAYPOINTS) ---
-    final lugaresVM = context.read<LugaresVM>();
     // Mapeamos los IDs de la ruta a objetos Lugar reales para obtener sus coordenadas
-    // Mapeamos los IDs de la ruta a objetos Lugar reales para obtener sus coordenadas
-    final List<LatLng> waypointsRuta = ruta.lugaresIncluidosIds.map((id) {
-      if (lugaresVM.lugaresTotales.isEmpty) {
-        return LatLng(0, 0); // Fallback seguro para evitar crash si no hay data cargada
-      }
-      final lugar = lugaresVM.lugaresTotales.firstWhere(
-        (l) => l.id == id,
-        orElse: () => lugaresVM.lugaresTotales.isNotEmpty 
-            ? lugaresVM.lugaresTotales.first 
-            : Lugar(id: 'dummy', nombre: '', descripcion: '', urlImagen: '', rating: 0, provinciaId: '', usuarioId: ''),
-      );
-      return LatLng(lugar.latitud, lugar.longitud);
-    }).where((latlng) => latlng.latitude != 0 && latlng.longitude != 0).toList();
+    // --- OBTENER PUNTOS DE INTERÉS (WAYPOINTS) ---
+    // Optimización: Usamos las coordenadas que ya vienen en el objeto Ruta (sin buscar en listas enormes)
+    final List<LatLng> waypointsRuta = ruta.lugaresIncluidosCoords
+        .where((latlng) => latlng.latitude != 0 && latlng.longitude != 0)
+        .toList();
 
     final vmAuth = context.watch<AutenticacionVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
@@ -249,20 +237,38 @@ class DetalleRutaPagina extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(8),
+                            GestureDetector(
+                                onTap: () {
+                                  showModalBottomSheet(
+                                    context: context, 
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (_) => ListaParticipantesSheet(ruta: ruta),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white, // Fondo blanco sólido para mejor contraste
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: const Offset(0, 2))],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.group, color: Colors.blueAccent, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '${ruta.inscritosCount} Inscritos', 
+                                        style: const TextStyle(
+                                          color: Colors.blueAccent, 
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        )
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.group, color: Colors.white, size: 14),
-                                  const SizedBox(width: 4),
-                                  Text('$cuposDisponibles cupos', style: const TextStyle(color: Colors.white, fontSize: 11)),
-                                ],
-                              ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -381,6 +387,27 @@ class DetalleRutaPagina extends StatelessWidget {
 
               _buildSectionTitle('Tu Guía'),
               _buildGuideProfile(context, ruta),
+              
+              // --- BOTÓN INTUITIVO DE PARTICIPANTES ---
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: FilledButton.tonalIcon(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context, 
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => ListaParticipantesSheet(ruta: ruta),
+                    );
+                  }, 
+                  label: const Text("Ver Lista de Participantes"),
+                  icon: const Icon(Icons.people_alt_outlined),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+              // ----------------------------------------
 
               if (ruta.equipamiento.isNotEmpty) ...[
                 const SizedBox(height: 20),

@@ -46,6 +46,7 @@ class Ruta {
   final bool asistio;
   final String? guiaNombreReal; // Nuevo: Nombre real concatenado (Nombres + Apellidos)
   final bool guiaDniValidado;   // Nuevo: Si tiene check azul de Reniec
+  final List<LatLng> lugaresIncluidosCoords; // Nuevo: Coordenadas de los puntos de visita
 
   Ruta({
     required this.id,
@@ -86,5 +87,6 @@ class Ruta {
     required this.estaInscrito,
     this.guiaNombreReal,
     this.guiaDniValidado = false,
+    this.lugaresIncluidosCoords = const [],
   });
 }

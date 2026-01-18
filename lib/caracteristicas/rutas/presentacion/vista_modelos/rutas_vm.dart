@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart'; // <--- NUEVO IMPORT (Para manejar coord
 import '../../dominio/repositorios/rutas_repositorio.dart';
 import '../../datos/repositorios/rutas_repositorio_supabase.dart';
 import '../../dominio/entidades/ruta.dart';
+import '../../dominio/entidades/participante_ruta.dart';
 import '../../../../locator.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../datos/servicios/osrm_service.dart'; // <--- NUEVO IMPORT (Tu servicio calculadora)
@@ -31,6 +32,10 @@ class RutasVM extends ChangeNotifier {
   final int _pageSize = 6;
   bool _hasMore = true; // Si hay más páginas por cargar
   bool _isLoadingMore = false; // Cargando la siguiente página (spinner abajo)
+  
+  // --- MÓDULO PARTICIPANTES ---
+  bool _cargandoParticipantes = false;
+  List<ParticipanteRuta> _participantes = [];
 
   // --- C. GETTERS (Iguales) ---
   bool get estaCargando => _estaCargando;
@@ -41,6 +46,8 @@ class RutasVM extends ChangeNotifier {
   
   bool get hasMore => _hasMore;
   bool get isLoadingMore => _isLoadingMore;
+  List<ParticipanteRuta> get participantes => _participantes;
+  bool get cargandoParticipantes => _cargandoParticipantes;
 
   List<Ruta> get rutasFiltradas {
     if (_categoriaActual == 'Todos') {
@@ -227,48 +234,10 @@ class RutasVM extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. RECUPERAR COORDENADAS
-      // En 'crear_ruta_pagina.dart', estamos pasando 'lugaresIds' (lista de Strings).
-      // Pero para calcular la ruta, necesitamos los objetos Lugar completos (con lat/lng).
-      //
-      // OPCIÓN SEGURA: Si ya tienes los objetos Lugar en la página anterior,
-      // lo ideal sería pasarlos. Pero para no romper tu flujo actual, vamos a
-      // asumir que debemos confiar en los IDs o que 'datosRuta' trae algo más.
+      // 1. CALCULAR GEOMETRÍA (Si Aplica)
+      await _calcularGeometriaOSRM(datosRuta);
 
-      // TRUCO: Como en 'crear_ruta_pagina.dart' tú tienes la lista '_locations',
-      // vamos a hacer un pequeño hack:
-      // Tu UI debería enviar una lista de LatLng en 'datosRuta' bajo una clave temporal.
-      //
-      // Si no lo hace, no podemos calcular.
-      // Asumiremos que agregaste 'puntos_coordenadas' al mapa en el paso anterior.
-      // Si no, el servicio devuelve vacío y no pasa nada malo.
-
-      List<LatLng> puntosParaCalculo = [];
-      if (datosRuta['puntos_coordenadas'] != null) {
-        puntosParaCalculo = datosRuta['puntos_coordenadas'] as List<LatLng>;
-      }
-
-      // 2. LLAMAR A OSRM (El Cerebro)
-      if (puntosParaCalculo.length >= 2) {
-        print('🧠 [RutasVM] Calculando ruta con OSRM...');
-        final resultadoOsrm = await _osrmService.getRutaCompleta(puntosParaCalculo);
-
-        // 3. AGREGAR RESULTADOS AL MAPA PARA SUPABASE
-        // Ojo: jsonEncode lo hace Supabase internamente si le pasas listas simples.
-        // Pero nosotros necesitamos pasar una lista de listas [[lat,lng], [lat,lng]].
-        final List<LatLng> geometria = resultadoOsrm['points'];
-        final List<List<double>> geometriaJson = geometria.map((p) => [p.latitude, p.longitude]).toList();
-
-        datosRuta['geometria_json'] = geometriaJson;
-        datosRuta['distancia_metros'] = resultadoOsrm['distance'];
-        datosRuta['duracion_segundos'] = resultadoOsrm['duration'];
-
-        print('✅ [RutasVM] OSRM terminó. Distancia: ${resultadoOsrm['distance']}m');
-      } else {
-        print('⚠️ [RutasVM] No hay suficientes puntos para calcular ruta.');
-      }
-
-      // 4. GUARDAR EN BASE DE DATOS (Lo de siempre)
+      // 2. GUARDAR EN BASE DE DATOS (Lo de siempre)
       await _repositorio.crearRuta(datosRuta);
 
       _estaCargando = false;
@@ -283,6 +252,37 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
+  // --- HELPER PRIVADO OSRM ---
+  Future<void> _calcularGeometriaOSRM(Map<String, dynamic> datosRuta) async {
+      List<LatLng> puntosParaCalculo = [];
+      if (datosRuta['puntos_coordenadas'] != null) {
+        puntosParaCalculo = datosRuta['puntos_coordenadas'] as List<LatLng>;
+      }
+
+      // Si tenemos al menos 2 puntos, llamamos al cerebro
+      if (puntosParaCalculo.length >= 2) {
+        print('🧠 [RutasVM] Calculando ruta con OSRM...');
+        try {
+          final resultadoOsrm = await _osrmService.getRutaCompleta(puntosParaCalculo);
+
+          // AGREGAR RESULTADOS AL MAPA PARA SUPABASE
+          final List<LatLng> geometria = resultadoOsrm['points'];
+          final List<List<double>> geometriaJson = geometria.map((p) => [p.latitude, p.longitude]).toList();
+
+          datosRuta['geometria_json'] = geometriaJson;
+          datosRuta['distancia_metros'] = resultadoOsrm['distance'];
+          datosRuta['duracion_segundos'] = resultadoOsrm['duration'];
+
+          print('✅ [RutasVM] OSRM terminó. Distancia: ${resultadoOsrm['distance']}m');
+        } catch (e) {
+          print('⚠️ [RutasVM] Falló OSRM, guardando sin ruta: $e');
+          // No relanzamos, permitimos guardar la ruta aunque falle el cálculo geométrico
+        }
+      } else {
+        print('⚠️ [RutasVM] No hay suficientes puntos para calcular ruta.');
+      }
+  }
+
   // --- (Resto de métodos CRUD iguales) ---
 
   Future<void> actualizarRuta(
@@ -293,9 +293,10 @@ class RutasVM extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      // NOTA: Si quisieras recalcular la ruta al editar, aquí deberías repetir
-      // la lógica de OSRM (Paso 1, 2, 3) antes de llamar a actualizarRuta.
-      // Por ahora lo dejamos simple.
+      // 1. RECALCULAR GEOMETRÍA OSRM SI HAY CAMBIOS DE PUNTOS
+      // (Misma lógica que al crear, para que el mapa se actualice)
+      await _calcularGeometriaOSRM(datosRuta);
+
       await _repositorio.actualizarRuta(rutaId, datosRuta);
       _estaCargando = false;
       notifyListeners();
@@ -308,22 +309,6 @@ class RutasVM extends ChangeNotifier {
     }
   }
 
-  Future<void> cancelarRuta(String rutaId, String mensaje) async {
-    _estaCargando = true;
-    _error = null;
-    notifyListeners();
-    try {
-      await _repositorio.cancelarRuta(rutaId, mensaje);
-      _estaCargando = false;
-      notifyListeners();
-      await cargarRutas();
-    } catch (e) {
-      _estaCargando = false;
-      _error = e.toString();
-      notifyListeners();
-      throw Exception(e.toString().replaceFirst("Exception: ", ""));
-    }
-  }
 
   Future<void> eliminarRuta(String rutaId) async {
     _estaCargando = true;
@@ -346,9 +331,7 @@ class RutasVM extends ChangeNotifier {
     _estaCargando = true;
     notifyListeners();
     try {
-      if (_repositorio is RutasRepositorioSupabase) {
-        await (_repositorio as RutasRepositorioSupabase).marcarAsistencia(rutaId);
-      }
+      await _repositorio.marcarAsistencia(rutaId);
       await cargarRutas();
     } catch (e) {
       _error = e.toString();
@@ -362,15 +345,54 @@ class RutasVM extends ChangeNotifier {
     _estaCargando = true;
     notifyListeners();
     try {
-      if (_repositorio is RutasRepositorioSupabase) {
-        await (_repositorio as RutasRepositorioSupabase).cambiarEstadoRuta(rutaId, nuevoEstado);
-      }
+      await _repositorio.cambiarEstadoRuta(rutaId, nuevoEstado);
       await cargarRutas();
     } catch (e) {
       _error = e.toString();
     } finally {
       _estaCargando = false;
       notifyListeners();
+    }
+  }
+
+  // --- MÓDULO PARTICIPANTES ---
+  Future<void> cargarParticipantes(String rutaId) async {
+    _cargandoParticipantes = true;
+    notifyListeners();
+    try {
+      _participantes = await _repositorio.obtenerParticipantes(rutaId);
+    } catch (e) {
+      debugPrint('Error cargando participantes: $e');
+    } finally {
+      _cargandoParticipantes = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> togglePrivacidad(String rutaId, bool mostrarNombreReal) async {
+    try {
+      final index = _participantes.indexWhere((p) => p.soyYo);
+      if (index != -1) {
+        final p = _participantes[index];
+        // Optimista: Actualizamos localmente
+        _participantes[index] = ParticipanteRuta(
+            usuarioId: p.usuarioId,
+            seudonimo: p.seudonimo,
+            nombres: p.nombres,
+            apellidoPaterno: p.apellidoPaterno,
+            apellidoMaterno: p.apellidoMaterno,
+            dni: p.dni,
+            urlFotoPerfil: p.urlFotoPerfil,
+            mostrarNombreReal: mostrarNombreReal, 
+            asistio: p.asistio,
+            soyYo: true
+        );
+        notifyListeners();
+      }
+      await _repositorio.cambiarPrivacidad(rutaId, mostrarNombreReal);
+    } catch (e) {
+      debugPrint('Error toggle privacidad: $e');
+      await cargarParticipantes(rutaId);
     }
   }
 }

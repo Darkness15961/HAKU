@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter/foundation.dart'; // Para debugPrint
 import '../../dominio/entidades/ruta.dart';
+import '../../dominio/entidades/participante_ruta.dart';
 import '../../dominio/repositorios/rutas_repositorio.dart';
 
 class RutasRepositorioSupabase implements RutasRepositorio {
@@ -15,13 +17,10 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       // Consulta base
       var query = _supabase.from('rutas').select('''
             *,
-            *,
-            *,
-            *,
             perfiles!guia_id (seudonimo, url_foto_perfil, rating, nombres, apellido_paterno, apellido_materno, dni),
             ruta_detalles (
               orden_visita,
-              lugares (id, nombre)
+              lugares (id, nombre, latitud, longitud)
             )
           ''');
 
@@ -108,6 +107,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
 
       List<String> nombres = [];
       List<String> ids = [];
+      List<LatLng> coords = []; // Lista para las coordenadas
       if (json['ruta_detalles'] != null) {
         final detalles = List<dynamic>.from(json['ruta_detalles']);
         detalles.sort(
@@ -118,6 +118,17 @@ class RutasRepositorioSupabase implements RutasRepositorio {
           if (d['lugares'] != null) {
             ids.add(d['lugares']['id'].toString());
             nombres.add(d['lugares']['nombre'] ?? '');
+            
+            // Mapeo de coordenadas para el mapa
+            if (d['lugares']['latitud'] != null && d['lugares']['longitud'] != null) {
+               coords.add(LatLng(
+                 (d['lugares']['latitud'] as num).toDouble(),
+                 (d['lugares']['longitud'] as num).toDouble(),
+               ));
+            } else {
+               // Fallback si faltan coords (no debería pasar si la BD está bien)
+               coords.add(LatLng(0, 0)); 
+            }
           }
         }
       }
@@ -199,6 +210,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         codigoAcceso: json['codigo_acceso'],
         guiaNombreReal: guiaNombreReal.isEmpty ? null : guiaNombreReal,
         guiaDniValidado: guiaDniValidado,
+        lugaresIncluidosCoords: coords, // Asignamos la lista parseada
       );
 
       return ruta;
@@ -415,17 +427,10 @@ class RutasRepositorioSupabase implements RutasRepositorio {
   }
 
   @override
-  Future<void> cancelarRuta(String rutaId, String mensaje) async {
-    await _supabase
-        .from('rutas')
-        .update({'visible': false, 'estado': 'cancelado'})
-        .eq('id', rutaId);
-    await _supabase.from('inscripciones').delete().eq('ruta_id', rutaId);
-  }
-
   @override
   Future<void> toggleFavoritoRuta(String rutaId) async {}
 
+  @override
   Future<void> marcarAsistencia(String rutaId) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('Usuario no autenticado');
@@ -440,10 +445,100 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         .eq('usuario_id', userId);
   }
 
+  @override
   Future<void> cambiarEstadoRuta(String rutaId, String nuevoEstado) async {
     await _supabase
         .from('rutas')
         .update({'estado': nuevoEstado})
         .eq('id', rutaId);
+  }
+
+  // --- MÓDULO PARTICIPANTES ---
+  @override
+  Future<List<ParticipanteRuta>> obtenerParticipantes(String rutaId) async {
+    final myId = _supabase.auth.currentUser?.id;
+
+    try {
+      print('👥 [Participantes] Cargando para ruta: $rutaId usando JOIN');
+
+      // 1. Query con JOIN eficiente
+      // Traemos inscripciones y anidamos los datos del perfil
+      final response = await _supabase
+          .from('inscripciones')
+          .select('''
+            usuario_id, 
+            mostrar_nombre_real, 
+            asistio,
+            perfiles (
+              id, 
+              seudonimo, 
+              nombres, 
+              apellido_paterno, 
+              apellido_materno, 
+              dni, 
+              url_foto_perfil
+            )
+          ''')
+          .eq('ruta_id', rutaId);
+      
+      final List<dynamic> data = response as List<dynamic>;
+      print('👥 [Participantes] Registros encontrados: ${data.length}');
+
+      return data.map((json) {
+        final perfil = json['perfiles'];
+        // Manejo defensivo por si el JOIN retorna null (caso RLS en perfiles)
+        final String uid = json['usuario_id'].toString();
+        
+        if (perfil != null) {
+           return ParticipanteRuta(
+            usuarioId: perfil['id'].toString(),
+            seudonimo: perfil['seudonimo'] ?? 'Usuario',
+            nombres: perfil['nombres'] ?? '',
+            apellidoPaterno: perfil['apellido_paterno'] ?? '',
+            apellidoMaterno: perfil['apellido_materno'] ?? '',
+            dni: perfil['dni']?.toString() ?? '',
+            urlFotoPerfil: perfil['url_foto_perfil'] ?? '',
+            mostrarNombreReal: json['mostrar_nombre_real'] ?? false,
+            asistio: json['asistio'] ?? false,
+            soyYo: myId == perfil['id'].toString(),
+          );
+        } else {
+           // Fallback si el perfil no es visible
+           return ParticipanteRuta(
+            usuarioId: uid,
+            seudonimo: 'Usuario (Privado)',
+            nombres: '',
+            apellidoPaterno: '',
+            apellidoMaterno: '',
+            dni: '',
+            urlFotoPerfil: '',
+            mostrarNombreReal: false,
+            asistio: json['asistio'] ?? false,
+            soyYo: myId == uid,
+          );
+        }
+      }).toList();
+
+    } catch (e) {
+      debugPrint('❌ [Participantes] ERROR JOIN: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<void> cambiarPrivacidad(String rutaId, bool mostrarNombreReal) async {
+    final myId = _supabase.auth.currentUser?.id;
+    if (myId == null) return;
+
+    try {
+      await _supabase
+          .from('inscripciones')
+          .update({'mostrar_nombre_real': mostrarNombreReal})
+          .eq('ruta_id', rutaId)
+          .eq('usuario_id', myId);
+    } catch (e) {
+      debugPrint('Error changing privacy: $e');
+      rethrow;
+    }
   }
 }

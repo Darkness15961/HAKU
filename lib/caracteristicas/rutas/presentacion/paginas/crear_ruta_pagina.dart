@@ -124,9 +124,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
         codigoFinal = widget.ruta!.codigoAcceso;
         _codigoAccesoGenerado = codigoFinal;
       } else {
-        if (_codigoAccesoGenerado == null) {
-          _codigoAccesoGenerado = _generarCodigoAcceso();
-        }
+        _codigoAccesoGenerado ??= _generarCodigoAcceso();
         codigoFinal = _codigoAccesoGenerado;
       }
     } else {
@@ -677,7 +675,7 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
                   style: FilledButton.styleFrom(backgroundColor: Colors.red),
                   onPressed: (mensajeCtrl.text.trim().isEmpty) ? null : () async {
                     if (dialogFormKey.currentState!.validate()) {
-                      await vmRutas.cancelarRuta(widget.ruta!.id, mensajeCtrl.text);
+                      await vmRutas.cambiarEstadoRuta(widget.ruta!.id, 'cancelada');
                       await repoNotificaciones.simularEnvioDeNotificacion(titulo: 'Ruta Cancelada: ${widget.ruta!.nombre}', cuerpo: mensajeCtrl.text);
                       
                       if (!context.mounted) return;
