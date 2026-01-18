@@ -209,14 +209,13 @@ class LugaresVM extends ChangeNotifier {
         _repositorio.obtenerLugaresPopulares(),
         _repositorio.obtenerProvincias(),
         _repositorio.obtenerCategorias(),
-        // _repositorio.obtenerTodosLosLugares(), // ⛔ OPTIMIZACIÓN: NO CARGAR TODO EL MUNDO
+        _repositorio.obtenerTodosLosLugares(), // REVERTED: Needed for Map/Favorites
       ]);
 
       _lugaresPopulares = resultados[0] as List<Lugar>;
       _provincias = resultados[1] as List<Provincia>;
       _categorias = resultados[2] as List<Categoria>;
-      // _lugaresTotales = resultados[3] as List<Lugar>; 
-      _lugaresTotales = []; // Iniciamos vacío, se llenará bajo demanda
+      _lugaresTotales = resultados[3] as List<Lugar>;
     } catch (e) {
       debugPrint("Error cargando catálogos: $e");
     } finally {

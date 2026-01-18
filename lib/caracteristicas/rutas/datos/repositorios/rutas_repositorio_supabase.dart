@@ -27,7 +27,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       // --- FILTROS ---
       if (tipoFiltro == 'creadas_por_mi') {
         if (userId == null) return [];
-        query = query.eq('guia_id', userId);
+        query = query.eq('guia_id', userId).neq('estado', 'finalizada');
       } else if (tipoFiltro == 'inscritas') {
          if (userId == null) return [];
          // ... (Lógica inscritas puede requerir 2 queries, mantenemos igual)
@@ -42,11 +42,11 @@ class RutasRepositorioSupabase implements RutasRepositorio {
 
          final List<dynamic> ids = inscripciones.map((e) => e['ruta_id']).toList();
          if (ids.isEmpty) return [];
-         query = query.inFilter('id', ids);
+         query = query.inFilter('id', ids).neq('estado', 'finalizada');
 
       } else {
         // 'Recomendadas' (Públicas)
-        query = query.eq('visible', true);
+        query = query.eq('visible', true).neq('estado', 'finalizada');
       }
 
       // --- PAGINACIÓN (La Magia) ---
@@ -225,6 +225,9 @@ class RutasRepositorioSupabase implements RutasRepositorio {
   @override
   Future<void> crearRuta(Map<String, dynamic> datosRuta) async {
     try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('Usuario no autenticado');
+
       final rutaData = {
         'titulo': datosRuta['nombre'],
         'descripcion': datosRuta['descripcion'],
@@ -234,7 +237,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         'categoria': datosRuta['categoria'],
         'visible': datosRuta['visible'] ?? true,
         'es_privada': datosRuta['es_privada'] ?? false,
-        'guia_id': datosRuta['guia_id'] ?? datosRuta['guiaId'],
+        'guia_id': userId, // 🔥 SEGURIDAD: Forzamos el ID real del usuario
         'url_imagen_principal': datosRuta['url_imagen_principal'],
         'enlace_grupo_whatsapp': datosRuta['enlace_grupo_whatsapp'],
         'estado': 'convocatoria',
@@ -539,6 +542,80 @@ class RutasRepositorioSupabase implements RutasRepositorio {
     } catch (e) {
       debugPrint('Error changing privacy: $e');
       rethrow;
+    }
+  }
+  @override
+  @override
+  Future<List<Ruta>> obtenerHistorial(String userId) async {
+    try {
+      print('📜 [HISTORIAL] 🚀 Iniciando carga optimizada para: $userId');
+
+      const selectQuery = '''
+            *,
+            perfiles!guia_id (seudonimo, url_foto_perfil, rating, nombres, apellido_paterno, apellido_materno, dni),
+            ruta_detalles (
+              orden_visita,
+              lugares (id, nombre, latitud, longitud)
+            )
+          ''';
+
+      // 1. LANZAR CONSULTAS BASES EN PARALELO
+      final guiadasFuture = _supabase
+          .from('rutas')
+          .select(selectQuery)
+          .eq('guia_id', userId)
+          .eq('estado', 'finalizada')
+          .order('created_at', ascending: false);
+
+      final inscripcionesFuture = _supabase
+          .from('inscripciones')
+          .select('ruta_id')
+          .eq('usuario_id', userId);
+
+      final results = await Future.wait([
+        guiadasFuture,
+        inscripcionesFuture,
+      ]);
+
+      final guiadasResponse = results[0] as List<dynamic>;
+      final inscripciones = results[1] as List<dynamic>;
+
+      // 2. TRAER DETALLES DE RUTAS ASISTIDAS
+      List<dynamic> asistidasResponse = [];
+      final idsInscritas = inscripciones.map((e) => e['ruta_id']).toList();
+      
+      if (idsInscritas.isNotEmpty) {
+         asistidasResponse = await _supabase
+            .from('rutas')
+            .select(selectQuery)
+            .inFilter('id', idsInscritas)
+            .eq('estado', 'finalizada')
+            .order('created_at', ascending: false);
+      }
+
+      // 3. MAPEO PARALELO (Aceleración masiva)
+      // Unificamos JSONs para evitar mapear dos veces si hay duplicados
+      final Map<String, dynamic> jsonUnicos = {};
+      
+      // Prioridad a Guiadas
+      for (var json in guiadasResponse) {
+        jsonUnicos[json['id'].toString()] = json;
+      }
+      for (var json in asistidasResponse) {
+        if (!jsonUnicos.containsKey(json['id'].toString())) {
+          jsonUnicos[json['id'].toString()] = json;
+        }
+      }
+
+      final listaRutas = await Future.wait(
+        jsonUnicos.values.map((json) => _mapJsonToRuta(json, userId))
+      );
+
+      return listaRutas;
+
+    } catch (e) {
+      print('❌ [HISTORIAL] Error: $e');
+      return [];
     }
   }
 }

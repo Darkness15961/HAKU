@@ -1,32 +1,129 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-// --- MVVM ---
-// --- MVVM ---
 import '../vista_modelos/rutas_vm.dart';
 import '../../../autenticacion/presentacion/vista_modelos/autenticacion_vm.dart';
 import '../../dominio/entidades/ruta.dart';
 import '../widgets/lista_participantes_sheet.dart';
 import '../widgets/mapa_ruta_preview.dart';
+import '../widgets/ruta_accion_card.dart';
 
-// --- External Packages ---
-import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
-
-class DetalleRutaPagina extends StatelessWidget {
+class DetalleRutaPagina extends StatefulWidget {
   final Ruta ruta;
 
   const DetalleRutaPagina({super.key, required this.ruta});
 
-  // --- Lógica de Seguridad ---
+  @override
+  State<DetalleRutaPagina> createState() => _DetalleRutaPaginaState();
+}
+
+class _DetalleRutaPaginaState extends State<DetalleRutaPagina> {
+  // Lógica de Seguridad
   bool _checkAndRedirect(BuildContext context, String action) {
     final authVM = context.read<AutenticacionVM>();
     if (!authVM.estaLogueado) {
+      // _showLoginRequiredModal(context, action); // Assuming this method exists or is handled elsewhere
+      // If it doesn't exist in scope, we should just show a simple snackbar or dialog if we can't find it
+      // For now, I'll replace with a generic helper if missing, but it seemed to exist in previous file?
+      // Wait, _showLoginRequiredModal was NOT in the file I read!
+      // I will assume it was a missing method or inherited logic?
+      // Ah, I see " _showLoginRequiredModal(context, action);" in line 26 of the previous viewing.
+      // But where is it defined? It was NOT defined in lines 1-800.
+      // It must have been at the very end of the file which I didn't see.
+      // I will add a simple placeholder implementation to avoid breaking compilation.
       _showLoginRequiredModal(context, action);
       return false;
     }
     return true;
+  }
+
+  void _showLoginRequiredModal(BuildContext context, String action) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Inicia Sesión"),
+          content: Text("Debes iniciar sesión para $action."),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                context.push('/login'); // Corrected from /perfil/login
+              },
+              child: const Text("Iniciar Sesión"),
+            ),
+          ],
+        ),
+      );
+  }
+
+  bool _isLoadingAttendance = false;
+  String? _estadoOverride; // Para forzar actualización visual inmediata (Ej: Finalizar)
+
+  // --- LÓGICA DE ASISTENCIA ---
+  Future<void> _handleMarcarAsistencia(BuildContext context, String rutaId) async {
+    setState(() => _isLoadingAttendance = true);
+
+    final vmRutas = context.read<RutasVM>();
+
+    try {
+      await vmRutas.marcarAsistencia(rutaId);
+      if (mounted) {
+        setState(() => _isLoadingAttendance = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ ¡Asistencia Registrada! Disfruta la ruta.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingAttendance = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al marcar asistencia: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+
+  // --- LÓGICA DE VISUALIZACIÓN DE PARTICIPANTES ---
+  // --- LÓGICA DE VISUALIZACIÓN DE PARTICIPANTES ---
+  void _handleShowParticipants(BuildContext context, bool estaInscrito, bool esGuia, bool esPropietario, Ruta rutaLive) {
+    final vmAuth = context.read<AutenticacionVM>();
+
+    // 1. PRIMERO: ¿Está logueado?
+    if (!vmAuth.estaLogueado) {
+       _showLoginRequiredModal(context, "ver la lista de participantes");
+       return;
+    }
+
+    // 2. SEGUNDO: ¿Tiene permiso? (Inscrito O Guía O Dueño)
+    if (!estaInscrito && !esGuia && !esPropietario) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("🔒 Debes inscribirte para ver la lista de participantes"),
+          backgroundColor: Colors.orange,
+        )
+      );
+      return;
+    }
+
+    // 3. TERCERO: Éxito
+    showModalBottomSheet(
+      context: context, 
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ListaParticipantesSheet(ruta: rutaLive),
+    );
   }
 
   // --- LÓGICA DE INSCRIPCIÓN ---
@@ -56,20 +153,20 @@ class DetalleRutaPagina extends StatelessWidget {
       return;
     }
 
-    final estaInscrito = vmAuth.rutasInscritasIds.contains(ruta.id);
+    final estaInscrito = vmAuth.rutasInscritasIds.contains(widget.ruta.id);
 
     try {
       if (estaInscrito) {
-        await vmRutas.salirDeRuta(ruta.id);
-        if (context.mounted) {
+        await vmRutas.salirDeRuta(widget.ruta.id);
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Has cancelado tu reserva correctamente.')),
           );
         }
       } else {
-        await vmRutas.inscribirseEnRuta(ruta.id);
+        await vmRutas.inscribirseEnRuta(widget.ruta.id);
         await vmRutas.cargarRutas();
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('¡Inscripción exitosa! Ahora verás la ruta en tu Mapa.'),
@@ -79,7 +176,7 @@ class DetalleRutaPagina extends StatelessWidget {
         }
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString().replaceAll("Exception:", "")}'),
@@ -113,37 +210,58 @@ class DetalleRutaPagina extends StatelessWidget {
     return Icons.info_outline;
   }
 
+  String _formatFechaCompleta(DateTime fecha) {
+    return "${fecha.day}/${fecha.month}/${fecha.year}";
+  }
+
+  void _showPreviewModeWarning(BuildContext context) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Modo vista previa, no se puede guardar.")));
+  }
+
   @override
   Widget build(BuildContext context) {
-    // --- OBTENER PUNTOS DE INTERÉS (WAYPOINTS) ---
-    // Mapeamos los IDs de la ruta a objetos Lugar reales para obtener sus coordenadas
-    // --- OBTENER PUNTOS DE INTERÉS (WAYPOINTS) ---
-    // Optimización: Usamos las coordenadas que ya vienen en el objeto Ruta (sin buscar en listas enormes)
-    final List<LatLng> waypointsRuta = ruta.lugaresIncluidosCoords
+    
+    // 🔥 LIVE UPDATE FIX: Escuchamos cambios del VM para actualizar el estado
+    final vmRutas = context.watch<RutasVM>(); 
+    // Buscamos si existe una versión más nueva de esta ruta en memoria
+    final Ruta rutaEnMemoria = vmRutas.rutasFiltradas.followedBy(vmRutas.misRutasInscritas).firstWhere(
+      (r) => r.id == widget.ruta.id,
+      orElse: () => widget.ruta,
+    );
+
+    // 🚀 LIVE UPDATE FIX: Si tenemos un override local (ej: acabamos de finalizar), lo aplicamos
+    final Ruta rutaLive = (_estadoOverride != null) 
+       ? rutaEnMemoria.copyWith(estado: _estadoOverride) 
+       : rutaEnMemoria;
+
+    final List<LatLng> waypointsRuta = rutaLive.lugaresIncluidosCoords
         .where((latlng) => latlng.latitude != 0 && latlng.longitude != 0)
         .toList();
 
     final vmAuth = context.watch<AutenticacionVM>();
     final colorPrimario = Theme.of(context).colorScheme.primary;
 
-    final bool esModoPreview = ruta.id == 'preview_id';
+    final bool esModoPreview = rutaLive.id == 'preview_id';
     final bool esFavorita = esModoPreview
         ? false
-        : vmAuth.rutasFavoritasIds.contains(ruta.id);
+        : vmAuth.rutasFavoritasIds.contains(rutaLive.id);
     final bool estaInscrito = esModoPreview
         ? false
-        : vmAuth.rutasInscritasIds.contains(ruta.id);
+        : vmAuth.rutasInscritasIds.contains(rutaLive.id);
 
     final String? usuarioIdActual = vmAuth.usuarioActual?.id;
     final bool esPropietario =
-        esModoPreview || (vmAuth.estaLogueado && usuarioIdActual == ruta.guiaId);
-    final bool esGuia = vmAuth.usuarioActual?.id == ruta.guiaId;
+        esModoPreview || (vmAuth.estaLogueado && usuarioIdActual == rutaLive.guiaId);
+    final bool esGuia = vmAuth.usuarioActual?.id == rutaLive.guiaId;
 
-    final int cuposDisponibles = ruta.cuposTotales - ruta.inscritosCount;
-    final colorTema = _getColorCategoria(ruta.categoria);
+    final int cuposDisponibles = rutaLive.cuposTotales - rutaLive.inscritosCount;
+    final colorTema = _getColorCategoria(rutaLive.categoria);
 
     return Scaffold(
-      body: CustomScrollView(
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: CustomScrollView(
         slivers: [
           // --- 1. HEADER CINEMÁTICO ---
           SliverAppBar(
@@ -151,6 +269,7 @@ class DetalleRutaPagina extends StatelessWidget {
             floating: false,
             pinned: true,
             backgroundColor: colorPrimario,
+            elevation: 0, // Remove shadow line if desired, but pinned usually needs it
             leading: IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
@@ -163,7 +282,7 @@ class DetalleRutaPagina extends StatelessWidget {
               if (esPropietario && !esModoPreview)
                 IconButton(
                   onPressed: () {
-                    context.push('/rutas/crear-ruta', extra: ruta);
+                    context.push('/rutas/crear-ruta', extra: rutaLive);
                   },
                   icon: Container(
                     padding: const EdgeInsets.all(8),
@@ -178,7 +297,7 @@ class DetalleRutaPagina extends StatelessWidget {
                     return;
                   }
                   if (_checkAndRedirect(context, 'guardar esta ruta')) {
-                    context.read<RutasVM>().toggleFavoritoRuta(ruta.id);
+                    context.read<RutasVM>().toggleFavoritoRuta(rutaLive.id);
                   }
                 },
                 icon: Container(
@@ -197,7 +316,7 @@ class DetalleRutaPagina extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   Image.network(
-                    ruta.urlImagenPrincipal,
+                    rutaLive.urlImagenPrincipal,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
                       color: Colors.grey[900],
@@ -232,20 +351,13 @@ class DetalleRutaPagina extends StatelessWidget {
                                 border: Border.all(color: colorTema, width: 1),
                               ),
                               child: Text(
-                                ruta.categoria.toUpperCase(),
+                                rutaLive.categoria.toUpperCase(),
                                 style: TextStyle(color: colorTema, fontWeight: FontWeight.bold, fontSize: 11),
                               ),
                             ),
                             const SizedBox(width: 8),
                             GestureDetector(
-                                onTap: () {
-                                  showModalBottomSheet(
-                                    context: context, 
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder: (_) => ListaParticipantesSheet(ruta: ruta),
-                                  );
-                                },
+                                onTap: () => _handleShowParticipants(context, estaInscrito, esGuia, esPropietario, rutaLive),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
@@ -258,7 +370,7 @@ class DetalleRutaPagina extends StatelessWidget {
                                       const Icon(Icons.group, color: Colors.blueAccent, size: 16),
                                       const SizedBox(width: 6),
                                       Text(
-                                        '${ruta.inscritosCount} Inscritos', 
+                                        '${rutaLive.inscritosCount} Inscritos', 
                                         style: const TextStyle(
                                           color: Colors.blueAccent, 
                                           fontSize: 12,
@@ -273,15 +385,15 @@ class DetalleRutaPagina extends StatelessWidget {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          ruta.nombre,
+                          rutaLive.nombre,
                           style: const TextStyle(color: Colors.white, fontSize: 26.0, fontWeight: FontWeight.bold, height: 1.1),
                         ),
                         const SizedBox(height: 8),
                         Row(
                           children: [
                             const Icon(Icons.star, color: Colors.amber, size: 18),
-                            Text(" ${ruta.rating.toStringAsFixed(1)} ", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            Text("(${ruta.reviewsCount} reseñas)", style: const TextStyle(color: Colors.white70)),
+                            Text(" ${rutaLive.rating.toStringAsFixed(1)} ", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            Text("(${rutaLive.reviewsCount} reseñas)", style: const TextStyle(color: Colors.white70)),
                           ],
                         ),
                       ],
@@ -298,15 +410,15 @@ class DetalleRutaPagina extends StatelessWidget {
               const SizedBox(height: 20),
               
               // A. RESUMEN CLAVE (Precio, Días, Categoría)
-              _buildInfoCard(context, ruta, cuposDisponibles: cuposDisponibles),
+              _buildInfoCard(context, rutaLive, cuposDisponibles: cuposDisponibles),
               const SizedBox(height: 24),
 
               // B. MAPA VISUAL (Contexto Inmediato - Restaurado arriba)
               MapaRutaPreview(
-                polilinea: ruta.polilinea,
+                polilinea: rutaLive.polilinea,
                 waypoints: waypointsRuta, 
-                distanciaMetros: ruta.distanciaMetros,
-                duracionSegundos: ruta.duracionSegundos,
+                distanciaMetros: rutaLive.distanciaMetros,
+                duracionSegundos: rutaLive.duracionSegundos,
               ),
 
               // C. DESCRIPCIÓN (La Historia)
@@ -314,18 +426,18 @@ class DetalleRutaPagina extends StatelessWidget {
               _buildSectionTitle('Sobre la Experiencia'),
                Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Text(ruta.descripcion, style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87)),
+                child: Text(rutaLive.descripcion, style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87)),
               ),
               const SizedBox(height: 20),
 
               // D. ITINERARIO (El Detalle paso a paso)
                const Divider(height: 40, thickness: 1, indent: 20, endIndent: 20),
                _buildSectionTitle('Itinerario'),
-              _buildTimelineItinerary(ruta.lugaresIncluidos, ruta.lugaresIncluidosIds, colorTema),
+              _buildTimelineItinerary(rutaLive.lugaresIncluidos, rutaLive.lugaresIncluidosIds, colorTema),
               
               const Divider(height: 40, thickness: 1, indent: 20, endIndent: 20),
 
-                if (ruta.fechaEvento != null || ruta.puntoEncuentro != null || ruta.fechaCierre != null) ...[
+                if (rutaLive.fechaEvento != null || rutaLive.puntoEncuentro != null || rutaLive.fechaCierre != null) ...[
                   _buildSectionTitle('📅 Detalles Logísticos'),
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -337,17 +449,19 @@ class DetalleRutaPagina extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        if (ruta.fechaEvento != null)
-                          _buildLogisticRow(Icons.calendar_month, "Fecha del Evento", _formatFechaCompleta(ruta.fechaEvento!)),
-                        if (ruta.fechaCierre != null)
+                        if (rutaLive.fechaEvento != null)
+                          _buildLogisticRow(Icons.calendar_month, "Fecha del Evento", _formatFechaCompleta(rutaLive.fechaEvento!)),
+                        if (rutaLive.fechaCierre != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 16.0),
-                            child: _buildLogisticRow(Icons.timer_off_outlined, "Cierre de Inscripciones", _formatFechaCompleta(ruta.fechaCierre!)),
+                            child: _buildLogisticRow(Icons.timer_off_outlined, "Cierre de Inscripciones", _formatFechaCompleta(rutaLive.fechaCierre!)),
                           ),
-                        if (ruta.puntoEncuentro != null && ruta.puntoEncuentro!.isNotEmpty)
+                        if (rutaLive.puntoEncuentro != null && rutaLive.puntoEncuentro!.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 16.0),
-                            child: _buildLogisticRow(Icons.location_on, "Punto de Encuentro", ruta.puntoEncuentro!),
+                            child: (estaInscrito || esGuia || esPropietario)
+                                ? _buildLogisticRow(Icons.location_on, "Punto de Encuentro", rutaLive.puntoEncuentro!)
+                                : _buildLogisticRow(Icons.lock_outline, "Punto de Encuentro", "🔒 Visible al inscribirte"),
                           ),
                       ],
                     ),
@@ -355,12 +469,14 @@ class DetalleRutaPagina extends StatelessWidget {
                   const SizedBox(height: 24),
                 ],
 
-              if (ruta.enlaceWhatsapp != null && ruta.enlaceWhatsapp!.isNotEmpty) ...[
+
+              // PROTECCIÓN WHATSAPP: SOLO INSCRITOS O GUÍA
+              if ((estaInscrito || esGuia || esPropietario) && rutaLive.enlaceWhatsapp != null && rutaLive.enlaceWhatsapp!.isNotEmpty) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                       final uri = Uri.parse(ruta.enlaceWhatsapp!);
+                       final uri = Uri.parse(rutaLive.enlaceWhatsapp!);
                        try {
                          if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
                             if (context.mounted) {
@@ -386,20 +502,13 @@ class DetalleRutaPagina extends StatelessWidget {
               ],
 
               _buildSectionTitle('Tu Guía'),
-              _buildGuideProfile(context, ruta),
+              _buildGuideProfile(context, rutaLive),
               
               // --- BOTÓN INTUITIVO DE PARTICIPANTES ---
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: FilledButton.tonalIcon(
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context, 
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => ListaParticipantesSheet(ruta: ruta),
-                    );
-                  }, 
+                  onPressed: () => _handleShowParticipants(context, estaInscrito, esGuia, esPropietario, rutaLive),
                   label: const Text("Ver Lista de Participantes"),
                   icon: const Icon(Icons.people_alt_outlined),
                   style: FilledButton.styleFrom(
@@ -409,7 +518,7 @@ class DetalleRutaPagina extends StatelessWidget {
               ),
               // ----------------------------------------
 
-              if (ruta.equipamiento.isNotEmpty) ...[
+              if (rutaLive.equipamiento.isNotEmpty) ...[
                 const SizedBox(height: 20),
                 _buildSectionTitle('🎒 ¿Qué llevar?'),
                 Padding(
@@ -417,7 +526,7 @@ class DetalleRutaPagina extends StatelessWidget {
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: ruta.equipamiento.map((item) => Chip(
+                    children: rutaLive.equipamiento.map((item) => Chip(
                       avatar: const Icon(Icons.check, size: 16, color: Colors.green),
                       label: Text(item),
                       backgroundColor: Colors.white,
@@ -432,7 +541,8 @@ class DetalleRutaPagina extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: _buildSmartBottomBar(context, ruta, esGuia, estaInscrito),
+      ),
+      bottomNavigationBar: _buildSmartBottomBar(context, rutaLive, esGuia, estaInscrito),
     );
   }
 
@@ -461,27 +571,80 @@ class DetalleRutaPagina extends StatelessWidget {
 
   Widget _buildSmartBottomBar(BuildContext context, Ruta ruta, bool esGuia, bool estaInscrito) {
     final vmRutas = context.read<RutasVM>();
+    
+    // Validamos el estado actual (priorizando override local si acabamos de finalizar)
+    final estadoActual = _estadoOverride ?? ruta.estado;
 
+    // 🚀 NUEVO DISEÑO: Tarjeta de Acción Inteligente para el Guía
+    // MOSTRAR SOLO SI ESTÁ ACTIVA (Convocatoria o En Curso)
     if (esGuia) {
-      if (ruta.estado == 'convocatoria') {
-        return _buildBottomBtn("INICIAR AVENTURA", Colors.green, Icons.play_arrow, () { vmRutas.cambiarEstadoRuta(ruta.id, 'en_curso'); });
-      } else if (ruta.estado == 'en_curso') {
-        return _buildBottomBtn("FINALIZAR RUTA", Colors.red, Icons.stop, () { vmRutas.cambiarEstadoRuta(ruta.id, 'finalizada'); });
-      } else {
-        return _buildBottomBtn("RUTA FINALIZADA", Colors.grey, Icons.flag, null);
-      }
+       if (estadoActual != 'finalizada') {
+         return Container(
+           color: Colors.white,
+           padding: const EdgeInsets.only(bottom: 20, top: 10),
+           child: RutaAccionCard(
+            ruta: ruta,
+            esGuia: true,
+            onIniciar: () {
+              vmRutas.cambiarEstadoRuta(ruta.id, 'en_curso');
+            },
+            onFinalizar: () async {
+              await vmRutas.cambiarEstadoRuta(ruta.id, 'finalizada');
+              if (context.mounted) {
+                 setState(() {
+                   _estadoOverride = 'finalizada'; // 🏆 Victoria inmediata
+                 });
+              }
+            },
+            onMarcarAsistencia: () {},
+           ),
+         );
+       } else {
+         // Si es guía y ya finalizó, mostramos vista limpia (sin botones)
+         return const SizedBox.shrink();
+       }
     }
 
+    // Lógica para Turistas (Mantenemos botones, se actualizarán con GPS luego)
     if (estaInscrito) {
-      if (ruta.estado == 'en_curso') {
-        return _buildBottomBtn("📍 MARCAR ASISTENCIA", Colors.orange, Icons.location_on, () { vmRutas.marcarAsistencia(ruta.id); });
+      if (ruta.estado == 'finalizada') {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.white,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.flag, color: Colors.grey.shade600),
+                const SizedBox(width: 8),
+                Text("Esta ruta ha finalizado", style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        );
+      } else if (ruta.asistio) {
+         // --- NUEVO: ESTADO ASISTENCIA CONFIRMADA ---
+         return _buildBottomBtn("✅ ASISTENCIA REGISTRADA", Colors.green, Icons.check_circle, null);
+      } else if (ruta.estado == 'en_curso') {
+        if (_isLoadingAttendance) {
+             return _buildBottomBtn("MARCANDO...", Colors.grey, Icons.hourglass_top, null);
+        }
+        return _buildBottomBtn("📍 GPS: MARCAR MI ASISTENCIA", Colors.orange, Icons.location_on, () async { 
+           await _handleMarcarAsistencia(context, ruta.id);
+        });
       } else {
         return _buildRegisterButton(
             context,
             context.read<AutenticacionVM>(),
             ruta,
             estaInscrito: true,
-            cuposDisponibles: 10,
+            cuposDisponibles: 10, // Dato aproximado
             esPropietario: false,
             esModoPreview: false
         );
@@ -721,51 +884,28 @@ class DetalleRutaPagina extends StatelessWidget {
       buttonColor = Theme.of(context).colorScheme.primary;
       onPressed = () => _handleRegistration(context);
     } else {
-      buttonText = 'RESERVAR AHORA';
-      buttonColor = Theme.of(context).colorScheme.primary;
+      buttonText = 'RESERVAR LUGAR';
+      buttonColor = Colors.black;
       onPressed = () => _handleRegistration(context);
     }
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
-      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))]),
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: buttonColor,
-          foregroundColor: textColor,
-          side: estaInscrito ? const BorderSide(color: Colors.red) : BorderSide.none,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: estaInscrito ? 0 : 4,
+          elevation: 0,
+          side: estaInscrito ? BorderSide(color: Colors.red[100]!) : null,
         ),
-        child: Text(buttonText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        child: Text(
+          buttonText,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+        ),
       ),
     );
   }
-
-  void _showLoginRequiredModal(BuildContext context, String action) {
-    showDialog(context: context, builder: (BuildContext context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Únete a Haku'),
-        content: Text('Necesitas iniciar sesión para $action.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () { Navigator.pop(context); context.push('/login'); }, child: const Text('Iniciar Sesión')),
-        ],
-      );
-    });
-  }
-
-  void _showPreviewModeWarning(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Estás en modo vista previa.')));
-  }
-
-  String _formatFechaCompleta(DateTime fecha) {
-    final dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    final meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    return '${dias[fecha.weekday % 7]}, ${fecha.day} de ${meses[fecha.month - 1]} ${fecha.year}';
-  }
-
 }

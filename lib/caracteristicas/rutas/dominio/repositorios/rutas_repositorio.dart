@@ -47,4 +47,7 @@ abstract class RutasRepositorio {
 
   // --- EXTRAS ---
   Future<void> marcarAsistencia(String rutaId);
+  
+  // ORDEN 10: "Obtener historial de rutas finalizadas"
+  Future<List<Ruta>> obtenerHistorial(String userId);
 }

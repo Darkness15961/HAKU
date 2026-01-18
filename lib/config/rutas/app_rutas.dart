@@ -27,6 +27,7 @@ import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/ajustes
 import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/ajustes_cuenta_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/mis_lugares_publicados_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/mis_hakuparadas_pagina.dart'; // 👈 NUEVO IMPORT
+import 'package:xplore_cusco/caracteristicas/perfil/presentacion/paginas/historial_rutas_pagina.dart'; // 👈 NUEVO IMPORT
 import 'package:xplore_cusco/caracteristicas/autenticacion/presentacion/paginas/solicitar_guia_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/notificaciones/presentacion/paginas/notificaciones_pagina.dart';
 import 'package:xplore_cusco/caracteristicas/solicitudes/presentacion/paginas/turista/mis_solicitudes_pagina.dart';
@@ -134,6 +135,7 @@ class AppRutas {
               GoRoute(path: 'mis-solicitudes', builder: (context, state) => const MisSolicitudesPagina()),
               GoRoute(path: 'solicitudes-disponibles', builder: (context, state) => const SolicitudesDisponiblesPagina()),
               GoRoute(path: 'mis-postulaciones', builder: (context, state) => const MisPostulacionesPagina()),
+              GoRoute(path: 'historial-rutas', builder: (context, state) => const HistorialRutasPagina()), // 👈 NUEVA RUTA
             ],
           ),
         ],

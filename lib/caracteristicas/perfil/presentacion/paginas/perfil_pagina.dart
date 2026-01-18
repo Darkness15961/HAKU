@@ -283,6 +283,14 @@ class PerfilPagina extends StatelessWidget {
                         onTap: () => context.push('/perfil/mis-rutas'),
                       ),
                       _buildDivider(),
+                      _buildListTile(
+                        icon: Icons.history, 
+                        color: Colors.brown,
+                        title: 'Historial de Rutas',
+                        subtitle: 'Rutas que finalizaste o guiaste',
+                        onTap: () => context.push('/perfil/historial-rutas'),
+                      ),
+                      _buildDivider(),
 
                       // --- ¡NUEVA OPCIÓN: MIS RECUERDOS! ---
                       _buildListTile(

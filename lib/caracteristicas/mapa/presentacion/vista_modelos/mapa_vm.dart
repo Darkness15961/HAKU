@@ -34,7 +34,7 @@ class MapaVM extends ChangeNotifier {
   final HakuparadaService _hakuparadaService = HakuparadaService();
   Hakuparada? _hakuparadaCercana; // La que detectó el radar
   bool _mostrarAlertaHakuparada = false; // Para controlar el UI
-  Timer? _timerRadar; // El reloj del radar
+
 
   // VISUALIZACIÓN EN MAPA
   List<Marker> _hakuparadaMarkers = [];
@@ -203,32 +203,48 @@ class MapaVM extends ChangeNotifier {
   }
 
   Future<void> _actualizarMarcadoresHakuparadas() async {
-    // LÓGICA DE VISIBILIDAD (Refinada por feedback):
-    // 1. Si el toggle está ENCENDIDO (_mostrarHakuparadasEnMapa = true) -> SIEMPRE MOSTRAR (Force Show).
-    // 2. Si el toggle está APAGADO (_mostrarHakuparadasEnMapa = false) -> MODO INTELIGENTE (Solo Zoom > 14).
+    // NUEVA LÓGICA V3 (Auto vs Force):
+    // Botón APAGADO (False) -> Modo Auto (Smart): Visible solo cerca (>13.5)
+    // Botón ENCENDIDO (True) -> Modo Force: Siempre visible
     
-    bool debeMostrar = _mostrarHakuparadasEnMapa || _zoomLevel >= 14.0;
+    // NOTA: El usuario pidió que funcione en TODOS los filtros ("no importa en que nube esté").
+    // Por ende, eliminamos la restricción de filtro.
+
+    bool debeMostrar = false;
+
+    if (_mostrarHakuparadasEnMapa) {
+      // MODO FORCE: Siempre visible (según decisión del usuario)
+      debeMostrar = true;
+    } else {
+      // MODO AUTO: Visible solo si estamos cerca (Zoom > 13.5)
+      // Esta es la "lógica de cierta distancia"
+      if (_zoomLevel >= 13.5) {
+        debeMostrar = true;
+      }
+    }
 
     if (!debeMostrar) {
-      if (_hakuparadaMarkers.isNotEmpty) {
-        _hakuparadaMarkers.clear();
-        notifyListeners();
-      }
+      _limpiarMarcadoresHakuparada();
       return;
     }
 
-    // 2. Obtener datos (Usamos el cache del servicio para velocidad)
-    // El servicio ya se cargó en _iniciarSeguimientoUbicacion -> _cargarHakuparadasCercanas
-    // OJO: Aquí podrías añadir lógica para recargar si el usuario se mueve mucho.
-    final paradasHelpers = _hakuparadaService.getParadasCache(); // Necesitaremos exponer esto en el servicio
+    // MOSTRAR (Si pasamos el chequeo)
+    final paradasHelpers = _hakuparadaService.getParadasCache();
 
     _hakuparadaMarkers.clear();
     for (var parada in paradasHelpers) {
-      if (parada.visible) { // Doble check
+      if (parada.visible) {
         _hakuparadaMarkers.add(_crearMarcadorHakuparada(parada));
       }
     }
     notifyListeners();
+  }
+
+  void _limpiarMarcadoresHakuparada() {
+    if (_hakuparadaMarkers.isNotEmpty) {
+      _hakuparadaMarkers.clear();
+      notifyListeners();
+    }
   }
 
   Marker _crearMarcadorHakuparada(Hakuparada parada) {

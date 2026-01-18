@@ -139,10 +139,8 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
           if (_subFiltroRuta == 0) {
             rutasAMostrar = rutasVM.misRutasInscritas;
           } else {
-            final uid = authVM.usuarioActual?.id;
-            if (uid != null) {
-              rutasAMostrar = rutasVM.rutasFiltradas.where((r) => r.guiaId == uid).toList();
-            }
+            // USAR EL GETTER DEDICADO, NO FILTRAR LA PESTAÑA ACTUAL
+            rutasAMostrar = rutasVM.misRutasCreadas;
           }
         }
 
@@ -364,18 +362,17 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // TOGGLE HAKUPARADAS (Ahora como botón flotante mini)
-                    if (mapaVM.filtroActual == 0) ...[
-                      FloatingActionButton.small(
-                        heroTag: "btn_toggle_hakuparadas",
-                        onPressed: () => mapaVM.toggleHakuparadas(),
-                        backgroundColor: mapaVM.mostrarHakuparadasEnMapa ? const Color(0xFF00BCD4) : Colors.white,
-                        foregroundColor: mapaVM.mostrarHakuparadasEnMapa ? Colors.white : Colors.grey[700],
-                        tooltip: mapaVM.mostrarHakuparadasEnMapa ? "Modo: Siempre Visible" : "Modo: Inteligente (Zoom)",
-                        child: Icon(mapaVM.mostrarHakuparadasEnMapa ? Icons.visibility : Icons.visibility_off),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
+                    // TOGGLE HAKUPARADAS (Global para todos los filtros)
+                    FloatingActionButton.small(
+                      heroTag: "btn_toggle_hakuparadas",
+                      onPressed: () => mapaVM.toggleHakuparadas(),
+                      backgroundColor: mapaVM.mostrarHakuparadasEnMapa ? const Color(0xFF00BCD4) : Colors.white,
+                      foregroundColor: mapaVM.mostrarHakuparadasEnMapa ? Colors.white : Colors.grey[700],
+                      tooltip: mapaVM.mostrarHakuparadasEnMapa ? "Modo: Siempre Visible" : "Modo: Automático (Zoom)",
+                      child: Icon(mapaVM.mostrarHakuparadasEnMapa ? Icons.visibility : Icons.hdr_auto), // Icono Auto para modo smart
+                    ),
+                    const SizedBox(height: 12),
+
 
                     _buildFloatingBtn("btn_layers", _verRelieve ? Icons.landscape_rounded : Icons.layers_rounded, _alternarTipoMapa, false),
                     const SizedBox(height: 12),

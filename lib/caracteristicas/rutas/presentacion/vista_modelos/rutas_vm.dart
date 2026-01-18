@@ -18,59 +18,98 @@ class RutasVM extends ChangeNotifier {
   final OsrmService _osrmService = OsrmService(); // <--- Instancia del servicio
   AutenticacionVM? _authVM;
 
-  // --- B. ESTADO DE LA UI ---
-  // --- B. ESTADO DE LA UI ---
-  bool _estaCargando = false;
-  List<Ruta> _rutas = [];
+  // --- B. ESTADO DE LA UI (MULTILISTA) ---
+  bool _estaCargandoAccion = false; // Para crear/editar/eliminar
+  final Map<String, bool> _cargandoPestanas = {
+    'Recomendadas': false,
+    'Mis Inscripciones': false,
+    'Creadas por mí': false,
+    'Guardadas': false,
+  };
+  
+  // Cache por pestaña para evitar "Sangrado de Datos"
+  final Map<String, List<Ruta>> _listasRutas = {
+    'Recomendadas': [],
+    'Mis Inscripciones': [],
+    'Creadas por mí': [],
+    'Guardadas': [], // Si se usa
+  };
+
+  // Estado de Paginación por Pestaña
+  final Map<String, int> _pages = {
+    'Recomendadas': 0, 'Mis Inscripciones': 0, 'Creadas por mí': 0, 'Guardadas': 0
+  };
+  final Map<String, bool> _hasMoreMap = {
+    'Recomendadas': true, 'Mis Inscripciones': true, 'Creadas por mí': true, 'Guardadas': true
+  };
+
   String _pestanaActual = 'Recomendadas';
   String _categoriaActual = 'Todos';
   String? _error;
-  bool _cargaInicialRealizada = false;
+  bool _cargaInicialRealizada = false; // Indica si 'Recomendadas' ya cargó al menos una vez
 
-  // --- PAGINACIÓN ---
-  int _page = 0;
-  final int _pageSize = 6;
-  bool _hasMore = true; // Si hay más páginas por cargar
-  bool _isLoadingMore = false; // Cargando la siguiente página (spinner abajo)
+  bool _isLoadingMore = false;
+  final int _pageSize = 6; // Re-added constant
   
   // --- MÓDULO PARTICIPANTES ---
   bool _cargandoParticipantes = false;
   List<ParticipanteRuta> _participantes = [];
 
-  // --- C. GETTERS (Iguales) ---
-  bool get estaCargando => _estaCargando;
+  // --- MÓDULO HISTORIAL ---
+  bool _cargandoHistorial = false;
+  List<Ruta> _historialRutas = [];
+
+
+
+  // --- C. GETTERS ---
+  bool get estaCargando => _estaCargandoAccion || (_cargandoPestanas[_pestanaActual] ?? false);
   String get pestanaActual => _pestanaActual;
   String get categoriaActual => _categoriaActual;
   String? get error => _error;
   bool get cargaInicialRealizada => _cargaInicialRealizada;
   
-  bool get hasMore => _hasMore;
+  bool get hasMore => _hasMoreMap[_pestanaActual] ?? false;
   bool get isLoadingMore => _isLoadingMore;
   List<ParticipanteRuta> get participantes => _participantes;
   bool get cargandoParticipantes => _cargandoParticipantes;
+  
+  List<Ruta> get historialRutas => _historialRutas;
+  bool get cargandoHistorial => _cargandoHistorial;
+  
 
+
+  // Getter principal para la UI (Lista Filtrada)
   List<Ruta> get rutasFiltradas {
+    final rutasDePestana = _listasRutas[_pestanaActual] ?? [];
+    
+    // Filtro local por categoría (si aplica)
     if (_categoriaActual == 'Todos') {
-      return _rutas;
+      return rutasDePestana;
     } else {
-      return _rutas.where((ruta) {
+      return rutasDePestana.where((ruta) {
         return ruta.categoria.toLowerCase() == _categoriaActual.toLowerCase();
       }).toList();
     }
   }
 
+  // Getter específico para el MAPA (siempre retorna las inscritas, cargadas o no)
+  // NOTA: Si están vacías, quizás el Mapa deba pedir cargarlas.
   List<Ruta> get misRutasInscritas {
-    if (_authVM == null || !_authVM!.estaLogueado) return [];
-    final ids = _authVM!.rutasInscritasIds;
-    return _rutas.where((r) => ids.contains(r.id)).toList();
+    // Retornamos la lista dedicada, sin depender de la pestaña actual
+    return _listasRutas['Mis Inscripciones'] ?? [];
   }
 
+  // Getter específico para el MAPA para rutas creadas
+  List<Ruta> get misRutasCreadas {
+    return _listasRutas['Creadas por mí'] ?? [];
+  }
+ 
   // --- D. CONSTRUCTOR ---
   RutasVM() {
     _repositorio = getIt<RutasRepositorio>();
   }
 
-  // --- E. MÉTODOS DE CARGA (Iguales) ---
+  // --- E. MÉTODOS DE CARGA ---
   void cargarDatosIniciales(AutenticacionVM authVM) {
     if (_cargaInicialRealizada) return;
     _authVM = authVM;
@@ -89,11 +128,22 @@ class RutasVM extends ChangeNotifier {
   void _iniciarCargaLogica() {
     _authVM?.addListener(_actualizarPestanaPorRol);
     _actualizarPestanaPorRol();
+    
+    // ESTRATEGIA: Cargar también 'Mis Inscripciones' en background si está logueado
+    // para que el Mapa las tenga listas.
+    if (_authVM?.estaLogueado ?? false) {
+      _cargarListaEspecifica('Mis Inscripciones');
+      
+      final rol = _authVM?.usuarioActual?.rol;
+      if (rol == 'guia' || rol == 'guia_aprobado' || rol == 'guia_local' || rol == 'admin') {
+         _cargarListaEspecifica('Creadas por mí');
+      }
+    }
   }
 
   void _actualizarPestanaPorRol() {
     final rol = _authVM?.usuarioActual?.rol;
-    final esAnonimo = !(_authVM?.estaLogueado ?? false);
+
 
     if (_pestanaActual == 'Creadas por mí' &&
         rol != 'guia_aprobado' &&
@@ -102,71 +152,92 @@ class RutasVM extends ChangeNotifier {
         rol != 'admin') {
       _pestanaActual = 'Recomendadas';
     }
-    if (_pestanaActual == 'Guardadas' && esAnonimo) {
-      _pestanaActual = 'Recomendadas';
-    }
-
-    if (!_estaCargando) {
+    
+    // Si la lista actual está vacía y no estamos cargando, cargarla.
+    if ((_listasRutas[_pestanaActual]?.isEmpty ?? true) && !estaCargando) {
       cargarRutas();
     }
   }
 
-  // --- E. MÉTODOS DE CARGA (Con Paginación) ---
-  
-  // Método público para "Cargar Más" (Scroll Bottom)
+  // Método público para "Cargar Más"
   Future<void> cargarMasRutas() async {
-    if (_isLoadingMore || !_hasMore) return;
+    if (_isLoadingMore || !hasMore) return;
     await cargarRutas(refresh: false);
   }
 
+  // Carga la pestaña ACTUAL
   Future<void> cargarRutas({bool refresh = true}) async {
+    await _cargarListaEspecifica(_pestanaActual, refresh: refresh);
+  }
+
+  // Método interno y versátil que carga CUALQUIER lista
+  Future<void> _cargarListaEspecifica(String pestanaObjetivo, {bool refresh = true}) async {
+    // Evitamos pisar estados si estamos cargando la pestaña activa
+    bool esPestanaActiva = (pestanaObjetivo == _pestanaActual);
+
     if (refresh) {
-      _estaCargando = true; // Spinner grande solo si es refresh
-      _page = 0;
-      _hasMore = true;
+      _cargandoPestanas[pestanaObjetivo] = true; // 🔥 FIXED: Per-tab loading
       _error = null;
-      notifyListeners();
-    } else {
-      _isLoadingMore = true; // Spinner pequeño abajo
+      if (esPestanaActiva) {
+        if (pestanaObjetivo == 'Recomendadas') _cargaInicialRealizada = false; 
+        notifyListeners();
+      }
+    } else if (esPestanaActiva) {
+      _isLoadingMore = true;
       notifyListeners();
     }
 
     try {
+      // 1. Determinar Filtro
       String tipoFiltro = 'recomendadas';
-      if (_pestanaActual == 'Mis Inscripciones') {
+      if (pestanaObjetivo == 'Mis Inscripciones') {
         tipoFiltro = 'inscritas';
-      } else if (_pestanaActual == 'Creadas por mí') {
+      } else if (pestanaObjetivo == 'Creadas por mí') {
         tipoFiltro = 'creadas_por_mi';
       }
 
-      print('🔄 [VM] Cargando rutas. Page: $_page. Filter: $tipoFiltro. Refresh: $refresh');
-
+      // 2. Determinar Paginación
+      int page = refresh ? 0 : (_pages[pestanaObjetivo] ?? 0);
+      
+      // 3. Llamada al Repo
+      print('🔄 [VM] Cargando para "$pestanaObjetivo" ($tipoFiltro). Page: $page');
+      
       final nuevasRutas = await _repositorio.obtenerRutas(
         tipoFiltro,
-        page: _page,
+        page: page,
         pageSize: _pageSize,
       );
 
+      // 4. Actualizar Estado (Lista Específica)
       if (refresh) {
-        _rutas = nuevasRutas;
+        _listasRutas[pestanaObjetivo] = nuevasRutas;
+        _pages[pestanaObjetivo] = 1; // Próxima página
+        _hasMoreMap[pestanaObjetivo] = nuevasRutas.length >= _pageSize;
       } else {
-        _rutas.addAll(nuevasRutas);
-      }
-
-      // Lógica de "Habrá más?": Si trajimos menos de lo pedido, se acabó.
-      if (nuevasRutas.length < _pageSize) {
-        _hasMore = false;
-      } else {
-        _page++; // Preparamos para la siguiente
+        _listasRutas[pestanaObjetivo]?.addAll(nuevasRutas);
+        if (nuevasRutas.length < _pageSize) {
+          _hasMoreMap[pestanaObjetivo] = false;
+        } else {
+           _pages[pestanaObjetivo] = (_pages[pestanaObjetivo] ?? 0) + 1;
+        }
       }
 
     } catch (e) {
-      _error = e.toString();
+      if (pestanaObjetivo == _pestanaActual) _error = e.toString();
+      debugPrint('Error cargando $pestanaObjetivo: $e');
     } finally {
-      _estaCargando = false;
-      _isLoadingMore = false;
-      if (refresh) _cargaInicialRealizada = true;
-      notifyListeners();
+      // Clean up local loading state
+      _cargandoPestanas[pestanaObjetivo] = false; // 🔥 FIXED
+
+      if (pestanaObjetivo == _pestanaActual) {
+        _isLoadingMore = false;
+        if (refresh && pestanaObjetivo == 'Recomendadas') _cargaInicialRealizada = true;
+        notifyListeners();
+      } else {
+        // Si cargamos una lista en background (ej: Mis Inscripciones para el mapa)
+        // Notificamos para que el mapa se entere si está escuchando
+        notifyListeners(); 
+      }
     }
   }
 
@@ -183,7 +254,21 @@ class RutasVM extends ChangeNotifier {
     if (nuevaPestana == _pestanaActual) return;
     _pestanaActual = nuevaPestana;
     _categoriaActual = 'Todos';
-    cargarRutas(refresh: true); // Al cambiar pestaña, reiniciamos todo
+    
+    // OPTIMIZACIÓN CACHE INTELIGENTE:
+    // 1. Verificamos si ya tenemos datos en la "caja" de destino.
+    final listaObjetivo = _listasRutas[nuevaPestana];
+    
+    if (listaObjetivo != null && listaObjetivo.isNotEmpty) {
+      // CASO A: ¡Ya tenemos datos! 
+      // Mostramos lo que hay en memoria INSTANTÁNEAMENTE.
+      // (Si el usuario quiere ver si hay algo nuevo, usará el "deslizar para actualizar" de la lista).
+      notifyListeners();
+    } else {
+      // CASO B: La caja está vacía (primera vez que entra).
+      // Cargamos de internet.
+      cargarRutas(refresh: true); 
+    }
   }
 
   void cambiarCategoria(String nuevaCategoria) {
@@ -195,10 +280,14 @@ class RutasVM extends ChangeNotifier {
   Future<void> inscribirseEnRuta(String rutaId) async {
     await _repositorio.inscribirseEnRuta(rutaId);
     await _authVM?.toggleRutaInscrita(rutaId);
+    // Actualizar cache de inscripciones para el Mapa
+    _cargarListaEspecifica('Mis Inscripciones');
+    // Actualizar vista actual (cupos)
+    cargarRutas(refresh: true);
   }
 
   Future<void> unirseARutaPorCodigo(String codigo) async {
-    _estaCargando = true;
+    _estaCargandoAccion = true;
     _error = null;
     notifyListeners();
     try {
@@ -207,11 +296,18 @@ class RutasVM extends ChangeNotifier {
       } else {
         await _repositorio.unirseARutaPorCodigo(codigo);
       }
-      _estaCargando = false;
+      _estaCargandoAccion = false;
       notifyListeners();
-      await cargarRutas();
+      
+      // Actualizar cache crítica para el Mapa
+      await _cargarListaEspecifica('Mis Inscripciones');
+      
+      // Si estamos en otra pestaña, refrescarla también
+      if (_pestanaActual != 'Mis Inscripciones') {
+        cargarRutas(refresh: true);
+      }
     } catch (e) {
-      _estaCargando = false;
+      _estaCargandoAccion = false;
       _error = e.toString();
       notifyListeners();
       throw Exception(e.toString().replaceFirst("Exception: ", ""));
@@ -221,6 +317,8 @@ class RutasVM extends ChangeNotifier {
   Future<void> salirDeRuta(String rutaId) async {
     await _repositorio.salirDeRuta(rutaId);
     await _authVM?.toggleRutaInscrita(rutaId);
+    _cargarListaEspecifica('Mis Inscripciones');
+    cargarRutas(refresh: true);
   }
 
   Future<void> toggleFavoritoRuta(String rutaId) async {
@@ -229,7 +327,7 @@ class RutasVM extends ChangeNotifier {
 
   // --- ¡AQUÍ ESTÁ LA MAGIA OSRM! (Método Modificado) ---
   Future<void> crearRuta(Map<String, dynamic> datosRuta) async {
-    _estaCargando = true;
+    _estaCargandoAccion = true;
     _error = null;
     notifyListeners();
 
@@ -240,12 +338,16 @@ class RutasVM extends ChangeNotifier {
       // 2. GUARDAR EN BASE DE DATOS (Lo de siempre)
       await _repositorio.crearRuta(datosRuta);
 
-      _estaCargando = false;
+      _estaCargandoAccion = false;
       notifyListeners();
-      await cargarRutas();
+      
+      // Actualizar ambas listas afectadas
+      await _cargarListaEspecifica('Creadas por mí');
+      await _cargarListaEspecifica('Recomendadas');
+
 
     } catch (e) {
-      _estaCargando = false;
+      _estaCargandoAccion = false;
       _error = e.toString();
       notifyListeners();
       throw Exception(e.toString().replaceFirst("Exception: ", ""));
@@ -289,7 +391,7 @@ class RutasVM extends ChangeNotifier {
       String rutaId,
       Map<String, dynamic> datosRuta,
       ) async {
-    _estaCargando = true;
+    _estaCargandoAccion = true;
     _error = null;
     notifyListeners();
     try {
@@ -298,11 +400,16 @@ class RutasVM extends ChangeNotifier {
       await _calcularGeometriaOSRM(datosRuta);
 
       await _repositorio.actualizarRuta(rutaId, datosRuta);
-      _estaCargando = false;
+      _estaCargandoAccion = false;
       notifyListeners();
-      await cargarRutas();
+      
+      // Actualizar todo por si acaso
+      await _cargarListaEspecifica('Creadas por mí');
+      await _cargarListaEspecifica('Recomendadas');
+      if (_pestanaActual == 'Mis Inscripciones') await _cargarListaEspecifica('Mis Inscripciones');
+
     } catch (e) {
-      _estaCargando = false;
+      _estaCargandoAccion = false;
       _error = e.toString();
       notifyListeners();
       throw Exception(e.toString().replaceFirst("Exception: ", ""));
@@ -311,16 +418,20 @@ class RutasVM extends ChangeNotifier {
 
 
   Future<void> eliminarRuta(String rutaId) async {
-    _estaCargando = true;
+    _estaCargandoAccion = true;
     _error = null;
     notifyListeners();
     try {
       await _repositorio.eliminarRuta(rutaId);
-      _estaCargando = false;
+      _estaCargandoAccion = false;
       notifyListeners();
-      await cargarRutas();
+      
+      // Limpiar de las listas
+      await _cargarListaEspecifica('Creadas por mí');
+      await _cargarListaEspecifica('Recomendadas');
+
     } catch (e) {
-      _estaCargando = false;
+      _estaCargandoAccion = false;
       _error = e.toString();
       notifyListeners();
       throw Exception(e.toString().replaceFirst("Exception: ", ""));
@@ -328,7 +439,7 @@ class RutasVM extends ChangeNotifier {
   }
 
   Future<void> marcarAsistencia(String rutaId) async {
-    _estaCargando = true;
+    _estaCargandoAccion = true;
     notifyListeners();
     try {
       await _repositorio.marcarAsistencia(rutaId);
@@ -336,13 +447,13 @@ class RutasVM extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
     } finally {
-      _estaCargando = false;
+      _estaCargandoAccion = false;
       notifyListeners();
     }
   }
 
   Future<void> cambiarEstadoRuta(String rutaId, String nuevoEstado) async {
-    _estaCargando = true;
+    _estaCargandoAccion = true;
     notifyListeners();
     try {
       await _repositorio.cambiarEstadoRuta(rutaId, nuevoEstado);
@@ -350,7 +461,7 @@ class RutasVM extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
     } finally {
-      _estaCargando = false;
+      _estaCargandoAccion = false;
       notifyListeners();
     }
   }
@@ -393,6 +504,24 @@ class RutasVM extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error toggle privacidad: $e');
       await cargarParticipantes(rutaId);
+    }
+  }
+
+  // --- MÓDULO HISTORIAL ---
+  Future<void> cargarHistorial() async {
+    final userId = _authVM?.usuarioActual?.id;
+    if (userId == null) return;
+    
+    _cargandoHistorial = true;
+    notifyListeners();
+    
+    try {
+      _historialRutas = await _repositorio.obtenerHistorial(userId);
+    } catch (e) {
+      debugPrint('Error loading history: $e');
+    } finally {
+      _cargandoHistorial = false;
+      notifyListeners();
     }
   }
 }
