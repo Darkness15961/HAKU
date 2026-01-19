@@ -7,6 +7,7 @@ import '../entidades/recuerdo.dart';
 abstract class LugaresRepositorio {
   Future<List<Lugar>> obtenerTodosLosLugares();
   Future<List<Lugar>> obtenerLugaresPopulares();
+  Future<List<Lugar>> obtenerLugaresRecientes({int page = 0, int pageSize = 10});
   Future<List<Provincia>> obtenerProvincias();
   Future<List<Categoria>> obtenerCategorias();
   Future<List<Lugar>> obtenerLugaresPorProvincia(String provinciaId, {int page = 0, int pageSize = 10});

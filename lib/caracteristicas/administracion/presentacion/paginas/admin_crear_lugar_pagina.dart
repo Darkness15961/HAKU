@@ -29,7 +29,9 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
   final TextEditingController _urlImagenCtrl = TextEditingController();
   final TextEditingController _latitudCtrl = TextEditingController();
   final TextEditingController _longitudCtrl = TextEditingController();
+
   final TextEditingController _videoTiktokCtrl = TextEditingController();
+  final TextEditingController _direccionCtrl = TextEditingController(); // <--- NUEVO CONTROLADOR
 
   final ImagenServicio _imagenServicio = ImagenServicio();
 
@@ -39,6 +41,7 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
 
   bool _esModoEdicion = false;
   bool _subiendoImagen = false;
+  bool _usarUrlExterna = false;
 
   final List<String> _listaHoras = List.generate(24, (index) {
     return '${index.toString().padLeft(2, '0')}:00';
@@ -67,8 +70,16 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
       _latitudCtrl.text = lugar.latitud.toString();
       _longitudCtrl.text = lugar.longitud.toString();
       _videoTiktokCtrl.text = lugar.videoTiktokUrl ?? '';
+      _direccionCtrl.text = lugar.direccionReferencia ?? ''; // <--- INIT
       _selectedProvinciaId = lugar.provinciaId;
     }
+    
+    // VERIFICACIÓN CRÍTICA: Cargar provincias si no existen para evitar dropdown vacío
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.read<LugaresVM>().todasLasProvincias.isEmpty) {
+        context.read<LugaresVM>().cargarTodasLasProvincias();
+      }
+    });
   }
 
   @override
@@ -79,6 +90,7 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
     _latitudCtrl.dispose();
     _longitudCtrl.dispose();
     _videoTiktokCtrl.dispose();
+    _direccionCtrl.dispose(); // <--- DISPOSE
     super.dispose();
   }
 
@@ -144,6 +156,7 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
       'video_tiktok_url': _videoTiktokCtrl.text.isNotEmpty
           ? _videoTiktokCtrl.text
           : null,
+      'direccion_referencia': _direccionCtrl.text, // <--- MAPEO ENTIDAD
       'registrado_por': vmAuth.usuarioActual!.id,
     };
 
@@ -238,54 +251,123 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
 
                   _buildInputLabel('Imagen Principal'),
                   const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: _subiendoImagen
-                        ? null
-                        : () async {
-                            setState(() => _subiendoImagen = true);
-                            final url = await _imagenServicio.seleccionarYSubir(
-                              'lugares',
-                            );
-                            if (url != null) {
-                              setState(() => _urlImagenCtrl.text = url);
-                            }
-                            setState(() => _subiendoImagen = false);
+                  
+                  // Toggle: Subir vs URL
+                  Row(
+                    children: [
+                      Expanded(
+                        child: RadioListTile<bool>(
+                          title: const Text('Subir (Galería)', style: TextStyle(fontSize: 14)),
+                          value: false,
+                          groupValue: _usarUrlExterna,
+                          contentPadding: EdgeInsets.zero,
+                          onChanged: (val) {
+                            if (val != null) setState(() => _usarUrlExterna = val);
                           },
-                    child: Container(
-                      height: 200,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade400),
-                        image: _urlImagenCtrl.text.isNotEmpty
-                            ? DecorationImage(
-                                image: NetworkImage(_urlImagenCtrl.text),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
+                        ),
                       ),
-                      child: _subiendoImagen
-                          ? const Center(child: CircularProgressIndicator())
-                          : _urlImagenCtrl.text.isEmpty
-                          ? Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_a_photo,
-                                  size: 40,
-                                  color: Colors.grey[600],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Toca para subir una foto',
-                                  style: TextStyle(color: Colors.grey[600]),
-                                ),
-                              ],
-                            )
-                          : null,
-                    ),
+                      Expanded(
+                        child: RadioListTile<bool>(
+                          title: const Text('URL Externa', style: TextStyle(fontSize: 14)),
+                          value: true,
+                          groupValue: _usarUrlExterna,
+                          contentPadding: EdgeInsets.zero,
+                          onChanged: (val) {
+                            if (val != null) setState(() => _usarUrlExterna = val);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
+                  
+                  if (_usarUrlExterna) ...[
+                    TextFormField(
+                      controller: _urlImagenCtrl,
+                      decoration: _buildInputDecoration('Pegar URL de la imagen'),
+                      onChanged: (_) => setState(() {}), // Para actualizar preview
+                      validator: (v) {
+                        // Si estamos en modo URL, validamos que tenga texto
+                         if (_usarUrlExterna && (v == null || v.isEmpty)) {
+                           return 'Ingresa una URL';
+                         }
+                         return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  if (!_usarUrlExterna)
+                    GestureDetector(
+                      onTap: _subiendoImagen
+                          ? null
+                          : () async {
+                              setState(() => _subiendoImagen = true);
+                              final url = await _imagenServicio.seleccionarYSubir(
+                                'lugares',
+                              );
+                              if (url != null) {
+                                setState(() => _urlImagenCtrl.text = url);
+                              }
+                              setState(() => _subiendoImagen = false);
+                            },
+                      child: Container(
+                        height: 200,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade400),
+                          // Mostrar imagen si existe (incluso si se subió antes)
+                          image: (!_usarUrlExterna && _urlImagenCtrl.text.isNotEmpty)
+                              ? DecorationImage(
+                                  image: NetworkImage(_urlImagenCtrl.text),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: _subiendoImagen
+                            ? const Center(child: CircularProgressIndicator())
+                            : (_urlImagenCtrl.text.isEmpty)
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.add_a_photo,
+                                    size: 40,
+                                    color: Colors.grey[600],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Toca para subir una foto',
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                ],
+                              )
+                            : null, // Si hay imagen, el DecorationImage la muestra
+                      ),
+                    ),
+                  
+                  // Preview adicional para Modo URL (opcional, pero util)
+                  if (_usarUrlExterna && _urlImagenCtrl.text.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Container(
+                        height: 200,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                          image: DecorationImage(
+                            image: NetworkImage(_urlImagenCtrl.text),
+                            fit: BoxFit.cover,
+                            onError: (exception, stackTrace) {
+                              // Manejo básico de error de carga visual
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
 
                   const Divider(height: 32),
 
@@ -304,6 +386,13 @@ class _AdminCrearLugarPaginaState extends State<AdminCrearLugarPagina> {
                     onChanged: (value) =>
                         setState(() => _selectedProvinciaId = value),
                     validator: (v) => v == null ? 'Requerido' : null,
+                  ),
+
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _direccionCtrl,
+                    decoration: _buildInputDecoration('Dirección de Referencia (Opcional)'),
+                    maxLines: 2,
                   ),
 
                   const Divider(height: 32),

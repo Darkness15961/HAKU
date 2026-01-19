@@ -45,6 +45,10 @@ class AdminDashboardPagina extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- NAVEGACIÓN PRINCIPAL (SALIDA AMIGABLE) ---
+            _buildIrALaAppCard(context),
+            const SizedBox(height: 24),
+
             // --- Sección de Estadísticas ---
             Text(
               'Resumen del Sistema',
@@ -68,7 +72,7 @@ class AdminDashboardPagina extends StatelessWidget {
                   valor: context.watch<AdminHakuparadasVM>().pendientes.length.toString(),
                   icono: Icons.add_location_alt,
                   color: Colors.teal.shade700,
-                  onTap: () {}, // Ya es visible, quizás refrescar?
+                  onTap: () {}, 
                 ),
               ],
             ),
@@ -94,22 +98,17 @@ class AdminDashboardPagina extends StatelessWidget {
               },
             ),
 
-            // --- ¡MODIFICADO! ---
             // 2. Botón de Gestionar Contenido (Lugares, Provincias, etc.)
             _buildGestionOpcion(
               context,
-              titulo: 'Gestionar Contenido', // <-- Título cambiado
-              subtitulo: 'Gestionar lugares, provincias y categorías.', // <-- Subtítulo cambiado
+              titulo: 'Gestionar Contenido',
+              subtitulo: 'Gestionar lugares, provincias y categorías.',
               icono: Icons.place,
               color: Colors.blue.shade700,
               onTap: () {
-                // --- ¡CORREGIDO! ---
-                // Apunta al nuevo sub-menú
                 context.push('/admin/gestion-contenido');
-                // --- FIN DE CORRECCIÓN ---
               },
             ),
-            // --- FIN DE LA MODIFICACIÓN ---
 
             // 3. Botón de Gestionar Cuentas
             _buildGestionOpcion(
@@ -123,12 +122,12 @@ class AdminDashboardPagina extends StatelessWidget {
               },
             ),
             
-            // 4. (NUEVO) Botón de Gestionar Hakuparadas
+            // 4. Botón de Gestionar Hakuparadas
             _buildGestionOpcion(
               context,
               titulo: 'Gestionar Hakuparadas',
               subtitulo: 'Aprobar sugerencias de guías y turistas.',
-              icono: Icons.check_circle_outline, // Un icono de "Check" o "Verify"
+              icono: Icons.check_circle_outline,
               color: Colors.teal.shade600,
               onTap: () {
                 context.push('/admin/gestion-hakuparadas');
@@ -141,6 +140,74 @@ class AdminDashboardPagina extends StatelessWidget {
   }
 
   // --- Widgets Auxiliares de Diseño ---
+
+  Widget _buildIrALaAppCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade800, Colors.blue.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => context.go('/inicio'),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.touch_app_rounded, color: Colors.white, size: 30),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ir a la Aplicación',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Explora el mapa y las rutas como usuario',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildStatCard(BuildContext context, {
     required String titulo,

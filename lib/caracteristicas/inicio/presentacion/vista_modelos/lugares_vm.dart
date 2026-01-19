@@ -71,6 +71,19 @@ class LugaresVM extends ChangeNotifier {
   bool get isLoadingMoreProvincia => _isLoadingMoreProvincia;
   bool get estaCargandoComentarios => _estaCargandoComentarios;
   List<Comentario> get comentarios => _comentarios;
+  
+  // --- STATE RECIENTES (EXPLORAR) ---
+  List<Lugar> _lugaresRecientes = [];
+  bool _estaCargandoRecientes = false;
+  bool _isLoadingMoreRecientes = false;
+  bool _hasMoreRecientes = true;
+  int _pageRecientes = 0;
+  final int _pageSizeRecientes = 10;
+  
+  List<Lugar> get lugaresRecientes => _lugaresRecientes;
+  bool get estaCargandoRecientes => _estaCargandoRecientes;
+  bool get isLoadingMoreRecientes => _isLoadingMoreRecientes;
+  bool get hasMoreRecientes => _hasMoreRecientes;
 
   // --- GETTERS CALCULADOS ---
   List<Lugar> get misLugaresPublicados {
@@ -209,7 +222,8 @@ class LugaresVM extends ChangeNotifier {
         _repositorio.obtenerLugaresPopulares(),
         _repositorio.obtenerProvincias(),
         _repositorio.obtenerCategorias(),
-        _repositorio.obtenerTodosLosLugares(), // REVERTED: Needed for Map/Favorites
+        _repositorio.obtenerTodosLosLugares(),
+        cargarLugaresRecientes(), // <--- Init Recientes
       ]);
 
       _lugaresPopulares = resultados[0] as List<Lugar>;
@@ -223,6 +237,50 @@ class LugaresVM extends ChangeNotifier {
       _cargaInicialRealizada = true;
       notifyListeners();
     }
+  }
+
+  // --- RECIENTES (PAGINADO) ---
+  Future<void> cargarLugaresRecientes({bool refresh = true}) async {
+    if (refresh) {
+      _estaCargandoRecientes = true;
+      _pageRecientes = 0;
+      _hasMoreRecientes = true;
+      _lugaresRecientes = [];
+      notifyListeners();
+    } else {
+      if (_isLoadingMoreRecientes || !_hasMoreRecientes) return;
+      _isLoadingMoreRecientes = true;
+      notifyListeners();
+    }
+
+    try {
+      final nuevos = await _repositorio.obtenerLugaresRecientes(
+        page: _pageRecientes,
+        pageSize: _pageSizeRecientes,
+      );
+
+      if (refresh) {
+        _lugaresRecientes = nuevos;
+      } else {
+        _lugaresRecientes.addAll(nuevos);
+      }
+
+      if (nuevos.length < _pageSizeRecientes) {
+        _hasMoreRecientes = false;
+      } else {
+        _pageRecientes++;
+      }
+    } catch (e) {
+      debugPrint("Error cargando recientes: $e");
+    } finally {
+      _estaCargandoRecientes = false;
+      _isLoadingMoreRecientes = false;
+      notifyListeners();
+    }
+  }
+  
+  Future<void> cargarMasLugaresRecientes() async {
+    await cargarLugaresRecientes(refresh: false);
   }
 
   // --- NUEVO: Cargar Favoritos Reales ---

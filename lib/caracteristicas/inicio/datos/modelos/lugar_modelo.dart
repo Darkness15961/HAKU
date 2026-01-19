@@ -13,7 +13,7 @@ class LugarModelo {
   final String usuarioId;
   final String horario;
   final int reviewsCount;
-  final String? fotoRecuerdoUrl;
+  final String? direccionReferencia; // <--- Nuevo Campo Real BD
 
   LugarModelo({
     required this.id,
@@ -28,7 +28,7 @@ class LugarModelo {
     required this.usuarioId,
     required this.horario,
     required this.reviewsCount,
-    this.fotoRecuerdoUrl,
+    this.direccionReferencia,
   });
 
   factory LugarModelo.fromJson(Map<String, dynamic> json) {
@@ -45,7 +45,8 @@ class LugarModelo {
           ? json['provincia_id']
           : int.tryParse(json['provincia_id']?.toString() ?? '0') ?? 0,
       videoTiktokUrl: json['video_tiktok_url']?.toString(),
-      fotoRecuerdoUrl: json['foto_recuerdo_url'],
+      // fotoRecuerdoUrl: json['foto_recuerdo_url'], // REMOVED
+      direccionReferencia: json['direccion_referencia']?.toString(), // <--- MAPPED
       usuarioId: json['registrado_por']?.toString() ?? '',
       horario: json['horario']?.toString() ?? '',
     );
@@ -65,7 +66,7 @@ class LugarModelo {
       provinciaId: provinciaId.toString(),
       usuarioId: usuarioId,
       videoTiktokUrl: videoTiktokUrl,
-      fotoRecuerdoUrl: fotoRecuerdoUrl,
+      direccionReferencia: direccionReferencia, // <--- PASSED
     );
   }
 }

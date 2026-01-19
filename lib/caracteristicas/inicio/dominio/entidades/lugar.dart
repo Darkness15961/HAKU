@@ -9,7 +9,7 @@ class Lugar {
   // --- Atributos de Detalle ---
   final int reviewsCount;
   final String horario;
-  final List<String> puntosInteres;
+  // final List<String> puntosInteres; // REMOVED: Not in DB
 
   // --- Atributos de Coordenadas ---
   final double latitud;
@@ -19,9 +19,8 @@ class Lugar {
   final String provinciaId;
   final String usuarioId;
 
-  // --- Nuevo Campo ---
   final String? videoTiktokUrl;
-  final String? fotoRecuerdoUrl;
+  final String? direccionReferencia; // <--- Nuevo Campo Real BD
 
   // --- Constructor ---
   Lugar({
@@ -30,11 +29,9 @@ class Lugar {
     required this.descripcion,
     required this.urlImagen,
     required this.rating,
-    this.fotoRecuerdoUrl,
     this.reviewsCount = 0,
     this.horario = 'No disponible',
-    this.puntosInteres = const [],
-
+    
     this.latitud = -13.5319,
     this.longitud = -71.9675,
 
@@ -42,5 +39,6 @@ class Lugar {
     required this.usuarioId,
 
     this.videoTiktokUrl,
+    this.direccionReferencia,
   });
 }

@@ -84,6 +84,7 @@ class LugaresRepositorioSupabase implements LugaresRepositorio {
         'longitud': datosLugar['longitud'],
         'video_tiktok_url':
             datosLugar['video_tiktok_url'] ?? datosLugar['videoTiktokUrl'],
+        'direccion_referencia': datosLugar['direccion_referencia'], // <--- NUEVO
         'registrado_por': userId, // Auditoría
         // 'puntos_interes' se omite si no creaste la columna en BD
       };
@@ -120,6 +121,7 @@ class LugaresRepositorioSupabase implements LugaresRepositorio {
         'longitud': datosLugar['longitud'],
         'video_tiktok_url':
             datosLugar['video_tiktok_url'] ?? datosLugar['videoTiktokUrl'],
+        'direccion_referencia': datosLugar['direccion_referencia'], // <--- NUEVO
       };
 
       // Limpieza
@@ -176,6 +178,28 @@ class LugaresRepositorioSupabase implements LugaresRepositorio {
           .toList();
     } catch (e) {
       print('Error populares: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<List<Lugar>> obtenerLugaresRecientes({int page = 0, int pageSize = 10}) async {
+    try {
+      final from = page * pageSize;
+      final to = from + pageSize - 1;
+
+      final data = await _supabase
+          .from('lugares')
+          .select()
+          .order('created_at', ascending: false) // Lo más nuevo primero (si tienes created_at)
+          // Si no tienes created_at, usa 'id' desc como fallback: .order('id', ascending: false)
+          .range(from, to);
+
+      return (data as List)
+          .map((e) => LugarModelo.fromJson(e).toEntity())
+          .toList();
+    } catch (e) {
+      print('Error recientes: $e');
       return [];
     }
   }

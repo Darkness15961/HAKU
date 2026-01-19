@@ -227,8 +227,6 @@ class CrearHakuparadaVM extends ChangeNotifier {
           latitud: (json['latitud'] as num?)?.toDouble() ?? 0.0,
           longitud: (json['longitud'] as num?)?.toDouble() ?? 0.0,
           videoTiktokUrl: json['video_tiktok_url'],
-          // Default mandatory
-          puntosInteres: const <String>[],
         );
       }).toList();
       

@@ -128,8 +128,8 @@ class _InicioPaginaState extends State<InicioPagina> {
             : RefreshIndicator(
                 onRefresh: _handleRefresh,
                 child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildHeader(context, vmAuth),
@@ -142,14 +142,18 @@ class _InicioPaginaState extends State<InicioPagina> {
                       const SizedBox(height: 40),
                       _buildProvincesSection(vmLugares),
                       const SizedBox(height: 32),
+
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),
-              ),
+            ),
       ),
       // --- FIN DE LA MEJORA ---
     );
   }
+
+
 
   // --- (Todos tus otros widgets _buildHeader, _buildSearchBar, etc.
   // ---  quedan exactamente iguales que en tu archivo original) ---
@@ -775,8 +779,6 @@ class _InicioPaginaState extends State<InicioPagina> {
 
   // 🗺️ CARD DE PROVINCIA CON BADGES MEJORADOS
   Widget _buildProvinceCard(Provincia p) {
-    // (Tu código de _buildProvinceCard intacto)
-    // ...
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -798,9 +800,10 @@ class _InicioPaginaState extends State<InicioPagina> {
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => Container(
                 color: const Color(0xFF2C2C2C), // Gris oscuro
-                width: double.infinity,
-                height: double.infinity,
-                child: Icon(Icons.broken_image, size: 50, color: Colors.white24),
+                child: const Icon(
+                  Icons.broken_image_rounded,
+                  color: Colors.white24,
+                ),
               ),
             ),
             Container(
@@ -902,6 +905,8 @@ class _InicioPaginaState extends State<InicioPagina> {
       ),
     );
   }
+
+
 
   // 📍 INDICADORES DEL CARRUSEL
   Widget _buildIndicators({
