@@ -14,8 +14,12 @@ import '../widgets/selector_lugares_ruta.dart';
 import '../widgets/route_location.dart'; // Restaurado
 import '../widgets/formulario_logistica.dart'; // Importar widget logístico
 
+import '../../dominio/entidades/ruta.dart'; // Import para usar la entidad
+
 class CrearRutaSinGuiaPagina extends StatefulWidget {
-  const CrearRutaSinGuiaPagina({super.key});
+  final Ruta? ruta; // Para editar
+
+  const CrearRutaSinGuiaPagina({super.key, this.ruta});
 
   @override
   State<CrearRutaSinGuiaPagina> createState() => _CrearRutaSinGuiaPaginaState();
@@ -30,6 +34,7 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
   final _precioController = TextEditingController(text: '0');
   final _puntoEncuentroController = TextEditingController();
   final _cuposController = TextEditingController(text: '1');
+  final _diasController = TextEditingController(text: '1'); // Nuevo
   final _urlImagenCtrl = TextEditingController();
   final _whatsappCtrl = TextEditingController(); // Nuevo campo
   final _equipamientoCtrl = TextEditingController(); // Nuevo campo
@@ -37,6 +42,7 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
   // Estado
   List<RouteLocation> _locations = [];
   String _preferenciaPrivacidad = 'publica';
+  String _visibility = 'Publicada'; // Nuevo
   DateTime? _fechaEvento;
   DateTime? _fechaCierre; // Nuevo campo
   String _categoria = 'Familiar';
@@ -51,12 +57,74 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+       context.read<RutasVM>().cargarCategorias();
+       if (widget.ruta != null) {
+         _cargarDatosEdicion();
+       }
+    });
+    // Listener para actualizar el footer en tiempo real
+    _precioController.addListener(() {
+      setState(() {});
+    });
+  }
+
+  void _cargarDatosEdicion() {
+    final r = widget.ruta!;
+    
+    _nombreController.text = r.nombre;
+    _descripcionController.text = r.descripcion;
+    _precioController.text = r.precio.toInt().toString(); // Asumiendo entero para simplificar visualmente
+    _cuposController.text = r.cuposTotales.toString();
+    _diasController.text = r.dias.toString();
+    _urlImagenCtrl.text = r.urlImagenPrincipal;
+    _categoria = r.categoria;
+    
+    // Logística
+    _fechaEvento = r.fechaEvento;
+    _fechaCierre = r.fechaCierre;
+    _puntoEncuentroController.text = r.puntoEncuentro ?? '';
+    _whatsappCtrl.text = r.enlaceWhatsapp ?? '';
+    _equipamientoCtrl.text = r.equipamiento.join(', ');
+    
+    // Configuración
+    _visibility = r.visible ? 'Publicada' : 'Borrador';
+    _preferenciaPrivacidad = r.esPrivada ? 'privada' : 'publica';
+
+    // Mapa
+    setState(() {
+      if (r.lugaresIncluidosCoords.isNotEmpty && r.lugaresIncluidos.isNotEmpty) { // Fixed property name
+        _locations = List.generate(
+          min(r.lugaresIncluidosCoords.length, r.lugaresIncluidos.length), 
+          (i) => RouteLocation(
+            lugar: Lugar(
+              id: r.lugaresIncluidosIds.length > i ? r.lugaresIncluidosIds[i] : 'legacy_$i',
+              nombre: r.lugaresIncluidos[i],
+              descripcion: '',
+              urlImagen: '',
+              latitud: r.lugaresIncluidosCoords[i].latitude,
+              longitud: r.lugaresIncluidosCoords[i].longitude,
+              rating: 0.0,
+              reviewsCount: 0,
+              provinciaId: '0', // Fixed type to String
+              usuarioId: 'unknown_legacy',
+            )
+          )
+        );
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _nombreController.dispose();
     _descripcionController.dispose();
     _precioController.dispose();
     _puntoEncuentroController.dispose();
     _cuposController.dispose();
+    _diasController.dispose();
     _urlImagenCtrl.dispose();
     _whatsappCtrl.dispose();
     _equipamientoCtrl.dispose();
@@ -200,7 +268,12 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
       // Generar código para ruta privada
       String? codigoAcceso;
       if (_preferenciaPrivacidad == 'privada') {
-        codigoAcceso = _generarCodigoAcceso();
+        // Mantiene el código existente si ya tiene uno, sino genera uno nuevo
+        if (widget.ruta != null && widget.ruta!.codigoAcceso != null) {
+          codigoAcceso = widget.ruta!.codigoAcceso;
+        } else {
+          codigoAcceso = _generarCodigoAcceso();
+        }
       }
 
       // Usar imagen subida o del primer lugar
@@ -216,34 +289,45 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
         'nombre': _nombreController.text,
         'descripcion': _descripcionController.text,
         'categoria': _categoria,
+        'categoriaId': vmRutas.categoriasDisponibles
+            .firstWhereOrNull((c) => c['nombre'] == _categoria)?['id'],
         'precio': precio,
         'cupos': cupos,
-        'dias': 1,
-        'visible': true,
+        'dias': int.tryParse(_diasController.text) ?? 1,
+        'visible': _visibility == 'Publicada',
         'es_privada': _preferenciaPrivacidad == 'privada',
         'guia_id': userId,
         'url_imagen_principal': urlImagen,
-        'lugaresIds': _locations.map((l) => l.lugar.id).toList(),
+        'lugaresIds': _locations
+            .map((l) => l.lugar.id)
+            .where((id) => int.tryParse(id) != null) // Solo IDs numéricos válidos
+            .toList(),
         'puntos_coordenadas': _locations
             .map((l) => LatLng(l.lugar.latitud, l.lugar.longitud))
             .toList(),
         'lugaresNombres': _locations.map((l) => l.lugar.nombre).toList(),
-        'fecha_evento': _fechaEvento?.toIso8601String(),
+        'fechaEvento': _fechaEvento?.toIso8601String(),
         'fechaCierreInscripcion': _fechaCierre?.toIso8601String(),
-        'punto_encuentro': _puntoEncuentroController.text.isNotEmpty
+        'puntoEncuentro': _puntoEncuentroController.text.isNotEmpty
             ? _puntoEncuentroController.text
             : null,
         'enlace_grupo_whatsapp': _whatsappCtrl.text,
         'equipamientoRuta': _equipamientoCtrl.text
             .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
             .toList(),
         'estado': 'convocatoria',
         if (codigoAcceso != null) 'codigo_acceso': codigoAcceso,
       };
 
-      await vmRutas.crearRuta(datosRuta);
+      if (widget.ruta == null) {
+        // MODO CREAR
+        await vmRutas.crearRuta(datosRuta);
+      } else {
+        // MODO ACTUALIZAR
+        await vmRutas.actualizarRuta(widget.ruta!.id, datosRuta);
+      }
 
       setState(() => _creando = false);
 
@@ -252,12 +336,12 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
           _mostrarCodigoAcceso(codigoAcceso);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('¡Ruta creada con éxito!'),
+            SnackBar(
+              content: Text(widget.ruta == null ? '¡Ruta creada con éxito!' : '¡Ruta actualizada!'),
               backgroundColor: Colors.green,
             ),
           );
-          context.go('/rutas');
+          context.pop(); // Regresar
         }
       }
     } catch (e) {
@@ -319,6 +403,8 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
     required TextEditingController controller,
     required String label,
     String? hintText,
+    String? helperText, // Standard
+    String? helpText,   // Alias for backward compatibility if I mixed them up
     TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
     IconData? prefixIcon,
@@ -336,6 +422,8 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
         decoration: InputDecoration(
           labelText: label,
           hintText: hintText,
+          helperText: helperText ?? helpText, // Use either
+          helperStyle: TextStyle(color: Colors.grey.shade600, fontSize: 12),
           alignLabelWithHint: maxLines > 1,
           floatingLabelBehavior: FloatingLabelBehavior.always,
           prefixIcon: prefixIcon != null
@@ -375,9 +463,9 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          'Diseña tu Aventura',
-          style: TextStyle(
+        title: Text(
+          widget.ruta == null ? 'Diseña tu Aventura' : 'Editar Aventura',
+          style: const TextStyle(
             fontWeight: FontWeight.w800,
             color: Colors.black87,
             fontSize: 20,
@@ -430,21 +518,37 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
                           maxLines: 4,
                           validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
                         ),
-                        DropdownButtonFormField<String>(
-                          value: _categoria,
-                          decoration: InputDecoration(
-                            labelText: 'Categoría',
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
-                            prefixIcon: Icon(Icons.category, color: Colors.grey.shade600, size: 22),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade200),
-                            ),
-                          ),
-                          items: _categorias.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                          onChanged: (val) => setState(() => _categoria = val!),
+                        Consumer<RutasVM>(
+                          builder: (context, vm, child) {
+                            var items = <String>[];
+                            if (vm.categoriasDisponibles.isNotEmpty) {
+                              items = vm.categoriasDisponibles.map((c) => c['nombre'].toString()).toList();
+                            } else {
+                              items = _categorias; // Fallback
+                            }
+                            
+                            // Asegurar integridad
+                            if (!items.contains(_categoria)) {
+                               if (items.isNotEmpty) _categoria = items.first;
+                            }
+
+                            return DropdownButtonFormField<String>(
+                              value: _categoria,
+                              decoration: InputDecoration(
+                                labelText: 'Categoría',
+                                filled: true,
+                                fillColor: Colors.grey.shade50,
+                                prefixIcon: Icon(Icons.category, color: Colors.grey.shade600, size: 22),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(color: Colors.grey.shade200),
+                                ),
+                              ),
+                              items: items.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                              onChanged: (val) => setState(() => _categoria = val!),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -485,35 +589,42 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
                   _buildCard(
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStyledInput(
-                                controller: _precioController,
-                                label: 'Precio (S/)',
-                                prefixIcon: Icons.attach_money,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildStyledInput(
-                                controller: _cuposController,
-                                label: 'Cupos',
-                                prefixIcon: Icons.group,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                validator: (v) {
-                                  final n = int.tryParse(v ?? '');
-                                  if (n == null || n < 1) return 'Mín 1';
-                                  return null;
-                                },
-                              ),
-                            ),
+                        _buildStyledInput(
+                          controller: _precioController,
+                          label: 'Precio por Persona (S/)',
+                          hintText: '0.00',
+                          helperText: 'Costo en Soles por cada turista.',
+                          prefixIcon: Icons.monetization_on_outlined,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                           ],
+                        ),
+                        _buildStyledInput(
+                          controller: _cuposController,
+                          label: 'Cupos Totales',
+                          helpText: 'Cantidad máxima de personas admitidas.', 
+                          prefixIcon: Icons.group_outlined,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          validator: (v) {
+                            final n = int.tryParse(v ?? '');
+                            if (n == null || n < 1) return 'Mín 1';
+                            return null;
+                          },
+                        ),
+                        _buildStyledInput(
+                          controller: _diasController,
+                          label: 'Duración del Viaje',
+                          helpText: 'Número de días que dura la experiencia.',
+                          prefixIcon: Icons.timer_outlined,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          validator: (v) {
+                            final n = int.tryParse(v ?? '');
+                            if (n == null || n < 1) return 'Mín 1';
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 8),
                         SubidaImagenRuta(urlImagenCtrl: _urlImagenCtrl),
@@ -537,6 +648,32 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
                         SelectorLugaresRuta(
                           locations: _locations,
                           onLocationsChanged: (newList) => setState(() => _locations = newList),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // NEW: PUBLICATION STATUS
+                  _buildSectionTitle('Estado de Publicación', Icons.visibility),
+                  _buildCard(
+                    child: Column(
+                      children: [
+                        RadioListTile<String>(
+                          activeColor: Theme.of(context).primaryColor,
+                          title: const Text('Borrador', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Solo visible para ti (En desarrollo)'),
+                          value: 'Borrador',
+                          groupValue: _visibility,
+                          onChanged: (val) => setState(() => _visibility = val!),
+                        ),
+                        const Divider(),
+                        RadioListTile<String>(
+                          activeColor: Theme.of(context).primaryColor,
+                          title: const Text('Publicada', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Visible en el marketplace'),
+                          value: 'Publicada',
+                          groupValue: _visibility,
+                          onChanged: (val) => setState(() => _visibility = val!),
                         ),
                       ],
                     ),
@@ -636,7 +773,7 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
                             letterSpacing: 0.5,
                           ),
                         ),
-                        child: const Text('CREAR RUTA'),
+                        child: Text(widget.ruta == null ? 'CREAR RUTA' : 'GUARDAR'),
                       ),
                     ],
                   ),
@@ -647,5 +784,14 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
         ),
       ),
     );
+  }
+}
+
+extension _ListExtension<T> on List<T> {
+  T? firstWhereOrNull(bool Function(T element) test) {
+    for (T element in this) {
+      if (test(element)) return element;
+    }
+    return null;
   }
 }

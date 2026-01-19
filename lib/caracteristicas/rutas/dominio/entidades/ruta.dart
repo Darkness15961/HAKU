@@ -11,6 +11,7 @@ class Ruta {
   final String urlImagenPrincipal;
   final double precio;
   final String categoria;
+  final int? categoriaId; // <--- NUEVO
   final int cuposTotales;
   final int cuposDisponibles;
   final bool visible;
@@ -55,6 +56,7 @@ class Ruta {
     required this.urlImagenPrincipal,
     required this.precio,
     required this.categoria,
+    this.categoriaId,
     required this.cuposTotales,
     required this.cuposDisponibles,
     required this.visible,
@@ -97,10 +99,11 @@ class Ruta {
     String? urlImagenPrincipal,
     double? precio,
     String? categoria,
+    int? categoriaId,
     int? cuposTotales,
     int? cuposDisponibles,
     bool? visible,
-    int? dias,
+    int? dias, // Corrected line count
     double? distanciaMetros,
     double? duracionSegundos,
     String? estado,
@@ -135,6 +138,7 @@ class Ruta {
       urlImagenPrincipal: urlImagenPrincipal ?? this.urlImagenPrincipal,
       precio: precio ?? this.precio,
       categoria: categoria ?? this.categoria,
+      categoriaId: categoriaId ?? this.categoriaId,
       cuposTotales: cuposTotales ?? this.cuposTotales,
       cuposDisponibles: cuposDisponibles ?? this.cuposDisponibles,
       visible: visible ?? this.visible,

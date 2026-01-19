@@ -58,6 +58,10 @@ class RutasVM extends ChangeNotifier {
   // --- MÓDULO HISTORIAL ---
   bool _cargandoHistorial = false;
   List<Ruta> _historialRutas = [];
+  
+  // Categorías
+  List<Map<String, dynamic>> _categoriasDisponibles = [];
+
 
 
 
@@ -75,6 +79,9 @@ class RutasVM extends ChangeNotifier {
   
   List<Ruta> get historialRutas => _historialRutas;
   bool get cargandoHistorial => _cargandoHistorial;
+  
+  List<Map<String, dynamic>> get categoriasDisponibles => _categoriasDisponibles;
+
   
 
 
@@ -522,6 +529,18 @@ class RutasVM extends ChangeNotifier {
     } finally {
       _cargandoHistorial = false;
       notifyListeners();
+      notifyListeners();
+    }
+  }
+
+  // --- MÓDULO CATEGORÍAS ---
+  Future<void> cargarCategorias() async {
+    if (_categoriasDisponibles.isNotEmpty) return;
+    try {
+      _categoriasDisponibles = await _repositorio.obtenerCategorias();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading categories in VM: $e');
     }
   }
 }

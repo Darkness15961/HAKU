@@ -96,7 +96,7 @@ class AppRutas {
             routes: [
               GoRoute(path: 'detalle-ruta', builder: (context, state) => DetalleRutaPagina(ruta: state.extra as Ruta)),
               GoRoute(path: 'crear-ruta', builder: (context, state) => CrearRutaPagina(ruta: state.extra as Ruta?)),
-              GoRoute(path: 'crear-sin-guia', builder: (context, state) => const CrearRutaSinGuiaPagina()),
+              GoRoute(path: 'crear-sin-guia', builder: (context, state) => CrearRutaSinGuiaPagina(ruta: state.extra as Ruta?)),
             ],
           ),
 

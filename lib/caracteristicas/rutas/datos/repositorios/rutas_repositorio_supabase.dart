@@ -172,6 +172,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         urlImagenPrincipal: json['url_imagen_principal'] ?? '',
         precio: (json['precio'] as num?)?.toDouble() ?? 0.0,
         categoria: json['categoria'] ?? 'familiar',
+        categoriaId: json['categoria_id'], // <--- NUEVO
         cuposTotales: json['cupos_totales'] ?? 10,
         cuposDisponibles: (json['cupos_totales'] ?? 10) - inscritosCount,
         visible: json['visible'] ?? false,
@@ -235,6 +236,7 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         'cupos_totales': datosRuta['cupos'],
         'dias': datosRuta['dias'],
         'categoria': datosRuta['categoria'],
+        'categoria_id': datosRuta['categoriaId'], // <--- NUEVO
         'visible': datosRuta['visible'] ?? true,
         'es_privada': datosRuta['es_privada'] ?? false,
         'guia_id': userId, // 🔥 SEGURIDAD: Forzamos el ID real del usuario
@@ -279,9 +281,10 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         'titulo': datosRuta['nombre'],
         'descripcion': datosRuta['descripcion'],
         'precio': datosRuta['precio'],
-        'cupos_totales': datosRuta['cupos'],
+        'cupos_totales': datosRuta['cupos'], // <--- CORRECCIÓN CRÍTICA: Faltaba este campo
         'dias': datosRuta['dias'],
         'categoria': datosRuta['categoria'],
+        'categoria_id': datosRuta['categoriaId'], // <--- NUEVO
         'visible': datosRuta['visible'],
         'es_privada': datosRuta['es_privada'],
         'codigo_acceso': datosRuta['codigo_acceso'],
@@ -430,7 +433,6 @@ class RutasRepositorioSupabase implements RutasRepositorio {
   }
 
   @override
-  @override
   Future<void> toggleFavoritoRuta(String rutaId) async {}
 
   @override
@@ -545,7 +547,6 @@ class RutasRepositorioSupabase implements RutasRepositorio {
     }
   }
   @override
-  @override
   Future<List<Ruta>> obtenerHistorial(String userId) async {
     try {
       print('📜 [HISTORIAL] 🚀 Iniciando carga optimizada para: $userId');
@@ -615,7 +616,23 @@ class RutasRepositorioSupabase implements RutasRepositorio {
 
     } catch (e) {
       print('❌ [HISTORIAL] Error: $e');
+      print('❌ [HISTORIAL] Error: $e');
       return [];
     }
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> obtenerCategorias() async {
+    try {
+      final response = await _supabase
+          .from('categorias')
+          .select('id, nombre, descripcion')
+          .order('nombre');
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error obteniendo categorías: $e');
+      return [];
+    }
+  }
+
 }

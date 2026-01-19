@@ -144,6 +144,8 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
       'precio': double.tryParse(_precioCtrl.text) ?? 0.0,
       'cupos': int.tryParse(cuposText) ?? 10,
       'categoria': _selectedDifficulty,
+      'categoriaId': context.read<RutasVM>().categoriasDisponibles
+          .firstWhereOrNull((c) => c['nombre'].toString().toLowerCase() == _selectedDifficulty.toLowerCase())?['id'], // Validacion Robustez
       'visible': _visibility == 'Publicada',
       'es_privada': _esPrivada,
       'codigo_acceso': codigoFinal,
@@ -303,9 +305,15 @@ class _CrearRutaPaginaState extends State<CrearRutaPagina> {
 
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final vmLugares = context.read<LugaresVM>();
+        final vmRutas = context.read<RutasVM>(); // <--- Reference
+        
+        // 1. Cargar Categorías
+        vmRutas.cargarCategorias();
+
+        // 2. Cargar Lugares
         if (vmLugares.lugaresTotales.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cargando datos de lugares...'), duration: Duration(seconds: 1)),
+            const SnackBar(content: Text('Cargando datos...'), duration: Duration(seconds: 1)),
           );
           await vmLugares.cargarTodosLosLugares();
         }

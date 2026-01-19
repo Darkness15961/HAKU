@@ -15,6 +15,10 @@ abstract class RutasRepositorio {
   // ORDEN 1: "Traer la lista de rutas" (Con Paginación)
   Future<List<Ruta>> obtenerRutas(String tipoFiltro, {int page = 0, int pageSize = 6});
 
+  // Categorías
+  Future<List<Map<String, dynamic>>> obtenerCategorias(); // <--- NUEVO
+
+
   // ORDEN 2: "Inscribirse a una ruta"
   Future<void> inscribirseEnRuta(String rutaId);
 

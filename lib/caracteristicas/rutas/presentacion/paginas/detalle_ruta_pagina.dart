@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter/services.dart'; // Para Clipboard
 import 'package:url_launcher/url_launcher.dart';
 
 import '../vista_modelos/rutas_vm.dart';
@@ -62,6 +63,7 @@ class _DetalleRutaPaginaState extends State<DetalleRutaPagina> {
 
   bool _isLoadingAttendance = false;
   String? _estadoOverride; // Para forzar actualización visual inmediata (Ej: Finalizar)
+  bool _mostrarCodigoAcceso = false; // Nuevo: Para ocultar/mostrar código
 
   // --- LÓGICA DE ASISTENCIA ---
   Future<void> _handleMarcarAsistencia(BuildContext context, String rutaId) async {
@@ -282,7 +284,22 @@ class _DetalleRutaPaginaState extends State<DetalleRutaPagina> {
               if (esPropietario && !esModoPreview)
                 IconButton(
                   onPressed: () {
-                    context.push('/rutas/crear-ruta', extra: rutaLive);
+                    // Lógica Forense de Navegación:
+                    // Si el usuario es 'guia_local' Y creó la ruta => Va a la vista de Guía
+                    // Si el usuario es 'turista' o 'admin' usó la vista simplificada => Va a Sin Guía
+                    
+                    // En este proyecto, asumimos que si usó "Crear Ruta Sin Guía",
+                    // la experiencia de edición debe mantenerse en esa vista.
+                    // La mejor forma de diferenciar es el rol del usuario actual.
+                    
+                    final rol = vmAuth.usuarioActual?.rol;
+                    if (rol == 'guia_local') {
+                       // Guía Profesional usa la herramienta completa
+                       context.push('/rutas/crear-ruta', extra: rutaLive);
+                    } else {
+                       // Turistas/Organizadores usan la herramienta simplificada
+                       context.push('/rutas/crear-sin-guia', extra: rutaLive);
+                    }
                   },
                   icon: Container(
                     padding: const EdgeInsets.all(8),
@@ -370,7 +387,7 @@ class _DetalleRutaPaginaState extends State<DetalleRutaPagina> {
                                       const Icon(Icons.group, color: Colors.blueAccent, size: 16),
                                       const SizedBox(width: 6),
                                       Text(
-                                        '${rutaLive.inscritosCount} Inscritos', 
+                                        '${rutaLive.inscritosCount} / ${rutaLive.cuposTotales} Inscritos', 
                                         style: const TextStyle(
                                           color: Colors.blueAccent, 
                                           fontSize: 12,
@@ -449,6 +466,61 @@ class _DetalleRutaPaginaState extends State<DetalleRutaPagina> {
                     ),
                     child: Column(
                       children: [
+                        // --- NUEVO: CÓDIGO DE ACCESO INTERACTIVO ---
+                        if (esPropietario && rutaLive.codigoAcceso != null && rutaLive.codigoAcceso!.isNotEmpty)
+                           Container(
+                            margin: const EdgeInsets.only(bottom: 16.0),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.amber.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(color: Colors.amber.shade50, shape: BoxShape.circle),
+                                  child: Icon(Icons.vpn_key, color: Colors.amber.shade800, size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text("Código de Acceso", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                      Text(
+                                        _mostrarCodigoAcceso ? rutaLive.codigoAcceso! : '••••••••',
+                                        style: TextStyle(
+                                          fontSize: 16, 
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: _mostrarCodigoAcceso ? 1.0 : 4.0,
+                                          color: Colors.black87
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(_mostrarCodigoAcceso ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                                  onPressed: () => setState(() => _mostrarCodigoAcceso = !_mostrarCodigoAcceso),
+                                  tooltip: _mostrarCodigoAcceso ? 'Ocultar' : 'Mostrar',
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy, color: Colors.blue),
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: rutaLive.codigoAcceso!));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Código copiado al portapapeles'), duration: Duration(seconds: 2)),
+                                    );
+                                  },
+                                  tooltip: 'Copiar',
+                                ),
+                              ],
+                            ),
+                          ),
+                        // -------------------------------------------------
+
                         if (rutaLive.fechaEvento != null)
                           _buildLogisticRow(Icons.calendar_month, "Fecha del Evento", _formatFechaCompleta(rutaLive.fechaEvento!)),
                         if (rutaLive.fechaCierre != null)
@@ -869,7 +941,14 @@ class _DetalleRutaPaginaState extends State<DetalleRutaPagina> {
     } else if (esPropietario && !esModoPreview) {
       buttonText = 'GESTIONAR MI RUTA';
       buttonColor = Colors.black87;
-      onPressed = () => context.push('/rutas/crear-ruta', extra: ruta);
+      onPressed = () {
+          final rol = vmAuth.usuarioActual?.rol;
+          if (rol == 'guia_local') {
+              context.push('/rutas/crear-ruta', extra: ruta);
+          } else {
+              context.push('/rutas/crear-sin-guia', extra: ruta);
+          }
+      };
     } else if (estaInscrito) {
       buttonText = 'CANCELAR RESERVA';
       buttonColor = Colors.white;

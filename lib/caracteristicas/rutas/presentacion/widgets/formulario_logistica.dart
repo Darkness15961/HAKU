@@ -69,7 +69,7 @@ class FormularioLogistica extends StatelessWidget {
           children: [
             Expanded(
               child: _FechaInput(
-                label: 'Fecha del Evento',
+                label: 'Fecha Evento', // Más corto
                 value: fechaEvento,
                 onTap: () => _seleccionarFechaHora(
                   context,
@@ -82,7 +82,7 @@ class FormularioLogistica extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _FechaInput(
-                label: 'Cierre Inscripciones',
+                label: 'Cierre Inscrip.', // Abreviado pero claro
                 value: fechaCierre,
                 onTap: () => _seleccionarFechaHora(
                   context,
@@ -94,6 +94,7 @@ class FormularioLogistica extends StatelessWidget {
             ),
           ],
         ),
+
         const SizedBox(height: 16),
 
         // 2. PUNTO DE ENCUENTRO

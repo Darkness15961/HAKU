@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../vista_modelos/rutas_vm.dart';
 
 class FormularioInfoBasica extends StatefulWidget {
   final TextEditingController nombreCtrl;
@@ -189,27 +191,42 @@ class _FormularioInfoBasicaState extends State<FormularioInfoBasica> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: widget.selectedDifficulty,
-                        isExpanded: true,
-                        items: [
-                          'Familiar',
-                          'Cultural',
-                          'Aventura',
-                          '+18',
-                          'Naturaleza',
-                          'Extrema'
-                        ].map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: (newValue) {
-                          if (newValue != null) {
-                            widget.onDifficultyChanged(newValue);
+                      child: Consumer<RutasVM>(
+                        builder: (context, vm, child) {
+                          // Si no hay categorías cargadas, mostramos 'Otro' o 'Cargando'
+                          // O usamos un set básico por defecto + las de la BD
+                          
+                          var items = <String>[];
+                          if (vm.categoriasDisponibles.isNotEmpty) {
+                            items = vm.categoriasDisponibles
+                                .map((c) => c['nombre'].toString())
+                                .toList();
+                          } else {
+                            // Fallback temporal mientras carga
+                             items = ['Familiar', 'Aventura', 'Cultural', 'Naturaleza'];
                           }
-                        },
+                          
+                          // Asegurar que el valor seleccionado exista en la lista
+                          if (!items.contains(widget.selectedDifficulty)) {
+                            items.add(widget.selectedDifficulty);
+                          }
+
+                          return DropdownButton<String>(
+                            value: widget.selectedDifficulty,
+                            isExpanded: true,
+                            items: items.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (newValue) {
+                              if (newValue != null) {
+                                widget.onDifficultyChanged(newValue);
+                              }
+                            },
+                          );
+                        }
                       ),
                     ),
                   ),
