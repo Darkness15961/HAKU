@@ -44,12 +44,18 @@ class _InicioPaginaState extends State<InicioPagina> {
   @override
   void initState() {
     super.initState();
+    print('=== [INICIO_PAGINA] initState ===');
     _pageController = PageController(viewportFraction: 0.84, initialPage: 0);
 
     Future.microtask(() {
-      if (!mounted) return;
+      print('=== [INICIO_PAGINA] Microtask executing... ===');
+      if (!mounted) {
+         print('=== [INICIO_PAGINA] Not mounted, aborting ===');
+         return;
+      }
       final vmAuth = context.read<AutenticacionVM>();
       final vmLugares = context.read<LugaresVM>();
+      print('=== [INICIO_PAGINA] Calling cargarDatosIniciales ===');
       vmLugares.cargarDatosIniciales(vmAuth);
     });
 

@@ -56,21 +56,36 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       
       print('📄 [RUTAS] Paginando de $from a $to');
 
-      final List<dynamic> data = await query
-          .order('created_at', ascending: false)
-          .range(from, to); // <--- ESTO DESCARGA SOLO EL TROZO
+      List<dynamic> data;
+      try {
+         data = await query
+            .order('created_at', ascending: false)
+            .range(from, to);
+      } catch (e) {
+         print('⚠️ [RUTAS] Falló sort por created_at ($e). Usando fallback ID.');
+         data = await query
+            .order('id', ascending: false)
+            .range(from, to);
+      }
 
       print('✅ [RUTAS] Datos recibidos: ${data.length} rutas');
 
       if (data.isEmpty) return [];
 
-      final rutas = await Future.wait(
-        data.map((json) => _mapJsonToRuta(json, userId)),
-      );
+      // Mapeo Resiliente: Si una falla, no matamos toda la lista
+      final List<Ruta> rutas = [];
+      for (var json in data) {
+        try {
+          final r = await _mapJsonToRuta(json, userId);
+          rutas.add(r);
+        } catch (e) {
+          print('⚠️ [RUTAS] Omitiendo ruta corrupta (ID: ${json['id']}): $e');
+        }
+      }
+      
       return rutas;
     } catch (e, stackTrace) {
-      print('❌ [RUTAS] Error obtenerRutas: $e');
-      print('❌ [RUTAS] Stack trace: $stackTrace');
+      print('❌ [RUTAS] Error Fatal obtenerRutas: $e');
       return [];
     }
   }
@@ -560,13 +575,26 @@ class RutasRepositorioSupabase implements RutasRepositorio {
             )
           ''';
 
-      // 1. LANZAR CONSULTAS BASES EN PARALELO
-      final guiadasFuture = _supabase
-          .from('rutas')
-          .select(selectQuery)
-          .eq('guia_id', userId)
-          .eq('estado', 'finalizada')
-          .order('created_at', ascending: false);
+      // 1. LANZAR CONSULTAS BASES (Con Fallback de Sort)
+      Future<List<dynamic>> fetchGuiadas() async {
+        try {
+          return await _supabase
+              .from('rutas')
+              .select(selectQuery)
+              .eq('guia_id', userId)
+              .eq('estado', 'finalizada')
+              .order('created_at', ascending: false);
+        } catch (e) {
+           return await _supabase
+              .from('rutas')
+              .select(selectQuery)
+              .eq('guia_id', userId)
+              .eq('estado', 'finalizada')
+              .order('id', ascending: false);
+        }
+      }
+
+      final guiadasFuture = fetchGuiadas();
 
       final inscripcionesFuture = _supabase
           .from('inscripciones')
@@ -586,15 +614,24 @@ class RutasRepositorioSupabase implements RutasRepositorio {
       final idsInscritas = inscripciones.map((e) => e['ruta_id']).toList();
       
       if (idsInscritas.isNotEmpty) {
-         asistidasResponse = await _supabase
-            .from('rutas')
-            .select(selectQuery)
-            .inFilter('id', idsInscritas)
-            .eq('estado', 'finalizada')
-            .order('created_at', ascending: false);
+         try {
+           asistidasResponse = await _supabase
+              .from('rutas')
+              .select(selectQuery)
+              .inFilter('id', idsInscritas)
+              .eq('estado', 'finalizada')
+              .order('created_at', ascending: false);
+         } catch (e) {
+           asistidasResponse = await _supabase
+              .from('rutas')
+              .select(selectQuery)
+              .inFilter('id', idsInscritas)
+              .eq('estado', 'finalizada')
+              .order('id', ascending: false);
+         }
       }
 
-      // 3. MAPEO PARALELO (Aceleración masiva)
+      // 3. MAPEO SEGURO (Aceleración masiva pero tolerante a fallos)
       // Unificamos JSONs para evitar mapear dos veces si hay duplicados
       final Map<String, dynamic> jsonUnicos = {};
       
@@ -608,15 +645,20 @@ class RutasRepositorioSupabase implements RutasRepositorio {
         }
       }
 
-      final listaRutas = await Future.wait(
-        jsonUnicos.values.map((json) => _mapJsonToRuta(json, userId))
-      );
+      final List<Ruta> listaRutas = [];
+      for (var json in jsonUnicos.values) {
+        try {
+           final r = await _mapJsonToRuta(json, userId);
+           listaRutas.add(r);
+        } catch (e) {
+           print('⚠️ [HISTORIAL] Omitiendo ruta corrupta: $e');
+        }
+      }
 
       return listaRutas;
 
     } catch (e) {
-      print('❌ [HISTORIAL] Error: $e');
-      print('❌ [HISTORIAL] Error: $e');
+      print('❌ [HISTORIAL] Error Fatal: $e');
       return [];
     }
   }

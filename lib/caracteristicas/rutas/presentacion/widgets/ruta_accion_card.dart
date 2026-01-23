@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui'; // For ImageFilter
 import 'package:flutter/material.dart';
 import '../../dominio/entidades/ruta.dart';
 
@@ -225,75 +226,113 @@ class _RutaAccionCardState extends State<RutaAccionCard> with SingleTickerProvid
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      padding: const EdgeInsets.all(20),
+      // Remove excess padding to reduce height
       decoration: BoxDecoration(
+        // "Midnight Ocean" Gradient - Sophisticated, adventurous, premium.
         gradient: LinearGradient(
-          colors: [Colors.orange.shade800, Colors.deepOrange.shade900],
+          colors: [
+            const Color(0xFF141E30), // Deep Midnight Blue
+            const Color(0xFF243B55), // Dark Slate
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Colors.orange.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 5))
+          BoxShadow(
+            color: const Color(0xFF141E30).withValues(alpha: 0.4),
+            blurRadius: 20, 
+            offset: const Offset(0, 10)
+          )
         ],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  _buildPulsingDot(),
-                  const SizedBox(width: 10),
-                  const Text(
-                    "EN CURSO",
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
-                onPressed: () => setState(() => _isMinimized = true),
-                visualDensity: VisualDensity.compact,
-              ),
-            ],
-          ),
-          
-          // Timer Widget
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(10)),
-            child: Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5), // Sutil blur
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.timer, color: Colors.white70, size: 14),
-                const SizedBox(width: 6),
-                Text(tiempoTranscurrido, style: const TextStyle(color: Colors.white, fontSize: 14, fontFeatures: [FontFeature.tabularFigures()])),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        _buildPulsingDot(),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "RUTA EN CURSO",
+                              style: TextStyle(
+                                color: Colors.white, 
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 15, // Slightly refined
+                                letterSpacing: 0.8
+                              ),
+                            ),
+                            Text(
+                              "Cronómetro Activo", // Honest feedback
+                              style: TextStyle(color: Colors.blueGrey.shade100, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    
+                    // Compact Timer Pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.timer_outlined, color: Colors.greenAccent, size: 14),
+                          const SizedBox(width: 6),
+                          Text(
+                            tiempoTranscurrido, 
+                            style: const TextStyle(
+                              color: Colors.greenAccent, 
+                              fontSize: 14, 
+                              fontWeight: FontWeight.w600,
+                              fontFeatures: [FontFeature.tabularFigures()]
+                            )
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Action Button - Less aggressive red
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: widget.onFinalizar,
+                    icon: const Icon(Icons.flag_rounded, color: Colors.white),
+                    label: const Text("Finalizar Recorrido", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent.shade700,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-
-          const SizedBox(height: 20),
-          const Text(
-            "Tu ubicación es visible para los participantes rezagados.",
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: widget.onFinalizar,
-              icon: const Icon(Icons.stop_circle_outlined, color: Colors.red),
-              label: const Text("FINALIZAR RECORRIDO", style: TextStyle(color: Colors.red)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

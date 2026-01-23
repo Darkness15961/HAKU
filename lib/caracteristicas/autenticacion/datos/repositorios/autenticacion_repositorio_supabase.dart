@@ -29,7 +29,7 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
       final AuthResponse res = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
-      );
+      ).timeout(const Duration(seconds: 15)); // Timeout added
 
       if (res.user == null) throw Exception('Error al iniciar sesión');
 
@@ -38,7 +38,8 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
           .from('perfiles')
           .select()
           .eq('id', res.user!.id)
-          .single();
+          .single()
+          .timeout(const Duration(seconds: 15)); // Timeout added
 
       // 3. NUEVO: Obtener las rutas inscritas
       final rutasInscritas = await _obtenerRutasInscritas(res.user!.id);
@@ -69,7 +70,7 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
         'seudonimo': seudonimo,
         'full_name': seudonimo,
       },
-    );
+    ).timeout(const Duration(seconds: 15)); // Timeout added
 
     if (res.user == null) throw Exception('Error al registrarse');
 
@@ -87,7 +88,7 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
       'solicitud_estado': 'no_iniciado',
     };
 
-    await _supabase.from('perfiles').upsert(nuevoPerfil);
+    await _supabase.from('perfiles').upsert(nuevoPerfil).timeout(const Duration(seconds: 15)); // Timeout added
 
     // Al registrarse, la lista de inscripciones está vacía por defecto
     return _mapPerfilToUsuario(nuevoPerfil, res.session?.accessToken ?? '', []);
@@ -104,7 +105,8 @@ class AutenticacionRepositorioSupabase implements AutenticacionRepositorio {
           .from('perfiles')
           .select()
           .eq('id', user.id)
-          .single();
+          .single()
+          .timeout(const Duration(seconds: 15)); // Timeout added
 
       // 2. NUEVO: Traer inscripciones (Importante para cuando abres la app ya logueado)
       final rutasInscritas = await _obtenerRutasInscritas(user.id);

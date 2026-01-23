@@ -642,99 +642,100 @@ class _DetalleRutaPaginaState extends State<DetalleRutaPagina> {
   }
 
   Widget _buildSmartBottomBar(BuildContext context, Ruta ruta, bool esGuia, bool estaInscrito) {
-    final vmRutas = context.read<RutasVM>();
-    
-    // Validamos el estado actual (priorizando override local si acabamos de finalizar)
-    final estadoActual = _estadoOverride ?? ruta.estado;
-
-    // 🚀 NUEVO DISEÑO: Tarjeta de Acción Inteligente para el Guía
-    // MOSTRAR SOLO SI ESTÁ ACTIVA (Convocatoria o En Curso)
-    if (esGuia) {
-       if (estadoActual != 'finalizada') {
-         return Container(
-           color: Colors.white,
-           padding: const EdgeInsets.only(bottom: 20, top: 10),
-           child: RutaAccionCard(
-            ruta: ruta,
-            esGuia: true,
-            onIniciar: () {
-              vmRutas.cambiarEstadoRuta(ruta.id, 'en_curso');
-            },
-            onFinalizar: () async {
-              await vmRutas.cambiarEstadoRuta(ruta.id, 'finalizada');
-              if (context.mounted) {
-                 setState(() {
-                   _estadoOverride = 'finalizada'; // 🏆 Victoria inmediata
-                 });
+    // WRAPPER DE SEGURIDAD VISUAL (SafeArea para evitar toques fantasmas en iOS/Android gestures)
+    return SafeArea(
+      child: Builder(builder: (context) {
+          final vmRutas = context.read<RutasVM>();
+          
+          // Validamos el estado actual
+          final estadoActual = _estadoOverride ?? ruta.estado;
+          
+          if (esGuia) {
+             if (estadoActual != 'finalizada') {
+               return Container(
+                 color: Colors.white,
+                 padding: const EdgeInsets.only(bottom: 10, top: 10), // Padding ajustado
+                 child: RutaAccionCard(
+                  ruta: ruta,
+                  esGuia: true,
+                  onIniciar: () {
+                    vmRutas.cambiarEstadoRuta(ruta.id, 'en_curso');
+                  },
+                  onFinalizar: () async {
+                    await vmRutas.cambiarEstadoRuta(ruta.id, 'finalizada');
+                    if (context.mounted) {
+                       setState(() {
+                         _estadoOverride = 'finalizada'; 
+                       });
+                    }
+                  },
+                  onMarcarAsistencia: () {},
+                 ),
+               );
+             } else {
+               return const SizedBox.shrink();
+             }
+          }
+      
+          // Lógica para Turistas
+          if (estaInscrito) {
+            if (ruta.estado == 'finalizada') {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                color: Colors.white,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.flag, color: Colors.grey.shade600),
+                      const SizedBox(width: 8),
+                      Text("Esta ruta ha finalizado", style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              );
+            } else if (ruta.asistio) {
+               return _buildBottomBtn("✅ ASISTENCIA REGISTRADA", Colors.green, Icons.check_circle, null);
+            } else if (ruta.estado == 'en_curso') {
+              if (_isLoadingAttendance) {
+                   return _buildBottomBtn("MARCANDO...", Colors.grey, Icons.hourglass_top, null);
               }
-            },
-            onMarcarAsistencia: () {},
-           ),
-         );
-       } else {
-         // Si es guía y ya finalizó, mostramos vista limpia (sin botones)
-         return const SizedBox.shrink();
-       }
-    }
-
-    // Lógica para Turistas (Mantenemos botones, se actualizarán con GPS luego)
-    if (estaInscrito) {
-      if (ruta.estado == 'finalizada') {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          color: Colors.white,
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.flag, color: Colors.grey.shade600),
-                const SizedBox(width: 8),
-                Text("Esta ruta ha finalizado", style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-        );
-      } else if (ruta.asistio) {
-         // --- NUEVO: ESTADO ASISTENCIA CONFIRMADA ---
-         return _buildBottomBtn("✅ ASISTENCIA REGISTRADA", Colors.green, Icons.check_circle, null);
-      } else if (ruta.estado == 'en_curso') {
-        if (_isLoadingAttendance) {
-             return _buildBottomBtn("MARCANDO...", Colors.grey, Icons.hourglass_top, null);
-        }
-        return _buildBottomBtn("📍 GPS: MARCAR MI ASISTENCIA", Colors.orange, Icons.location_on, () async { 
-           await _handleMarcarAsistencia(context, ruta.id);
-        });
-      } else {
-        return _buildRegisterButton(
+              return _buildBottomBtn("📍 GPS: MARCAR MI ASISTENCIA", Colors.orange, Icons.location_on, () async { 
+                 await _handleMarcarAsistencia(context, ruta.id);
+              });
+            } else {
+              return _buildRegisterButton(
+                  context,
+                  context.read<AutenticacionVM>(),
+                  ruta,
+                  estaInscrito: true,
+                  cuposDisponibles: 10,
+                  esPropietario: false,
+                  esModoPreview: false
+              );
+            }
+          }
+      
+          if (ruta.estado != 'convocatoria') {
+            return _buildBottomBtn("INSCRIPCIONES CERRADAS", Colors.grey, Icons.block, null);
+          }
+      
+          return _buildRegisterButton(
             context,
             context.read<AutenticacionVM>(),
             ruta,
-            estaInscrito: true,
-            cuposDisponibles: 10, // Dato aproximado
+            estaInscrito: false,
+            cuposDisponibles: 10,
             esPropietario: false,
-            esModoPreview: false
-        );
-      }
-    }
-
-    if (ruta.estado != 'convocatoria') {
-      return _buildBottomBtn("INSCRIPCIONES CERRADAS", Colors.grey, Icons.block, null);
-    }
-
-    return _buildRegisterButton(
-      context,
-      context.read<AutenticacionVM>(),
-      ruta,
-      estaInscrito: false,
-      cuposDisponibles: 10,
-      esPropietario: false,
-      esModoPreview: false,
+            esModoPreview: false,
+          );
+      }),
     );
   }
 

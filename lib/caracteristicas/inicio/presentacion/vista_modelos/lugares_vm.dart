@@ -209,30 +209,76 @@ class LugaresVM extends ChangeNotifier {
 
   // --- CARGA DE DATOS ---
   Future<void> _cargarCatalogos() async {
+    print('=== [LugaresVM] _cargarCatalogos START ===');
     _estaCargandoInicio = true;
     if (_cargaInicialRealizada) Future.microtask(() => notifyListeners());
 
-    // 1. Cargar Favoritos desde DB si está logueado
-    if (_authVM?.estaLogueado ?? false) {
-      await cargarFavoritos();
-    }
-
     try {
-      final resultados = await Future.wait([
-        _repositorio.obtenerLugaresPopulares(),
-        _repositorio.obtenerProvincias(),
-        _repositorio.obtenerCategorias(),
-        _repositorio.obtenerTodosLosLugares(),
-        cargarLugaresRecientes(), // <--- Init Recientes
-      ]);
+      // 1. Cargar Favoritos (Si Auth) - Protegido
+      if (_authVM?.estaLogueado ?? false) {
+        try {
+           print('=== [LugaresVM] Cargando Favoritos... ===');
+           await cargarFavoritos();
+           print('=== [LugaresVM] Favoritos OK ===');
+        } catch (e) {
+           print("Error cargando favoritos: $e");
+        }
+      }
 
-      _lugaresPopulares = resultados[0] as List<Lugar>;
-      _provincias = resultados[1] as List<Provincia>;
-      _categorias = resultados[2] as List<Categoria>;
-      _lugaresTotales = resultados[3] as List<Lugar>;
+      // 2. Cargar Catálogos Independientes (Para que si falla uno, no fallen todos)
+      
+      // A. Populares
+      try {
+        print('=== [LugaresVM] Cargando Populares... ===');
+        _lugaresPopulares = await _repositorio.obtenerLugaresPopulares();
+        print('=== [LugaresVM] Populares OK (${_lugaresPopulares.length}) ===');
+        notifyListeners(); // Actualización progresiva
+      } catch (e) {
+        print("Error cargando populares: $e");
+      }
+
+      // B. Provincias
+      try {
+        print('=== [LugaresVM] Cargando Provincias... ===');
+        _provincias = await _repositorio.obtenerProvincias();
+        print('=== [LugaresVM] Provincias OK (${_provincias.length}) ===');
+        notifyListeners();
+      } catch (e) {
+        print("Error cargando provincias: $e");
+      }
+
+      // C. Categorías
+      try {
+        print('=== [LugaresVM] Cargando Categorías... ===');
+        _categorias = await _repositorio.obtenerCategorias();
+        print('=== [LugaresVM] Categorías OK (${_categorias.length}) ===');
+      } catch (e) {
+        print("Error cargando categorías: $e");
+      }
+
+      // D. Recientes (Inicia paginación, no espera resultado lista)
+      try {
+        print('=== [LugaresVM] Cargando Recientes... ===');
+        await cargarLugaresRecientes(refresh: true);
+        print('=== [LugaresVM] Recientes OK ===');
+      } catch (e) {
+         print("Error init recientes: $e");
+      }
+
+      // E. Todos (Maestra)
+      try {
+        print('=== [LugaresVM] Cargando Todos... ===');
+        _lugaresTotales = await _repositorio.obtenerTodosLosLugares();
+        print('=== [LugaresVM] Todos OK (${_lugaresTotales.length}) ===');
+      } catch (e) {
+        print("Error cargando todos: $e");
+      }
+
     } catch (e) {
-      debugPrint("Error cargando catálogos: $e");
+       print("ERROR CRÍTICO EN CARGA INICIAL: $e");
     } finally {
+      print('=== [LugaresVM] _cargarCatalogos FINALLY. Setting loading=false ===');
+      // SIEMPRE liberamos el estado de carga
       _estaCargandoInicio = false;
       _cargaInicialRealizada = true;
       notifyListeners();

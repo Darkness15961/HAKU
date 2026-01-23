@@ -16,6 +16,10 @@ import '../widgets/formulario_logistica.dart'; // Importar widget logístico
 
 import '../../dominio/entidades/ruta.dart'; // Import para usar la entidad
 
+import '../../../notificaciones/dominio/repositorios/notificacion_repositorio.dart';
+import '../../../notificaciones/datos/repositorios/notificacion_repositorio_mock.dart';
+import '../../../notificaciones/presentacion/vista_modelos/notificaciones_vm.dart';
+
 class CrearRutaSinGuiaPagina extends StatefulWidget {
   final Ruta? ruta; // Para editar
 
@@ -706,6 +710,10 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
                       ],
                     ),
                   ),
+
+                  // 6. ZONA DE PELIGRO (Restaurada)
+                  if (widget.ruta != null)
+                     _buildDangerZone(context, widget.ruta!, (widget.ruta?.inscritosCount ?? 0) > 0),
                 ],
               ),
             ),
@@ -785,6 +793,182 @@ class _CrearRutaSinGuiaPaginaState extends State<CrearRutaSinGuiaPagina> {
       ),
     );
   }
+
+
+  // --- DANGER ZONE & HELPERS ---
+  
+  Widget _buildDangerZone(BuildContext context, Ruta ruta, bool hayInscritos) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 32),
+        const Text('Zona de Peligro', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red)),
+        const SizedBox(height: 16),
+        if (hayInscritos)
+          _buildDangerButton(
+            context: context,
+            icon: Icons.warning_amber_rounded,
+            label: 'Cancelar esta Ruta',
+            details: 'Esto notificará y expulsará a ${ruta.inscritosCount} turista(s) inscrito(s).',
+            onPressed: () => _mostrarDialogoCancelarRuta(context, ruta),
+          )
+        else
+          _buildDangerButton(
+            context: context,
+            icon: Icons.delete_forever,
+            label: 'Eliminar Ruta Permanentemente',
+            details: 'Esta acción no se puede deshacer.',
+            onPressed: () => _mostrarDialogoEliminarRuta(context),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDangerButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required String details,
+    required VoidCallback? onPressed,
+  }) {
+    final Color buttonColor = (onPressed != null) ? Colors.red.shade700 : Colors.grey;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+         color: Colors.white,
+         borderRadius: BorderRadius.circular(16),
+         border: Border.all(color: buttonColor.withValues(alpha: 0.3)),
+         boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.05), blurRadius: 10)],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: buttonColor.withValues(alpha: 0.1), shape: BoxShape.circle),
+                  child: Icon(icon, color: buttonColor, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: buttonColor, fontSize: 16)),
+                      const SizedBox(height: 4),
+                      Text(details, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDialogoCancelarRuta(BuildContext context, Ruta ruta) {
+    final vmRutas = context.read<RutasVM>();
+    final navigator = GoRouter.of(context);
+    // Usamos el Mock o la implementación real según lo configure el locator/provider
+    // Aquí asumimos Mock por simplicidad como en el original
+    final repoNotificaciones = context.read<NotificacionRepositorio>() as NotificacionRepositorioMock;
+    final vmNotificaciones = context.read<NotificacionesVM>();
+
+    final TextEditingController mensajeCtrl = TextEditingController();
+    final GlobalKey<FormState> dialogFormKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('¿Cancelar esta Ruta?'),
+              content: Form(
+                key: dialogFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Estás a punto de cancelar esta ruta y expulsar a ${ruta.inscritosCount} turista(s).'),
+                    const SizedBox(height: 16),
+                    Text('Por favor, escribe un motivo. Se enviará a todos los inscritos.', style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: mensajeCtrl,
+                      autofocus: true, maxLines: 3,
+                      decoration: const InputDecoration(hintText: 'Ej. "Cancelamos por lluvia..."', border: OutlineInputBorder()),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido.' : null,
+                      onChanged: (_) => setDialogState((){}),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(child: const Text('Volver'), onPressed: () => Navigator.of(dialogContext).pop()),
+                FilledButton.icon(
+                  icon: const Icon(Icons.warning_amber_rounded),
+                  label: const Text('Sí, Cancelar'),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: (mensajeCtrl.text.trim().isEmpty) ? null : () async {
+                    if (dialogFormKey.currentState!.validate()) {
+                      await vmRutas.cambiarEstadoRuta(widget.ruta!.id, 'cancelada');
+                      await repoNotificaciones.simularEnvioDeNotificacion(titulo: 'Ruta Cancelada: ${widget.ruta!.nombre}', cuerpo: mensajeCtrl.text);
+                      
+                      if (!context.mounted) return;
+                      vmNotificaciones.cargarNotificaciones();
+                      Navigator.of(dialogContext).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ruta cancelada y notificada.'), backgroundColor: Colors.green));
+                      navigator.pop(); // Close dialog
+                      navigator.pop(); // Exit screen
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _mostrarDialogoEliminarRuta(BuildContext context) {
+    final vmRutas = context.read<RutasVM>();
+    final navigator = GoRouter.of(context);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Eliminar Permanentemente?'),
+        content: const Text('Esta acción no se puede deshacer.\n\n¿Estás seguro?'),
+        actions: [
+          TextButton(child: const Text('Volver'), onPressed: () => Navigator.of(dialogContext).pop()),
+          FilledButton.icon(
+            icon: const Icon(Icons.delete_forever),
+            label: const Text('Sí, Eliminar'),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              await vmRutas.eliminarRuta(widget.ruta!.id);
+              if (!context.mounted) return;
+              Navigator.of(dialogContext).pop();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ruta eliminada.'), backgroundColor: Colors.green));
+              navigator.pop(); // Close dialog
+              navigator.pop(); // Exit screen
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
 }
 
 extension _ListExtension<T> on List<T> {

@@ -164,43 +164,73 @@ class LugaresRepositorioSupabase implements LugaresRepositorio {
   @override
   Future<List<Lugar>> obtenerLugaresPopulares() async {
     try {
+      // INTENTO 1: Rating + Popularidad
       final data = await _supabase
           .from('lugares')
           .select()
-          // 1. Ordenar por Rating (Mejor puntuados arriba)
           .order('rating', ascending: false)
-          // 2. Ordenar por Popularidad (Más reseñados arriba)
           .order('reviews_count', ascending: false)
-          .limit(5); // Top 5
+          .limit(5)
+          .timeout(const Duration(seconds: 10));
 
       return (data as List)
           .map((e) => LugarModelo.fromJson(e).toEntity())
           .toList();
     } catch (e) {
-      print('Error populares: $e');
-      return [];
+      print('Warning: Error cargando populares complejos ($e). Usando fallback simple.');
+      // INTENTO 2: Solo Rating
+      try {
+        final data = await _supabase
+            .from('lugares')
+            .select()
+            .order('rating', ascending: false)
+            .limit(5)
+            .timeout(const Duration(seconds: 10));
+
+        return (data as List)
+            .map((e) => LugarModelo.fromJson(e).toEntity())
+            .toList();
+      } catch (e2) {
+         print('Error fatal populares: $e2');
+         return [];
+      }
     }
   }
 
   @override
   Future<List<Lugar>> obtenerLugaresRecientes({int page = 0, int pageSize = 10}) async {
-    try {
-      final from = page * pageSize;
-      final to = from + pageSize - 1;
+    final from = page * pageSize;
+    final to = from + pageSize - 1;
 
+    try {
+      // INTENTO 1: Usando created_at
       final data = await _supabase
           .from('lugares')
           .select()
-          .order('created_at', ascending: false) // Lo más nuevo primero (si tienes created_at)
-          // Si no tienes created_at, usa 'id' desc como fallback: .order('id', ascending: false)
-          .range(from, to);
+          .order('created_at', ascending: false)
+          .range(from, to)
+          .timeout(const Duration(seconds: 10));
 
       return (data as List)
           .map((e) => LugarModelo.fromJson(e).toEntity())
           .toList();
     } catch (e) {
-      print('Error recientes: $e');
-      return [];
+      // INTENTO 2: Fallback por ID (si created_at no existe)
+      try {
+        final data = await _supabase
+            .from('lugares')
+            .select()
+            .order('id', ascending: false)
+            .range(from, to)
+            .timeout(const Duration(seconds: 10));
+            
+        return (data as List)
+            .map((e) => LugarModelo.fromJson(e).toEntity())
+            .toList();
+      } catch (e2) {
+         print('Error fatal en recientes: $e2');
+         return [];
+      }
     }
   }
 
@@ -214,7 +244,8 @@ class LugaresRepositorioSupabase implements LugaresRepositorio {
           .from('lugares')
           .select()
           .eq('provincia_id', provinciaId)
-          .range(from, to); // Paginación real
+          .range(from, to)
+          .timeout(const Duration(seconds: 10));
           
       return (data as List)
           .map((e) => LugarModelo.fromJson(e).toEntity())
@@ -229,34 +260,44 @@ class LugaresRepositorioSupabase implements LugaresRepositorio {
   @override
   Future<List<Provincia>> obtenerProvincias() async {
     try {
-      // 1. CONSULTA INTELIGENTE:
-      // '*, lugares(count)' le dice a Supabase: "Dame todas las columnas de provincias
-      // Y ADEMÁS cuenta cuántas filas en la tabla 'lugares' coinciden con esta provincia".
+      // 1. INTENTO PRINCIPAL: Con conteo de lugares
       final data = await _supabase
           .from('provincias')
-          .select('*, lugares(count)');
+          .select('*, lugares(count)')
+          .timeout(const Duration(seconds: 10));
 
-      // 2. MAPEO DEL CONTEO:
       return (data as List).map((json) {
-        // Supabase devuelve el conteo en una estructura así: "lugares": [{"count": 3}]
         int conteoReal = 0;
         if (json['lugares'] != null && (json['lugares'] as List).isNotEmpty) {
           conteoReal = json['lugares'][0]['count'] as int;
         }
-
         return Provincia(
           id: json['id'].toString(),
           nombre: json['nombre'] ?? 'Sin nombre',
           urlImagen: json['url_imagen'] ?? '',
-          // Si quieres categorías dinámicas, necesitarías otra consulta o lógica,
-          // por ahora lo dejamos vacío o estático para no complicar.
           categories: [],
-          placesCount: conteoReal, // <--- ¡AQUÍ SE ASIGNA EL VALOR REAL!
+          placesCount: conteoReal,
         );
       }).toList();
+      
     } catch (e) {
-      print('Error al obtener provincias: $e');
-      return [];
+      print('Warning: Falló carga avanzada de provincias ($e). Usando fallback simple.');
+      // 2. FALLBACK: Consulta simple sin conteo
+      try {
+        final data = await _supabase.from('provincias').select();
+        return (data as List).map((json) {
+          return Provincia(
+            id: json['id'].toString(),
+            nombre: json['nombre'] ?? 'Sin nombre',
+            urlImagen: json['url_imagen'] ?? '',
+            categories: [],
+            placesCount: 0, // Fallback en 0
+          );
+        }).toList();
+      } catch (e2) {
+         print('Error fatal obteniendo provincias: $e2');
+         return [];
+      }
     }
   }
 

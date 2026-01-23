@@ -208,14 +208,18 @@ class _DetalleLugarPaginaState extends State<DetalleLugarPagina> {
           // 2. CONTENIDO SCROLLABLE (Overlapping)
           SliverToBoxAdapter(
             child: Transform.translate(
-              offset: const Offset(0, -20), // Efecto de solapamiento
+              // Mayor solapamiento para un look más integrado (-20 -> -30)
+              offset: const Offset(0, -30), 
               child: Container(
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))],
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)), // Radio sutilmente mayor
+                  boxShadow: [
+                    BoxShadow(color: Colors.black26, blurRadius: 25, offset: Offset(0, -5)) // Sombra más marcada para separar planos
+                  ],
                 ),
-                padding: const EdgeInsets.all(24.0),
+                // "Aire" (Padding) superior aumentado drásticamente (24 -> 45) para evitar que el contenido "roce" la curva
+                padding: const EdgeInsets.only(top: 45.0, left: 24.0, right: 24.0, bottom: 24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
