@@ -45,6 +45,7 @@ dependencies:
   # Mapas y Geolocalización (OSM)
   geolocator: ^11.0.0
   flutter_map: ^8.2.2
+  flutter_map_marker_cluster: ^8.0.0
   latlong2: ^0.9.1
   geocoding: ^4.0.0
 

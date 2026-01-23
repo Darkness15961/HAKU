@@ -49,8 +49,9 @@ class MapaVM extends ChangeNotifier {
 
   // --- B. ESTADO ---
   bool _estaCargando = false;
-  final List<Marker> _markers = [];
-  final List<Polyline> _polylines = [];
+
+  List<Marker> _markers = [];
+  List<Polyline> _polylines = [];
 
   String? _error;
   bool _cargaInicialRealizada = false;
@@ -175,14 +176,19 @@ class MapaVM extends ChangeNotifier {
         _lugaresFiltrados = [];
       }
 
-      _markers.clear();
-      _polylines.clear();
+      // Usamos listas temporales para luego asignar una NUEVA instancia
+      // Esto fuerza a Flutter/Cluster a detectar el cambio de referencia.
+      final newMarkers = <Marker>[];
+      final newPolylines = <Polyline>[];
 
       for (var lugar in _lugaresFiltrados) {
         if (lugar.latitud != 0 && lugar.longitud != 0) {
-          _markers.add(_crearWidgetMarcador(lugar));
+          newMarkers.add(_crearWidgetMarcador(lugar));
         }
       }
+      
+      _markers = newMarkers;
+      _polylines = newPolylines;
 
       // 👇 TAMBIÉN ACTUALIZAMOS HAKUPARADAS
       _actualizarMarcadoresHakuparadas();
@@ -368,12 +374,14 @@ class MapaVM extends ChangeNotifier {
     _filtroActual = nuevoFiltro;
     _carruselActual = TipoCarrusel.ninguno;
     _actualizarListasYMarcadores();
+    // Forzamos un segundo notify por si acaso la UI de clustering necesita un ciclo limpio
+    Future.microtask(() => notifyListeners());
     notifyListeners();
   }
 
   void limpiarRutaPintada() {
-    _polylines.clear();
-    _markers.clear();
+    _polylines = [];
+    _markers = [];
     _lugarSeleccionado = null;
     _carruselActual = TipoCarrusel.ninguno;
     if (_filtroActual != 3) {
@@ -387,8 +395,8 @@ class MapaVM extends ChangeNotifier {
     _estaCargando = true;
     notifyListeners();
 
-    _markers.clear();
-    _polylines.clear();
+    final newMarkers = <Marker>[];
+    final newPolylines = <Polyline>[];
 
     final lugaresRuta = todosLosLugares.where((l) => ruta.lugaresIncluidosIds.contains(l.id)).toList();
     lugaresRuta.sort((a, b) {
@@ -403,13 +411,15 @@ class MapaVM extends ChangeNotifier {
       return;
     }
 
+    // 1. Crear marcadores
     for (var lugar in lugaresRuta) {
-      _markers.add(_crearWidgetMarcador(lugar));
+      newMarkers.add(_crearWidgetMarcador(lugar));
     }
 
+    // 2. Crear polilínea
     List<LatLng> puntosParaZoom = [];
     if (ruta.polilinea.isNotEmpty) {
-      _polylines.add(
+      newPolylines.add(
         Polyline(
           points: ruta.polilinea,
           strokeWidth: 5.0,
@@ -421,17 +431,19 @@ class MapaVM extends ChangeNotifier {
       puntosParaZoom = ruta.polilinea;
     } else {
       final points = lugaresRuta.map((l) => LatLng(l.latitud, l.longitud)).toList();
-      _polylines.add(Polyline(points: points, strokeWidth: 4.0, color: Colors.grey));
+      newPolylines.add(Polyline(points: points, strokeWidth: 4.0, color: Colors.grey));
       puntosParaZoom = points;
     }
 
+    // 3. Asignar nuevas listas (Inmutabilidad)
+    _markers = newMarkers;
+    _polylines = newPolylines;
 
     if (puntosParaZoom.isNotEmpty) {
       final bounds = LatLngBounds.fromPoints(puntosParaZoom);
       mapController.fitCamera(
         CameraFit.bounds(
           bounds: bounds,
-          // Aumentamos padding para "alejar" la vista (Zoom Out)
           padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 140),
         ),
       );

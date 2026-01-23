@@ -530,6 +530,8 @@ class LugaresVM extends ChangeNotifier {
     try {
       final nuevoLugar = await _repositorio.crearLugar(datosLugar);
       _lugaresTotales.add(nuevoLugar);
+      // Recargamos provincias para actualizar contadores
+      await cargarTodasLasProvincias();
     } catch (e) {
       _errorGestion = e.toString();
       rethrow;
@@ -555,6 +557,8 @@ class LugaresVM extends ChangeNotifier {
       if (index != -1) {
         _lugaresTotales[index] = lugarActualizado;
       }
+      // Recargamos provincias para actualizar contadores
+      await cargarTodasLasProvincias();
     } catch (e) {
       _errorGestion = e.toString();
       rethrow;
@@ -571,6 +575,8 @@ class LugaresVM extends ChangeNotifier {
     try {
       await _repositorio.eliminarLugar(lugarId);
       _lugaresTotales.removeWhere((l) => l.id == lugarId);
+      // Recargamos provincias para actualizar contadores
+      await cargarTodasLasProvincias();
     } catch (e) {
       _errorGestion = e.toString();
       rethrow;

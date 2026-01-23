@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui'; // Necesario para ImageFilter
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -215,8 +216,8 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
 
                   // 1.5 CAPA DE HAKUPARADAS (Debajo de los principales)
                   MarkerLayer(markers: mapaVM.hakuparadaMarkers), // ✅ NUEVA CAPA
-                    
-                  // CAPA DE MARCADORES PRINCIPALES
+                  
+                  // 1.6 CAPA DE UBICACIÓN ACTUAL (No se agrupa)
                   MarkerLayer(
                     markers: [
                       if (mapaVM.currentLocation != null)
@@ -239,9 +240,55 @@ class _MapaPaginaState extends State<MapaPagina> with TickerProviderStateMixin {
                             ),
                           ),
                         ),
-                      ...mapaVM.markers,
                     ],
                   ),
+                    
+                  // 1.7 CAPA DE MARCADORES (CLUSTERING O NORMAL SEGÚN FILTRO)
+                  if (mapaVM.filtroActual == 3)
+                    // Para "Mis Rutas" (Filtro 3): NO agrupamos (mostramos marcadores sueltos o nada si está vacío)
+                    MarkerLayer(markers: mapaVM.markers)
+                  else
+                    // Para los demás (Explorar, Favoritos, Recuerdos): SÍ agrupamos
+                    MarkerClusterLayerWidget(
+                      options: MarkerClusterLayerOptions(
+                        maxClusterRadius: 45,
+                        size: const Size(40, 40),
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.all(50),
+                        maxZoom: 15,
+                        markers: mapaVM.markers,
+                        builder: (context, markers) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                markers.length.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        animationsOptions: const AnimationsOptions(
+                          zoom: Duration(milliseconds: 500),
+                          fitBound: Duration(milliseconds: 500),
+                        ),
+                      ),
+                    ),
                 ],
               ),
 

@@ -64,9 +64,9 @@ class _CuerpoWizardState extends State<_CuerpoWizard> {
         leading: _pasoActual > 0 
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: _pasoAnterior)
             : IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).primaryColor,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: Colors.white,
       ),
       body: PageView(
         controller: _pageController,

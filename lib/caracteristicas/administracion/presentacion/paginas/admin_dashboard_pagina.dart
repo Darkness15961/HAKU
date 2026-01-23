@@ -142,18 +142,22 @@ class AdminDashboardPagina extends StatelessWidget {
   // --- Widgets Auxiliares de Diseño ---
 
   Widget _buildIrALaAppCard(BuildContext context) {
+    final colorPrimario = Theme.of(context).colorScheme.primary;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
-          colors: [Colors.blue.shade800, Colors.blue.shade600],
+          colors: [
+            colorPrimario.withValues(alpha: 0.8),
+            colorPrimario,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
+            color: colorPrimario.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -171,7 +175,7 @@ class AdminDashboardPagina extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.touch_app_rounded, color: Colors.white, size: 30),
