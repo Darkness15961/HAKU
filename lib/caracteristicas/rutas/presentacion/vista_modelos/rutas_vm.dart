@@ -141,10 +141,8 @@ class RutasVM extends ChangeNotifier {
     if (_authVM?.estaLogueado ?? false) {
       _cargarListaEspecifica('Mis Inscripciones');
       
-      final rol = _authVM?.usuarioActual?.rol;
-      if (rol == 'guia' || rol == 'guia_aprobado' || rol == 'guia_local' || rol == 'admin') {
-         _cargarListaEspecifica('Creadas por mí');
-      }
+      // Cargamos 'Creadas por mí' para TODOS (siempre que estén logueados)
+      _cargarListaEspecifica('Creadas por mí');
     }
   }
 
@@ -152,13 +150,8 @@ class RutasVM extends ChangeNotifier {
     final rol = _authVM?.usuarioActual?.rol;
 
 
-    if (_pestanaActual == 'Creadas por mí' &&
-        rol != 'guia_aprobado' &&
-        rol != 'guia' &&
-        rol != 'guia_local' &&
-        rol != 'admin') {
-      _pestanaActual = 'Recomendadas';
-    }
+    // [FIX] Permitimos que CUALQUIER usuario logueado vea sus rutas creadas
+    // (Ya que la UI permite crear rutas sin ser guía oficial)
     
     // Si la lista actual está vacía y no estamos cargando, cargarla.
     if ((_listasRutas[_pestanaActual]?.isEmpty ?? true) && !estaCargando) {
